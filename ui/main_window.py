@@ -1,0 +1,237 @@
+"""
+MainWindow - پنجره اصلی برنامه با QTabWidget.
+
+سه تب:
+1. دیوار
+2. شیپور
+3. لاگ‌ها
+
+در شروع برنامه، هر تب به‌طور خودکار Session ذخیره‌شده را بررسی می‌کند.
+"""
+
+from __future__ import annotations
+
+import sys
+from pathlib import Path
+
+from PySide6.QtCore import Qt, Slot
+from PySide6.QtGui import QFont
+from PySide6.QtWidgets import (
+    QApplication,
+    QMainWindow,
+    QPushButton,
+    QTabWidget,
+    QToolBar,
+)
+
+PROJECT_ROOT = Path(__file__).resolve().parent.parent
+if str(PROJECT_ROOT) not in sys.path:
+    sys.path.insert(0, str(PROJECT_ROOT))
+
+from PySide6.QtCore import Signal, QObject  # noqa: E402
+
+from core.logger_manager import setup_logging, register_ui_callback  # noqa: E402
+from modules.login import LoginManager as DivarLoginManager  # noqa: E402
+from modules.sheypoor import LoginManager as SheypoorLoginManager  # noqa: E402
+
+from ui.platform_tab import PlatformTab  # noqa: E402
+from ui.logs_tab import LogsTab  # noqa: E402
+
+
+class _LogBridge(QObject):
+    """پل thread-safe برای انتقال لاگ‌ها از worker thread به UI thread."""
+    log_received = Signal(str, str)
+
+
+class MainWindow(QMainWindow):
+    """پنجره اصلی برنامه با سه تب."""
+
+    def __init__(self):
+        super().__init__()
+        self.setWindowTitle("Divar & Sheypoor Manager")
+        self.setMinimumSize(700, 750)
+        self.resize(700, 750)
+
+        self._log_bridge = _LogBridge()
+        self._setup_ui()
+        self._setup_logging()
+
+    def _setup_ui(self):
+        self.tabs = QTabWidget()
+        self.tabs.setTabPosition(QTabWidget.North)
+        self.tabs.setStyleSheet("""
+            QTabWidget::pane {
+                border: 1px solid #ddd;
+                background: white;
+            }
+            QTabBar::tab {
+                background: #f0f0f0;
+                padding: 12px 25px;
+                margin-right: 2px;
+                border-top-left-radius: 8px;
+                border-top-right-radius: 8px;
+                font-size: 13px;
+                font-weight: bold;
+            }
+            QTabBar::tab:selected {
+                background: white;
+                border-bottom: 3px solid #A62626;
+            }
+            QTabBar::tab:hover:!selected {
+                background: #e8e8e8;
+            }
+        """)
+
+        # تب دیوار
+        self.divar_tab = PlatformTab(
+            platform_name="دیوار",
+            platform_key="divar",
+            color="#A62626",
+            code_length=6,
+            login_manager_factory=self._create_divar_manager,
+        )
+        self.divar_tab.log_message.connect(self._on_log)
+        self.tabs.addTab(self.divar_tab, "🏠 دیوار")
+
+        # تب شیپور
+        self.sheypoor_tab = PlatformTab(
+            platform_name="شیپور",
+            platform_key="sheypoor",
+            color="#3568d4",
+            code_length=4,
+            login_manager_factory=self._create_sheypoor_manager,
+        )
+        self.sheypoor_tab.log_message.connect(self._on_log)
+        self.tabs.addTab(self.sheypoor_tab, "📢 شیپور")
+
+        # تب لاگ‌ها
+        self.logs_tab = LogsTab()
+        self.tabs.addTab(self.logs_tab, "📋 لاگ‌ها")
+
+        self.setCentralWidget(self.tabs)
+
+        # نوار ابزار سراسری — بستن مرورگر
+        tb = QToolBar("main")
+        tb.setMovable(False)
+        self.addToolBar(tb)
+        self.btn_close_browser = QPushButton("🔴 بستن مرورگر")
+        self.btn_close_browser.setStyleSheet("""
+            QPushButton {
+                background-color: #dc3545;
+                color: white;
+                border: none;
+                border-radius: 6px;
+                padding: 8px 16px;
+                font-weight: bold;
+            }
+            QPushButton:hover { background-color: #c82333; }
+        """)
+        self.btn_close_browser.clicked.connect(self._close_all_browsers)
+        tb.addWidget(self.btn_close_browser)
+
+
+    def _setup_logging(self):
+        setup_logging()
+        # پل thread-safe: از هر threadی صدا زده شود، به UI thread منتقل می‌شود
+        self._log_bridge.log_received.connect(self.logs_tab.append_log)
+        register_ui_callback(self._ui_log_callback)
+        self.logs_tab.append_log("INFO", "✅ برنامه با موفقیت شروع شد")
+        self.logs_tab.append_log("INFO", "🔄 در حال بررسی Sessionهای ذخیره‌شده...")
+
+    def _ui_log_callback(self, level: str, message: str):
+        """callback برای ارسال لاگ‌های logging به UI (thread-safe)."""
+        # از signal استفاده می‌کنیم تا لاگ به UI thread منتقل شود
+        self._log_bridge.log_received.emit(level, message)
+
+    @Slot(str, str)
+    def _on_log(self, level: str, message: str):
+        self.logs_tab.append_log(level, message)
+
+    def _create_divar_manager(self, browser_manager, session_manager, code_provider):
+        return DivarLoginManager(
+            browser_manager=browser_manager,
+            session_manager=session_manager,
+            code_provider=code_provider,
+        )
+
+    def _create_sheypoor_manager(self, browser_manager, session_manager, code_provider):
+        return SheypoorLoginManager(
+            browser_manager=browser_manager,
+            session_manager=session_manager,
+            code_provider=code_provider,
+        )
+
+
+    def _close_all_browsers(self):
+        """بستن مرورگر از هر دو تب + force close."""
+        try:
+            if hasattr(self, "divar_tab") and hasattr(self.divar_tab, "_on_close_browser_clicked"):
+                self.divar_tab._on_close_browser_clicked()
+        except Exception:
+            pass
+        try:
+            if hasattr(self, "sheypoor_tab") and hasattr(self.sheypoor_tab, "_on_close_browser_clicked"):
+                self.sheypoor_tab._on_close_browser_clicked()
+        except Exception:
+            pass
+        try:
+            from core.browser_service import BrowserService
+            BrowserService.instance().request_close_all(timeout=10.0)
+        except Exception:
+            pass
+        # fallback kill playwright chromium
+        try:
+            import subprocess
+            if sys.platform.startswith("win"):
+                ps = (
+                    "Get-CimInstance Win32_Process | "
+                    "Where-Object { "
+                    "  ($_.Name -match 'chrome|chromium') -and "
+                    "  ($_.CommandLine -match 'ms-playwright|playwright|chromium') "
+                    "} | "
+                    "ForEach-Object { Stop-Process -Id $_.ProcessId -Force -ErrorAction SilentlyContinue }"
+                )
+                subprocess.run(
+                    ["powershell", "-NoProfile", "-Command", ps],
+                    capture_output=True,
+                    timeout=15,
+                    creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0),
+                )
+        except Exception:
+            pass
+        try:
+            self.logs_tab.append_log("INFO", "🔴 درخواست بستن سراسری مرورگر ارسال شد")
+        except Exception:
+            pass
+
+
+def main():
+    app = QApplication(sys.argv)
+    app.setStyle("Fusion")
+
+    app.setStyleSheet("""
+        QMainWindow {
+            background-color: #f5f5f5;
+        }
+        QWidget {
+            font-family: 'Segoe UI', 'Tahoma', sans-serif;
+        }
+        QLineEdit {
+            padding: 10px;
+            border: 2px solid #ddd;
+            border-radius: 8px;
+            background-color: white;
+        }
+        QLineEdit:focus {
+            border: 2px solid #A62626;
+        }
+    """)
+
+    window = MainWindow()
+    window.show()
+
+    sys.exit(app.exec())
+
+
+if __name__ == "__main__":
+    main()

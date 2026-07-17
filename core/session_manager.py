@@ -1,0 +1,377 @@
+"""
+SessionManager - مدیر اصلی Sessionها.
+
+این کلاس API اصلی برای کار با Session است و تمام عملیات مربوط به
+ذخیره، بازیابی، اعتبارسنجی و به‌روزرسانی Session را مدیریت می‌کند.
+
+ویژگی‌ها:
+- ذخیره در SQLite (با تمام جزئیات)
+- تولید storage_state file برای Playwright
+- اعتبارسنجی با تست واقعی روی سایت
+- مدیریت انقضا و تغییر
+- Logging کامل
+- مستقل از UI
+"""
+
+from __future__ import annotations
+
+import json
+import logging
+import tempfile
+from datetime import datetime
+from pathlib import Path
+from typing import Optional
+
+from playwright.async_api import BrowserContext, Error as PlaywrightError
+
+from config.settings import SESSIONS_DIR, TEMP_DIR
+from core.retry import SessionExpired, async_retry
+from core.session_db import SessionDB
+from core.session_models import SessionRecord, SessionStatus, StorageState
+from core.session_validator import SessionValidator
+
+logger = logging.getLogger("divar.session")
+
+
+class SessionManager:
+    """
+    مدیر Session حرفه‌ای.
+
+    Example:
+        sm = SessionManager(platform="divar")
+
+        # ذخیره پس از Login
+        record = await sm.save_from_context(context, phone="09121234567")
+
+        # بارگذاری Session
+        record = await sm.load(phone="09121234567")
+        if record and record.is_valid():
+            # استفاده از Session
+            storage_path = await sm.export_storage_state(record)
+            context = await browser.new_context(storage_state=str(storage_path))
+
+        # اعتبارسنجی
+        status = await sm.validate(record, page)
+        if status == SessionStatus.INVALID:
+            # نیاز به Login مجدد
+            await sm.mark_invalid(record)
+    """
+
+    def __init__(self, platform: str, db: Optional[SessionDB] = None) -> None:
+        self._platform = platform
+        self._db = db or SessionDB()
+        self._validator = SessionValidator(platform)
+        self._temp_files: list[Path] = []
+
+    @property
+    def platform(self) -> str:
+        return self._platform
+
+    # ------------------------------------------------------------------
+    # ذخیره Session
+    # ------------------------------------------------------------------
+    @async_retry(max_attempts=2, delay=0.5, exceptions=(Exception,))
+    async def save_from_context(
+        self,
+        context: BrowserContext,
+        phone: str,
+        access_token: Optional[str] = None,
+        refresh_token: Optional[str] = None,
+        metadata: Optional[dict] = None,
+    ) -> SessionRecord:
+        """
+        ذخیره Session از یک BrowserContext.
+
+        این متد معمولاً پس از Login موفق صدا زده می‌شود.
+        """
+        try:
+            raw_state = await context.storage_state()
+            storage_state = StorageState.from_playwright(raw_state)
+
+            record = SessionRecord(
+                id=None,
+                platform=self._platform,
+                phone=phone,
+                storage_state=storage_state,
+                access_token=access_token,
+                refresh_token=refresh_token,
+                status=SessionStatus.VALID,
+                metadata=metadata or {},
+            )
+
+            saved = self._db.save(record)
+            logger.info(
+                "[%s] Session saved: phone=%s cookies=%d",
+                self._platform, phone, len(storage_state.cookies),
+            )
+            return saved
+
+        except PlaywrightError as e:
+            logger.error("[%s] Failed to extract storage state: %s", self._platform, e)
+            raise
+        except Exception as e:
+            logger.exception("[%s] Unexpected error saving session: %s", self._platform, e)
+            raise
+
+    # ------------------------------------------------------------------
+    # ذخیره Session در دیتابیس + export فایل JSON (برای backward compatibility)
+    # ------------------------------------------------------------------
+    async def save_and_export(
+        self,
+        context: BrowserContext,
+        phone: str,
+        access_token: Optional[str] = None,
+        refresh_token: Optional[str] = None,
+        metadata: Optional[dict] = None,
+    ) -> tuple[SessionRecord, Path]:
+        """
+        ذخیره Session در SQLite و هم‌زمان export به فایل JSON ثابت.
+
+        فایل JSON در مسیر `data/sessions/{platform}_session.json` نوشته می‌شود
+        تا مطابق انتظار README و کاربران قابل مشاهده باشد. این فایل همچنین
+        می‌تواند مستقیماً به `browser.new_context(storage_state=...)` پاس داده شود.
+
+        نکته: نوشتن فایل JSON به صورت non-fatal انجام می‌شود؛ اگر شکست بخورد،
+        فقط لاگ می‌شود و Login موفق باقی می‌ماند (چون Session در SQLite ذخیره شده).
+
+        Returns:
+            tuple of (SessionRecord, Path to JSON file یا placeholder در صورت شکست)
+        """
+        # گام ۱: ذخیره در SQLite (با retry و مدیریت خطا) - این مرحله critical است
+        record = await self.save_from_context(
+            context=context,
+            phone=phone,
+            access_token=access_token,
+            refresh_token=refresh_token,
+            metadata=metadata,
+        )
+
+        # گام ۲: export به فایل JSON ثابت در SESSIONS_DIR (non-fatal)
+        fallback_path = SESSIONS_DIR / f"{self._platform}_session.json"
+        try:
+            json_path = await self._write_persistent_json(record)
+        except Exception as e:
+            logger.warning(
+                "[%s] Session saved to DB but JSON export failed: %s",
+                self._platform, e,
+            )
+            json_path = fallback_path
+        return record, json_path
+
+    async def _write_persistent_json(self, record: SessionRecord) -> Path:
+        """
+        نوشتن storage_state به صورت فایل JSON دائمی در SESSIONS_DIR.
+
+        مسیر فایل: data/sessions/{platform}_session.json
+        """
+        SESSIONS_DIR.mkdir(parents=True, exist_ok=True)
+        file_path = SESSIONS_DIR / f"{self._platform}_session.json"
+
+        data = record.storage_state.to_playwright()
+        # افزودن metadata برای debug راحت‌تر
+        payload = {
+            **data,
+            "__meta__": {
+                "platform": record.platform,
+                "phone": record.phone,
+                "session_id": record.id,
+                "status": record.status.value,
+                "created_at": record.created_at.isoformat() if record.created_at else None,
+                "updated_at": record.updated_at.isoformat() if record.updated_at else None,
+                "access_token": record.access_token,
+            },
+        }
+
+        # نوشتن اتمیک: اول به فایل موقت، بعد rename
+        tmp_path = file_path.with_suffix(".json.tmp")
+        try:
+            tmp_path.write_text(
+                json.dumps(payload, ensure_ascii=False, indent=2),
+                encoding="utf-8",
+            )
+            tmp_path.replace(file_path)
+            logger.info(
+                "[%s] Session JSON exported to %s (cookies=%d)",
+                self._platform, file_path, len(record.storage_state.cookies),
+            )
+            return file_path
+        except Exception as e:
+            logger.error(
+                "[%s] Failed to export session JSON to %s: %s",
+                self._platform, file_path, e,
+            )
+            if tmp_path.exists():
+                try:
+                    tmp_path.unlink()
+                except OSError:
+                    pass
+            raise
+
+    # ------------------------------------------------------------------
+    # بارگذاری Session
+    # ------------------------------------------------------------------
+    def load(self, phone: Optional[str] = None) -> Optional[SessionRecord]:
+        """
+        بارگذاری Session.
+
+        اگر phone داده شود، Session آن شماره بارگذاری می‌شود.
+        در غیر این صورت، آخرین Session معتبر platform بارگذاری می‌شود.
+        """
+        if phone:
+            record = self._db.get(self._platform, phone)
+        else:
+            record = self._db.get_latest(self._platform)
+
+        if record:
+            self._db.touch(record.id)
+            record.touch()
+            logger.info(
+                "[%s] Session loaded: phone=%s status=%s",
+                self._platform, record.phone, record.status.value,
+            )
+        else:
+            logger.info("[%s] No session found (phone=%s)", self._platform, phone)
+
+        return record
+
+    def list_sessions(self) -> list[SessionRecord]:
+        """لیست تمام Sessionهای این platform."""
+        return self._db.list_all(self._platform)
+
+    # ------------------------------------------------------------------
+    # اعتبارسنجی
+    # ------------------------------------------------------------------
+    async def validate(self, record: SessionRecord, page) -> SessionStatus:
+        """
+        اعتبارسنجی یک Session با تست واقعی روی سایت.
+
+        این متد یک صفحه protected را باز می‌کند و بررسی می‌کند
+        آیا کاربر واقعاً لاگین است یا خیر.
+        """
+        if not record or record.id is None:
+            return SessionStatus.INVALID
+
+        try:
+            status = await self._validator.validate(page)
+        except PlaywrightError as e:
+            logger.warning(
+                "[%s] Validation failed with playwright error: %s",
+                self._platform, e,
+            )
+            status = SessionStatus.UNKNOWN
+
+        # به‌روزرسانی در DB
+        self._db.update_status(record.id, status, reason="validation")
+        record.status = status
+        record.updated_at = datetime.now()
+
+        logger.info(
+            "[%s] Session validated: phone=%s -> %s",
+            self._platform, record.phone, status.value,
+        )
+        return status
+
+    # ------------------------------------------------------------------
+    # تغییر وضعیت
+    # ------------------------------------------------------------------
+    def mark_invalid(self, record: SessionRecord, reason: str = "manual") -> bool:
+        """علامت‌گذاری Session به عنوان نامعتبر."""
+        if not record or record.id is None:
+            return False
+        ok = self._db.update_status(record.id, SessionStatus.INVALID, reason)
+        if ok:
+            record.status = SessionStatus.INVALID
+            logger.warning(
+                "[%s] Session marked invalid: phone=%s reason=%s",
+                self._platform, record.phone, reason,
+            )
+        return ok
+
+    def mark_valid(self, record: SessionRecord) -> bool:
+        """علامت‌گذاری Session به عنوان معتبر."""
+        if not record or record.id is None:
+            return False
+        ok = self._db.update_status(record.id, SessionStatus.VALID, "manual")
+        if ok:
+            record.status = SessionStatus.VALID
+        return ok
+
+    # ------------------------------------------------------------------
+    # حذف
+    # ------------------------------------------------------------------
+    def delete(self, record: SessionRecord) -> bool:
+        """حذف یک Session."""
+        if not record or record.id is None:
+            return False
+        return self._db.delete(record.id)
+
+    def delete_by_phone(self, phone: str) -> bool:
+        """حذف Session بر اساس phone."""
+        return self._db.delete_by_key(self._platform, phone)
+
+    # ------------------------------------------------------------------
+    # Export برای Playwright
+    # ------------------------------------------------------------------
+    async def export_storage_state(self, record: SessionRecord) -> Path:
+        """
+        تولید فایل storage_state برای استفاده در Playwright BrowserContext.
+
+        این فایل را می‌توان به `new_context(storage_state=...)` پاس داد.
+
+        Returns:
+            Path به فایل موقت JSON
+        """
+        if not record:
+            raise ValueError("Cannot export storage state: no record")
+
+        file_name = f"{self._platform}_{record.phone}_{id(record)}.json"
+        file_path = TEMP_DIR / file_name
+
+        data = record.storage_state.to_playwright()
+        file_path.write_text(
+            json.dumps(data, ensure_ascii=False, indent=2),
+            encoding="utf-8",
+        )
+
+        self._temp_files.append(file_path)
+        logger.debug("[%s] Exported storage state to %s", self._platform, file_path)
+        return file_path
+
+    async def apply_to_context(self, record: SessionRecord) -> dict:
+        """
+        تولید storage_state dict برای پاس دادن به BrowserContext.new_context().
+
+        Returns:
+            Dict مناسب برای پارامتر storage_state
+        """
+        if not record:
+            raise ValueError("Cannot apply to context: no record")
+        return record.storage_state.to_playwright()
+
+    # ------------------------------------------------------------------
+    # Cleanup
+    # ------------------------------------------------------------------
+    def cleanup_temp_files(self) -> None:
+        """پاک کردن فایل‌های موقت."""
+        for f in self._temp_files:
+            try:
+                if f.exists():
+                    f.unlink()
+            except OSError as e:
+                logger.warning("Failed to delete temp file %s: %s", f, e)
+        self._temp_files.clear()
+
+    def __del__(self):
+        try:
+            self.cleanup_temp_files()
+        except Exception:
+            pass
+
+    # ------------------------------------------------------------------
+    # History
+    # ------------------------------------------------------------------
+    def get_history(self, record: SessionRecord, limit: int = 50) -> list[dict]:
+        """دریافت تاریخچه تغییرات یک Session."""
+        if not record or record.id is None:
+            return []
+        return self._db.get_history(record.id, limit)

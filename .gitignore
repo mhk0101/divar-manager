@@ -1,0 +1,19 @@
+# فایل‌های داده و Session
+data/
+data/sessions/*.json
+
+# Virtual environment
+.venv/
+venv/
+__pycache__/
+*.pyc
+*.pyo
+.pytest_cache/
+
+# Editor
+.vscode/
+.idea/
+*.swp
+
+# Logs
+*.log
