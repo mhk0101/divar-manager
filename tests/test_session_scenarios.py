@@ -181,3 +181,15 @@ async def test_retry_call_succeeds_after_transient_failure():
     )
     assert result == "success"
     assert attempts_made["n"] == 2
+
+
+def test_storage_state_round_trip_preserves_session_storage():
+    """SessionStorage must survive DB serialization, unlike Playwright's payload."""
+    original = StorageState(
+        local_storage={"https://divar.ir": {"local": "value"}},
+        session_storage={"https://divar.ir": {"transient": "value"}},
+    )
+    restored = StorageState.from_json(original.to_json())
+    assert restored.local_storage == original.local_storage
+    assert restored.session_storage == original.session_storage
+    assert "sessionStorage" not in original.to_playwright()

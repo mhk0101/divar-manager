@@ -105,7 +105,10 @@ class StorageState:
             if items:
                 local_storage[origin] = items
 
-        return cls(cookies=cookies, local_storage=local_storage, session_storage={})
+        session_storage = state.get("sessionStorage", {})
+        if not isinstance(session_storage, dict):
+            session_storage = {}
+        return cls(cookies=cookies, local_storage=local_storage, session_storage=session_storage)
 
     def diff(self, other: "StorageState") -> Dict[str, Any]:
         """
@@ -151,7 +154,11 @@ class StorageState:
         return bool(diff["cookies"] or diff["local_storage"] or diff["session_storage"])
 
     def to_json(self) -> str:
-        return json.dumps(self.to_playwright(), ensure_ascii=False)
+        # ``sessionStorage`` is application metadata; it is deliberately not
+        # passed to Playwright's storage_state option.
+        payload = self.to_playwright()
+        payload["sessionStorage"] = self.session_storage
+        return json.dumps(payload, ensure_ascii=False)
 
     @classmethod
     def from_json(cls, data: str) -> "StorageState":

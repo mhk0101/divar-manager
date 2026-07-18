@@ -14,7 +14,6 @@ from __future__ import annotations
 import asyncio
 import subprocess
 import sys
-from concurrent.futures import Future
 from pathlib import Path
 from typing import Callable, List, Optional
 
@@ -44,6 +43,7 @@ from core.session_models import SessionRecord, SessionStatus  # noqa: E402
 
 
 IDLE_TIMEOUT_SECONDS = 300  # 5 دقیقه
+OTP_WAIT_TIMEOUT_SECONDS = 300  # 5 دقیقه
 
 LoginManagerFactory = Callable
 
@@ -81,17 +81,7 @@ def _force_close_all_browsers() -> None:
             )
         except Exception:
             pass
-    else:
-        # تلاش برای بستن تمام پروسه‌های مرتبط با Playwright و Chromium
-        for pattern in ("ms-playwright", "chromium", "chrome", "playwright"):
-            try:
-                subprocess.run(
-                    ["pkill", "-f", pattern],
-                    capture_output=True,
-                    timeout=5,
-                )
-            except Exception:
-                pass
+    # Never use pkill/chrome here: it can terminate the user's own browser.
 
 
 
@@ -155,6 +145,7 @@ class SessionCheckWorker(QRunnable):
                     f"در حال بررسی Session شماره {record.phone}..."
                 )
                 bm = BrowserManager(session_record=record)
+                self._browser_manager = bm
                 async with bm:
                     status = await sm.validate(record, bm.page)
 
@@ -223,7 +214,7 @@ class LoginWorker(QRunnable):
         self._platform_key = platform_key
         self._factory = login_manager_factory
         self.signals = LoginSignals()
-        self._code_future: Optional[Future] = None
+        self._code_future: Optional[asyncio.Future] = None
         self._cancelled = False
         self.setAutoDelete(True)
         self._loop: Optional[asyncio.AbstractEventLoop] = None
@@ -231,14 +222,22 @@ class LoginWorker(QRunnable):
         self._loop: Optional[asyncio.AbstractEventLoop] = None
         self._browser_manager = None
 
-    def provide_code(self, code: str):
+    def _resolve_code(self, code: str) -> None:
         if self._code_future and not self._code_future.done():
             self._code_future.set_result(code)
 
-    def cancel(self):
-        self._cancelled = True
+    def provide_code(self, code: str):
+        if self._loop is not None:
+            self._loop.call_soon_threadsafe(self._resolve_code, code)
+
+    def _cancel_code(self) -> None:
         if self._code_future and not self._code_future.done():
             self._code_future.cancel()
+
+    def cancel(self):
+        self._cancelled = True
+        if self._loop is not None:
+            self._loop.call_soon_threadsafe(self._cancel_code)
 
     def request_close(self):
         """لغو login + بستن مرورگر."""
@@ -254,15 +253,17 @@ class LoginWorker(QRunnable):
         _force_close_all_browsers()
 
     async def _code_provider(self):
-        self._code_future = Future()
+        # This future belongs to the worker event loop.  Awaiting it keeps the
+        # loop responsive to cancellation and browser-close requests.
+        self._code_future = asyncio.get_running_loop().create_future()
         self.signals.code_needed.emit(self.phone)
         try:
-            code = self._code_future.result()
-            if self._cancelled:
-                raise asyncio.CancelledError("Login cancelled by user")
-            return code
-        except asyncio.CancelledError:
-            raise
+            code = await asyncio.wait_for(self._code_future, timeout=OTP_WAIT_TIMEOUT_SECONDS)
+        except asyncio.TimeoutError as exc:
+            raise RuntimeError("زمان انتظار برای کد تأیید پس از ۵ دقیقه تمام شد.") from exc
+        if self._cancelled:
+            raise asyncio.CancelledError("Login cancelled by user")
+        return code
 
     @Slot()
     def run(self):

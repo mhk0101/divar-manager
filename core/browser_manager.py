@@ -75,7 +75,7 @@ class BrowserManager:
             "viewport": {"width": 1280, "height": 800},
             "locale": "fa-IR",
             "timezone_id": "Asia/Tehran",
-            "ignore_https_errors": True,
+            "ignore_https_errors": False,
         }
 
         # اولویت: SessionRecord (از SQLite)
@@ -92,6 +92,8 @@ class BrowserManager:
             logger.info("Using storage_state file: %s", self._storage_state_path)
 
         self._context = await self._browser.new_context(**context_kwargs)
+        if self._session_record and self._session_record.storage_state.session_storage:
+            await self._install_session_storage(self._context, self._session_record.storage_state.session_storage)
         self._context.set_default_timeout(DEFAULT_TIMEOUT_MS)
         self._context.set_default_navigation_timeout(NAVIGATION_TIMEOUT_MS)
 
@@ -104,6 +106,22 @@ class BrowserManager:
 
     def _on_context_close(self) -> None:
         logger.info("Browser context closed")
+
+    async def _install_session_storage(self, context: BrowserContext, values: dict) -> None:
+        """Restore sessionStorage before each document is evaluated.
+
+        Session storage is origin-scoped and is not supported by Playwright's
+        storage_state format, so it must be restored with an init script.
+        """
+        import json
+        payload = json.dumps(values, ensure_ascii=False).replace("</", "<\\/")
+        script = (
+            "(() => { const values = " + payload + "; "
+            "const data = values[window.location.origin]; if (!data) return; "
+            "for (const [key, value] of Object.entries(data)) "
+            "sessionStorage.setItem(key, value); })();"
+        )
+        await context.add_init_script(script=script)
 
     async def stop(self) -> None:
         logger.info("Stopping browser...")

@@ -28,9 +28,7 @@ from playwright.async_api import (
 
 from config.settings import (
     AUTH_INITIATE_ENDPOINT,
-    AUTH_VERIFY_ENDPOINT,
     DEFAULT_MAX_RETRIES,
-    DIVAR_BASE_URL,
     DIVAR_LOGIN_URL,
     DIVAR_PROTECTED_URL,
 )
@@ -39,7 +37,6 @@ from core.login_diagnostics import DiagnosticReport, FailureReason
 from core.post_login_verifier import PlatformConfig, PostLoginVerifier
 from core.retry import OperationCancelled, async_retry
 from core.session_manager import SessionManager
-from core.session_models import SessionStatus
 from modules.login.models import (
     CodeInput,
     LoginResult,
@@ -64,7 +61,7 @@ DIVAR_PLATFORM_CONFIG = PlatformConfig(
         "text=ورود به حساب کاربری",
         "input[name='phone']",
     ],
-    login_url_patterns=["/my-divar", "/login", "auth.divar"],
+    login_url_patterns=["/login", "auth.divar"],
     token_name_patterns=["token", "access", "refresh", "auth", "session", "jwt"],
     stage_timeout_ms=30_000,
 )
@@ -350,33 +347,25 @@ class LoginManager:
             code = await self._step_obtain_code()
             login_response = await self._step_submit_code(page, code)
 
-            # اگر login_response None است یعنی با دکمه خروج لاگین تشخیص داده شده
+            # Divar's logout control is the explicit success marker supplied by
+            # the product.  Do not retry the login flow after it is visible.
+            # Save the complete context immediately; save_from_context also reads
+            # cookies, localStorage and sessionStorage from open pages.
             if login_response is None:
-                logger.info("[divar] Login confirmed by logout button. Skipping verifier.")
-                # ذخیره سشن با متادیتای ساده
                 session_metadata = {
-                    "cookies_count": len(await page.context.cookies()),
                     "login_method": "logout_button_detected",
                     "phone": phone,
                 }
                 record, json_path = await self._session.save_and_export(
-                    context=self._browser.context,
-                    phone=phone,
-                    access_token=None,
-                    refresh_token=None,
+                    context=self._browser.context, phone=phone,
                     metadata=session_metadata,
                 )
                 self._set_state(LoginState.SUCCESS)
                 logger.info(
-                    "[divar] ✅ Login SUCCESS (by logout button): session_id=%s phone=%s json=%s",
-                    record.id, phone, json_path,
+                    "[divar] Login confirmed by logout button; complete session saved: id=%s",
+                    record.id,
                 )
-                return LoginResult(
-                    success=True,
-                    state=self._state,
-                    phone=phone,
-                    session_path=str(json_path),
-                )
+                return LoginResult(True, self._state, phone=phone, session_path=str(json_path))
 
             # === PostLoginVerifier: 10 مرحله اعتبارسنجی ===
             logger.info("[divar] === Starting Post-Login Verification (10 stages) ===")
@@ -423,6 +412,7 @@ class LoginManager:
                 access_token=verification.access_token,
                 refresh_token=verification.refresh_token,
                 metadata=session_metadata,
+                storage_state=verification.storage_state,
             )
 
             self._set_state(LoginState.SUCCESS)

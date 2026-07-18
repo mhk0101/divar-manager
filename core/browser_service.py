@@ -154,7 +154,7 @@ class BrowserService:
                     viewport={"width": 1280, "height": 800},
                     locale="fa-IR",
                     timezone_id="Asia/Tehran",
-                    ignore_https_errors=True,
+                    ignore_https_errors=False,
                 )
                 if session_record:
                     kwargs["storage_state"] = session_record.storage_state.to_playwright()
@@ -199,9 +199,7 @@ class BrowserService:
                 pass
             self._playwright = None
         logger.info("Shared browser closed completely")
-        # متوقف کردن loop برای آزادسازی Thread
-        if self._loop and self._loop.is_running():
-            self._loop.call_soon_threadsafe(self._loop.stop)
+        # Keep the service loop alive so a later login can launch a new browser.
 
     def request_close_all(self, timeout: float = 15.0) -> None:
         """بستن دستی synchronous - قابل فراخوانی از GUI/هر thread دیگر."""
@@ -255,12 +253,12 @@ class SharedBrowserManager:
             except Exception:
                 pass
             self._page = None
-        # بستن Context هم برای پاک‌سازی کوکی‌ها و حافظه
+        # Remove the closed context from the service cache as well.
         if self._context:
-            try:
-                await self._context.close()
-            except Exception:
-                pass
+            await self._service.close_context(
+                self._platform,
+                self._session_record.phone if self._session_record else None,
+            )
             self._context = None
 
     @property

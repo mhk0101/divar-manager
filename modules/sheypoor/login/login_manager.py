@@ -33,7 +33,6 @@ from core.login_diagnostics import DiagnosticReport, FailureReason
 from core.post_login_verifier import PlatformConfig, PostLoginVerifier
 from core.retry import OperationCancelled, async_retry
 from core.session_manager import SessionManager
-from core.session_models import SessionStatus
 from modules.sheypoor.login.models import (
     OTPInput,
     LoginResult,
@@ -58,7 +57,7 @@ SHEYPOOR_PLATFORM_CONFIG = PlatformConfig(
         "input[data-test-id='login-field-tel']",
         "button[data-test-id='login-submit-tel']",
     ],
-    login_url_patterns=["/session"],
+    login_url_patterns=[],
     token_name_patterns=["token", "access", "refresh", "auth", "session", "jwt", "sheypoor"],
     stage_timeout_ms=30_000,
 )
@@ -265,83 +264,61 @@ class LoginManager:
         )
 
     async def _try_login(self, page: Page, phone: str) -> LoginResult:
-        """یک تلاش کامل Login."""
+        """Login, open the user's listings, then persist the complete context."""
         try:
             await self._step_open_login_page(page)
             await self._step_submit_phone(page, phone)
-
             code = await self._step_obtain_code()
-            login_response = await self._step_submit_code(page, code)
+            await self._step_submit_code(page, code)
 
-            # اگر login_response None باشد، یعنی لاگین با تغییر URL یا دکمه خروج تشخیص داده شده
-            if login_response is None:
-                logger.info("[sheypoor] Login confirmed by URL change or logout button. Skipping verifier.")
-                # ذخیره سشن با متادیتای ساده
-                session_metadata = {
-                    "cookies_count": len(await page.context.cookies()),
-                    "login_method": "url_change_or_logout_button",
-                    "phone": phone,
-                }
-                record = await self._session.save_from_context(
-                    context=self._browser.context,
-                    phone=phone,
-                    access_token=None,
-                    refresh_token=None,
-                    metadata=session_metadata,
-                )
-                self._set_state(LoginState.SUCCESS)
-                logger.info(
-                    "[sheypoor] ✅ Login SUCCESS (by URL change/logout button): session_id=%s phone=%s",
-                    record.id, phone,
-                )
-                return LoginResult(
-                    success=True,
-                    state=self._state,
-                    phone=phone,
-                    session_path=f"session_id:{record.id}",
-                )
-
-            # === PostLoginVerifier: ۱۰ مرحله اعتبارسنجی ===
-            logger.info("[sheypoor] === Starting Post-Login Verification (10 stages) ===")
-            verification = await self._verifier.verify(
-                page=page,
-                context=self._browser.context,
-                login_response=login_response,
+            # This is both the requested post-login destination and a concrete
+            # authentication check.  A successful OTP must be able to open it.
+            logger.info("[sheypoor] Opening my listings after OTP: %s", SHEYPOOR_PROTECTED_URL)
+            response = await page.goto(
+                SHEYPOOR_PROTECTED_URL, wait_until="domcontentloaded", timeout=30_000,
             )
+            if response is None or response.status >= 400:
+                raise RuntimeError("Could not open Sheypoor's my-listings page after OTP")
 
-        # ... ادامه کد قبلی بدون تغییر ...
+            # If the login form is still present, the protected page redirected
+            # to login and the OTP was not accepted.
+            login_input = page.locator(self._selectors.PHONE_INPUT).first
+            if await login_input.is_visible():
+                result = LoginResult(False, LoginState.FAILED, phone=phone,
+                                     error="OTP was not accepted; Sheypoor returned to the login form")
+                result._diagnostic = DiagnosticReport(
+                    False, FailureReason.WRONG_CODE, result.error, retryable=False,
+                )
+                self._set_state(LoginState.FAILED)
+                return result
 
+            # save_and_export captures cookies + localStorage + sessionStorage
+            # from this live, authenticated page before the browser is closed.
+            metadata = {
+                "login_method": "otp_then_my_listings",
+                "protected_page_url": page.url,
+                "protected_page_status": response.status,
+                "phone": phone,
+            }
+            record, json_path = await self._session.save_and_export(
+                context=self._browser.context, phone=phone, metadata=metadata,
+            )
+            self._set_state(LoginState.SUCCESS)
+            logger.info(
+                "[sheypoor] Login confirmed; complete session saved: id=%s json=%s", record.id, json_path,
+            )
+            return LoginResult(True, self._state, phone=phone, session_path=str(json_path))
         except PlaywrightTimeout as e:
             self._set_state(LoginState.FAILED)
-            logger.error("[sheypoor] Timeout: %s", e)
-            result = LoginResult(
-                success=False,
-                state=self._state,
-                phone=phone,
-                error=f"Timeout: {e}",
-            )
-            result._diagnostic = DiagnosticReport(
-                success=False,
-                reason=FailureReason.NETWORK_TIMEOUT,
-                message=str(e),
-                retryable=True,
-            )
+            result = LoginResult(False, self._state, phone=phone, error=f"Timeout: {e}")
+            result._diagnostic = DiagnosticReport(False, FailureReason.NETWORK_TIMEOUT, str(e), retryable=True)
             return result
-
         except PlaywrightError as e:
             self._set_state(LoginState.FAILED)
-            logger.error("[sheypoor] Playwright error: %s", e)
-            result = LoginResult(
-                success=False,
-                state=self._state,
-                phone=phone,
-                error=f"Browser error: {e}",
-            )
+            result = LoginResult(False, self._state, phone=phone, error=f"Browser error: {e}")
             result._diagnostic = DiagnosticReport(
-                success=False,
-                reason=FailureReason.BROWSER_CLOSED if "closed" in str(e).lower() else FailureReason.UNKNOWN,
-                message=str(e),
-                retryable="closed" not in str(e).lower(),
+                False, FailureReason.BROWSER_CLOSED if "closed" in str(e).lower() else FailureReason.UNKNOWN,
+                str(e), retryable="closed" not in str(e).lower(),
             )
             return result
 

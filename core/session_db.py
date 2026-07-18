@@ -132,11 +132,28 @@ class SessionDB:
 
         with self._connection() as conn:
             existing = conn.execute(
-                "SELECT id, created_at FROM sessions WHERE platform=? AND phone=?",
+                "SELECT id, created_at, updated_at, last_used_at, storage_state, access_token, refresh_token, status, metadata "
+                "FROM sessions WHERE platform=? AND phone=?",
                 (record.platform, record.phone),
             ).fetchone()
 
             if existing:
+                unchanged = (
+                    existing["storage_state"] == storage_json
+                    and existing["access_token"] == record.access_token
+                    and existing["refresh_token"] == record.refresh_token
+                    and existing["status"] == record.status.value
+                    and existing["metadata"] == metadata_json
+                )
+                record.id = existing["id"]
+                record.created_at = _parse_dt(existing["created_at"])
+                if unchanged:
+                    record.updated_at = _parse_dt(existing["updated_at"])
+                    record.last_used_at = _parse_dt(existing["last_used_at"])
+                    logger.info("Session unchanged: platform=%s phone=%s id=%s", record.platform, record.phone, record.id)
+                    self._log_action(conn, record.id, "UNCHANGED", None)
+                    return record
+
                 conn.execute("""
                     UPDATE sessions SET
                         storage_state = ?,

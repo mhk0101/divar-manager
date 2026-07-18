@@ -13,6 +13,12 @@ import logging
 import random
 from typing import Any, Callable, Tuple, Type
 
+from core.retry_utils import OperationTimeoutError, with_timeout, retry_async
+
+__all__ = ["async_retry", "sync_retry", "OperationCancelled", "NetworkError",
+           "SessionExpired", "LoginRequired", "OperationTimeoutError",
+           "with_timeout", "retry_call"]
+
 logger = logging.getLogger("divar.retry")
 
 
@@ -126,3 +132,22 @@ class SessionExpired(Exception):
 class LoginRequired(Exception):
     """کاربر هنوز لاگین نکرده است."""
     pass
+
+
+# Compatibility API used by the test-suite and callers.
+async def retry_call(func, *, attempts: int = 3, base_delay: float = 2.0,
+                     timeout: float = 30.0, op_name: str = "operation"):
+    """Run an async callable with bounded retries and a timeout per attempt."""
+    from core.retry_utils import RetryConfig
+    try:
+        return await retry_async(
+            func,
+            config=RetryConfig(max_attempts=attempts, base_delay=base_delay, timeout=timeout),
+            op_name=op_name,
+        )
+    except Exception as exc:
+        # Historical callers expect the underlying failure, not a wrapper.
+        last_error = getattr(exc, "last_error", None)
+        if last_error is not None:
+            raise last_error from exc
+        raise

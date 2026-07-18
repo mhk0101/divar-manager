@@ -17,7 +17,6 @@ from __future__ import annotations
 
 import json
 import logging
-import tempfile
 from datetime import datetime
 from pathlib import Path
 from typing import Optional
@@ -25,7 +24,7 @@ from typing import Optional
 from playwright.async_api import BrowserContext, Error as PlaywrightError
 
 from config.settings import SESSIONS_DIR, TEMP_DIR
-from core.retry import SessionExpired, async_retry
+from core.retry import async_retry
 from core.session_db import SessionDB
 from core.session_models import SessionRecord, SessionStatus, StorageState
 from core.session_validator import SessionValidator
@@ -78,6 +77,7 @@ class SessionManager:
         access_token: Optional[str] = None,
         refresh_token: Optional[str] = None,
         metadata: Optional[dict] = None,
+        storage_state: Optional[StorageState] = None,
     ) -> SessionRecord:
         """
         ذخیره Session از یک BrowserContext.
@@ -85,8 +85,44 @@ class SessionManager:
         این متد معمولاً پس از Login موفق صدا زده می‌شود.
         """
         try:
-            raw_state = await context.storage_state()
-            storage_state = StorageState.from_playwright(raw_state)
+            if storage_state is None:
+                raw_state = await context.storage_state()
+                storage_state = StorageState.from_playwright(raw_state)
+
+            # Playwright omits sessionStorage from storage_state. Capture it
+            # from every currently open same-context page before persistence.
+            for page in context.pages:
+                try:
+                    session_data = await page.evaluate("""
+                        () => ({
+                            origin: window.location.origin,
+                            data: Object.fromEntries(
+                                Array.from({length: sessionStorage.length}, (_, i) => {
+                                    const key = sessionStorage.key(i);
+                                    return [key, key === null ? null : sessionStorage.getItem(key)];
+                                })
+                            ),
+                        })
+                    """)
+                    origin = session_data.get("origin")
+                    data = session_data.get("data")
+                    if origin and data:
+                        storage_state.session_storage[origin] = data
+                except PlaywrightError:
+                    # A page may have closed while the context is being saved.
+                    continue
+
+            # Preserve all available auth state.  Tokens are normally already
+            # represented in cookies/localStorage; explicit fields make DB
+            # inspection and comparison deterministic as well.
+            if access_token is None or refresh_token is None:
+                for values in list(storage_state.local_storage.values()) + list(storage_state.session_storage.values()):
+                    for key, value in values.items():
+                        key_lower = key.lower()
+                        if access_token is None and "access" in key_lower and "token" in key_lower:
+                            access_token = value
+                        elif refresh_token is None and "refresh" in key_lower and "token" in key_lower:
+                            refresh_token = value
 
             record = SessionRecord(
                 id=None,
@@ -123,6 +159,7 @@ class SessionManager:
         access_token: Optional[str] = None,
         refresh_token: Optional[str] = None,
         metadata: Optional[dict] = None,
+        storage_state: Optional[StorageState] = None,
     ) -> tuple[SessionRecord, Path]:
         """
         ذخیره Session در SQLite و هم‌زمان export به فایل JSON ثابت.
@@ -144,6 +181,7 @@ class SessionManager:
             access_token=access_token,
             refresh_token=refresh_token,
             metadata=metadata,
+            storage_state=storage_state,
         )
 
         # گام ۲: export به فایل JSON ثابت در SESSIONS_DIR (non-fatal)
@@ -165,7 +203,7 @@ class SessionManager:
         مسیر فایل: data/sessions/{platform}_session.json
         """
         SESSIONS_DIR.mkdir(parents=True, exist_ok=True)
-        file_path = SESSIONS_DIR / f"{self._platform}_session.json"
+        file_path = SESSIONS_DIR / f"{self._platform}_{record.phone}_session.json"
 
         data = record.storage_state.to_playwright()
         # افزودن metadata برای debug راحت‌تر
@@ -178,7 +216,10 @@ class SessionManager:
                 "status": record.status.value,
                 "created_at": record.created_at.isoformat() if record.created_at else None,
                 "updated_at": record.updated_at.isoformat() if record.updated_at else None,
-                "access_token": record.access_token,
+                # Playwright cannot consume this field directly; the DB loader
+                # restores it with an init script.  Keep it in exports for a
+                # complete, inspectable backup.
+                "session_storage": record.storage_state.session_storage,
             },
         }
 

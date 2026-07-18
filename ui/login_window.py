@@ -95,10 +95,8 @@ class LoginWorker(QRunnable):
             asyncio.set_event_loop(loop)
 
             async def _run():
-                session_manager = SessionManager(session_name=DEFAULT_SESSION_FILE)
-                browser_manager = BrowserManager(
-                    storage_state_path=session_manager.path,
-                )
+                session_manager = SessionManager(platform="divar")
+                browser_manager = BrowserManager()
 
                 async with browser_manager:
                     login_manager = LoginManager(
