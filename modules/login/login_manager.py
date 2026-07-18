@@ -29,6 +29,7 @@ from playwright.async_api import (
 from config.settings import (
     AUTH_INITIATE_ENDPOINT,
     DEFAULT_MAX_RETRIES,
+    DIVAR_BASE_URL,
     DIVAR_LOGIN_URL,
     DIVAR_PROTECTED_URL,
 )
@@ -240,6 +241,18 @@ class LoginManager:
 
 
 
+    async def _open_main_ads_page(self, page: Page) -> None:
+        """Open Divar's ads/home area after login, with a URL fallback."""
+        try:
+            ads_button = page.locator("button:has-text('آگهی')").first
+            await ads_button.wait_for(state="visible", timeout=8_000)
+            await ads_button.click()
+            await page.wait_for_load_state("domcontentloaded", timeout=12_000)
+            logger.info("[divar] Opened ads page by clicking the آگهی‌ها button: %s", page.url)
+        except (PlaywrightTimeout, PlaywrightError):
+            logger.info("[divar] Ads button/navigation unavailable; opening main page directly")
+            await page.goto(f"{DIVAR_BASE_URL}/s/iran", wait_until="domcontentloaded", timeout=30_000)
+
     # ------------------------------------------------------------------
     # API اصلی
     # ------------------------------------------------------------------
@@ -352,20 +365,33 @@ class LoginManager:
             # Save the complete context immediately; save_from_context also reads
             # cookies, localStorage and sessionStorage from open pages.
             if login_response is None:
-                session_metadata = {
-                    "login_method": "logout_button_detected",
-                    "phone": phone,
-                }
-                record, json_path = await self._session.save_and_export(
-                    context=self._browser.context, phone=phone,
-                    metadata=session_metadata,
-                )
+                # Compare the authenticated account-page state with the state
+                # after entering the main ads page before deciding to persist.
+                account_state = await self._session.capture_storage_state(self._browser.context)
+                await self._open_main_ads_page(page)
+                main_state = await self._session.capture_storage_state(self._browser.context)
+                existing = self._session.load(phone)
+                changed_from_account = account_state.has_changes(main_state)
+                changed_from_saved = existing is None or existing.storage_state.has_changes(main_state)
+                json_path = None
+                if changed_from_account or changed_from_saved:
+                    session_metadata = {
+                        "login_method": "logout_button_then_ads_page",
+                        "phone": phone,
+                        "account_to_ads_state_changed": changed_from_account,
+                        "current_url": page.url,
+                    }
+                    record, json_path = await self._session.save_and_export(
+                        context=self._browser.context, phone=phone,
+                        metadata=session_metadata, storage_state=main_state,
+                    )
+                    logger.info("[divar] Main-page session changed; saved id=%s", record.id)
+                else:
+                    record = existing
+                    logger.info("[divar] Account and main-page state unchanged; keeping saved session id=%s", record.id)
                 self._set_state(LoginState.SUCCESS)
-                logger.info(
-                    "[divar] Login confirmed by logout button; complete session saved: id=%s",
-                    record.id,
-                )
-                return LoginResult(True, self._state, phone=phone, session_path=str(json_path))
+                return LoginResult(True, self._state, phone=phone,
+                                   session_path=str(json_path) if json_path else None)
 
             # === PostLoginVerifier: 10 مرحله اعتبارسنجی ===
             logger.info("[divar] === Starting Post-Login Verification (10 stages) ===")

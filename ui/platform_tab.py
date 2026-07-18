@@ -17,7 +17,7 @@ import sys
 from pathlib import Path
 from typing import Callable, List, Optional
 
-from PySide6.QtCore import QObject, QRunnable, QThreadPool, Qt, Signal, Slot
+from PySide6.QtCore import QObject, QRunnable, QThreadPool, Qt, Signal, Slot, QTimer
 from PySide6.QtGui import QFont
 from PySide6.QtWidgets import (
     QAbstractItemView,
@@ -149,22 +149,21 @@ class SessionCheckWorker(QRunnable):
                 async with bm:
                     status = await sm.validate(record, bm.page)
 
-                    is_sheypoor = "sheypoor" in (self.platform or "").lower()
-
-                    if is_sheypoor:
+                    destinations = {
+                        "sheypoor": "https://www.sheypoor.com/session/myAccount/myListings/all",
+                        "divar": "https://divar.ir/s/iran",
+                    }
+                    destination = destinations.get(self.platform.lower())
+                    if status == SessionStatus.VALID and destination:
                         try:
-                            self.signals.status_changed.emit(
-                                "در حال انتقال به صفحه آگهی‌های من در شیپور..."
-                            )
-                            await bm.page.goto(
-                                "https://www.sheypoor.com/session/myAccount/myListings/all",
-                                wait_until="domcontentloaded",
-                                timeout=30000,
-                            )
+                            label = "آگهی‌های من در شیپور" if self.platform.lower() == "sheypoor" else "آگهی‌های سراسر ایران در دیوار"
+                            self.signals.status_changed.emit(f"در حال انتقال به صفحه {label}...")
+                            await bm.page.goto(destination, wait_until="domcontentloaded", timeout=30_000)
+                            # Compare the live destination-page state with DB and
+                            # update only if cookies/storage have actually changed.
+                            await sm.save_from_context(bm.context, record.phone, metadata=record.metadata)
                         except Exception as nav_err:
-                            self.signals.status_changed.emit(
-                                f"⚠️ خطا در انتقال به صفحه آگهی‌ها: {nav_err}"
-                            )
+                            self.signals.status_changed.emit(f"⚠️ خطا در انتقال/ذخیره Session: {nav_err}")
 
                     # مرورگر باز می‌ماند تا کاربر خودش آن را ببندد
                     self.signals.status_changed.emit(
@@ -193,6 +192,58 @@ class SessionCheckWorker(QRunnable):
 
         except Exception as e:
             self.signals.error_occurred.emit(f"خطا در بررسی Session: {e}")
+        finally:
+            loop.close()
+
+
+# ---------------------------------------------------------------------------
+# Worker برای بررسی دوره‌ای Sessionها (بدون نگه‌داشتن Browser باز)
+# ---------------------------------------------------------------------------
+class PeriodicSessionCheckWorker(QRunnable):
+    """Validate every saved session and persist changed browser state."""
+
+    def __init__(self, platform: str):
+        super().__init__()
+        self.platform = platform
+        self.signals = LoginSignals()
+        self.setAutoDelete(True)
+
+    @Slot()
+    def run(self):
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+        try:
+            async def _run():
+                sm = SessionManager(platform=self.platform)
+                records = sm.list_sessions()
+                changed = 0
+                for record in records:
+                    if record.status == SessionStatus.INVALID:
+                        continue
+                    bm = BrowserManager(session_record=record)
+                    async with bm:
+                        status = await sm.validate(record, bm.page)
+                        if status == SessionStatus.VALID:
+                            destination = (
+                                "https://www.sheypoor.com/session/myAccount/myListings/all"
+                                if self.platform.lower() == "sheypoor"
+                                else "https://divar.ir/s/iran"
+                            )
+                            await bm.page.goto(destination, wait_until="domcontentloaded", timeout=30_000)
+                            # Reads destination-page cookies/localStorage/sessionStorage.
+                            # SessionDB writes only if the state differs.
+                            await sm.save_from_context(
+                                bm.context, record.phone, metadata=record.metadata,
+                            )
+                            changed += 1
+                return len(records), changed
+
+            total, checked = loop.run_until_complete(_run())
+            self.signals.status_changed.emit(
+                f"بررسی دوره‌ای Sessionها انجام شد: {checked} از {total} Session بررسی شد"
+            )
+        except Exception as exc:
+            self.signals.error_occurred.emit(f"خطا در بررسی دوره‌ای Sessionها: {exc}")
         finally:
             loop.close()
 
@@ -850,12 +901,18 @@ class PlatformTab(QWidget):
         self._factory = login_manager_factory
         self._current_worker: Optional[LoginWorker] = None
         self._current_session: Optional[SessionRecord] = None
+        self._periodic_worker: Optional[PeriodicSessionCheckWorker] = None
+        self._periodic_timer = QTimer(self)
+        self._periodic_timer.setInterval(60 * 60 * 1000)  # every 60 minutes
+        self._periodic_timer.timeout.connect(self._run_periodic_session_check)
 
         self._setup_ui(color, code_length)
         self._connect_signals()
 
         # فقط لیست از DB — بدون باز کردن مرورگر
         self._reload_session_list()
+        self._periodic_timer.start()
+        self._log("INFO", f"[{self._platform_name}] بررسی دوره‌ای Session هر ۶۰ دقیقه فعال است")
 
     def _setup_ui(self, color: str, code_length: int):
         layout = QVBoxLayout(self)
@@ -893,6 +950,29 @@ class PlatformTab(QWidget):
     # ------------------------------------------------------------------
     # لیست Sessionها از DB (بدون مرورگر)
     # ------------------------------------------------------------------
+    def _run_periodic_session_check(self):
+        """Run hourly in the background; never overlap an active login/check."""
+        if self._current_worker or getattr(self, "_current_check_worker", None) or self._periodic_worker:
+            self._log("INFO", f"[{self._platform_name}] بررسی دوره‌ای به‌دلیل عملیات فعال رد شد")
+            return
+        self._log("INFO", f"[{self._platform_name}] شروع بررسی دوره‌ای Sessionها")
+        worker = PeriodicSessionCheckWorker(self._platform_key)
+        worker.signals.status_changed.connect(self._on_periodic_session_checked)
+        worker.signals.error_occurred.connect(self._on_periodic_session_error)
+        self._periodic_worker = worker
+        QThreadPool.globalInstance().start(worker)
+
+    @Slot(str)
+    def _on_periodic_session_checked(self, message: str):
+        self._periodic_worker = None
+        self._log("INFO", f"[{self._platform_name}] {message}")
+        self._reload_session_list()
+
+    @Slot(str)
+    def _on_periodic_session_error(self, message: str):
+        self._periodic_worker = None
+        self._log("ERROR", f"[{self._platform_name}] {message}")
+
     def _reload_session_list(self):
         """بارگذاری لیست شماره‌ها از SQLite — بدون Playwright."""
         try:
