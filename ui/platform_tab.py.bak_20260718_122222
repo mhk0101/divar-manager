@@ -226,8 +226,6 @@ class LoginWorker(QRunnable):
         self.setAutoDelete(True)
         self._loop: Optional[asyncio.AbstractEventLoop] = None
         self._browser_manager = None
-        self._loop: Optional[asyncio.AbstractEventLoop] = None
-        self._browser_manager = None
 
     def provide_code(self, code: str):
         if self._code_future and not self._code_future.done():

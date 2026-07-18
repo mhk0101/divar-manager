@@ -12,7 +12,6 @@ PlatformTab - تب عمومی برای Login هر پلتفرم.
 from __future__ import annotations
 
 import asyncio
-import subprocess
 import sys
 from concurrent.futures import Future
 from pathlib import Path
@@ -43,54 +42,7 @@ from core.session_manager import SessionManager  # noqa: E402
 from core.session_models import SessionRecord, SessionStatus  # noqa: E402
 
 
-IDLE_TIMEOUT_SECONDS = 300  # 5 دقیقه
-
 LoginManagerFactory = Callable
-
-# ---------------------------------------------------------------------------
-# بستن اجباری مرورگر (fallback)
-# ---------------------------------------------------------------------------
-def _force_close_all_browsers() -> None:
-    """بستن BrowserService مشترک + تلاش برای بستن پروسه‌های chromium متعلق به Playwright."""
-    # 1) BrowserService singleton (اگر وجود داشته باشد)
-    try:
-        from core.browser_service import BrowserService  # type: ignore
-        svc = BrowserService.instance()
-        if hasattr(svc, "request_close_all"):
-            svc.request_close_all(timeout=10.0)
-    except Exception:
-        pass
-
-    # 2) Kill chromium/chrome متعلق به playwright (ویندوز)
-    if sys.platform.startswith("win"):
-        # فقط پروسه‌هایی که مسیرشان شامل ms-playwright یا chromium باشد
-        ps = (
-            "Get-CimInstance Win32_Process | "
-            "Where-Object { "
-            "  ($_.Name -match 'chrome|chromium') -and "
-            "  ($_.CommandLine -match 'ms-playwright|playwright|chromium') "
-            "} | "
-            "ForEach-Object { Stop-Process -Id $_.ProcessId -Force -ErrorAction SilentlyContinue }"
-        )
-        try:
-            subprocess.run(
-                ["powershell", "-NoProfile", "-Command", ps],
-                capture_output=True,
-                timeout=15,
-                creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0),
-            )
-        except Exception:
-            pass
-    else:
-        try:
-            subprocess.run(
-                ["pkill", "-f", "ms-playwright"],
-                capture_output=True,
-                timeout=10,
-            )
-        except Exception:
-            pass
-
 
 
 # ---------------------------------------------------------------------------
@@ -116,29 +68,11 @@ class SessionCheckWorker(QRunnable):
         self.phone = phone
         self.signals = LoginSignals()
         self.setAutoDelete(True)
-        self._loop: Optional[asyncio.AbstractEventLoop] = None
-        self._close_event: Optional[asyncio.Event] = None
-        self._browser_manager = None
-
-    def request_close(self):
-        """قابل فراخوانی امن از GUI thread برای بستن دستی مرورگر."""
-        if self._loop is not None and self._close_event is not None:
-            self._loop.call_soon_threadsafe(self._close_event.set)
-        # بستن اجباری BrowserManager اگر هنوز باز است
-        if self._loop is not None and self._browser_manager is not None:
-            try:
-                asyncio.run_coroutine_threadsafe(
-                    self._browser_manager.stop(), self._loop
-                )
-            except Exception:
-                pass
 
     @Slot()
     def run(self):
         loop = asyncio.new_event_loop()
         asyncio.set_event_loop(loop)
-        self._loop = loop
-        self._close_event = asyncio.Event()
         try:
             async def _run():
                 sm = SessionManager(platform=self.platform)
@@ -155,33 +89,6 @@ class SessionCheckWorker(QRunnable):
                 bm = BrowserManager(session_record=record)
                 async with bm:
                     status = await sm.validate(record, bm.page)
-
-                    is_sheypoor = "sheypoor" in (self.platform or "").lower()
-
-                    if is_sheypoor:
-                        try:
-                            self.signals.status_changed.emit(
-                                "در حال انتقال به صفحه آگهی‌های من در شیپور..."
-                            )
-                            await bm.page.goto(
-                                "https://www.sheypoor.com/session/myAccount/myListings/all",
-                                wait_until="domcontentloaded",
-                                timeout=30000,
-                            )
-                        except Exception as nav_err:
-                            self.signals.status_changed.emit(
-                                f"⚠️ خطا در انتقال به صفحه آگهی‌ها: {nav_err}"
-                            )
-
-                    # مرورگر باز می‌ماند تا کاربر خودش آن را ببندد
-                    self.signals.status_changed.emit(
-                        "🟢 مرورگر باز است. هر وقت کارتان تمام شد، "
-                        "پنجرهٔ مرورگر را ببندید تا برنامه ادامه یابد."
-                    )
-                    try:
-                        await bm.page.wait_for_event("close", timeout=0)
-                    except Exception:
-                        pass
 
                 if status == SessionStatus.VALID:
                     return record, "VALID"
@@ -224,10 +131,6 @@ class LoginWorker(QRunnable):
         self._code_future: Optional[Future] = None
         self._cancelled = False
         self.setAutoDelete(True)
-        self._loop: Optional[asyncio.AbstractEventLoop] = None
-        self._browser_manager = None
-        self._loop: Optional[asyncio.AbstractEventLoop] = None
-        self._browser_manager = None
 
     def provide_code(self, code: str):
         if self._code_future and not self._code_future.done():
@@ -237,19 +140,6 @@ class LoginWorker(QRunnable):
         self._cancelled = True
         if self._code_future and not self._code_future.done():
             self._code_future.cancel()
-
-    def request_close(self):
-        """لغو login + بستن مرورگر."""
-        self.cancel()
-        if self._loop is not None and self._browser_manager is not None:
-            try:
-                fut = asyncio.run_coroutine_threadsafe(
-                    self._browser_manager.stop(), self._loop
-                )
-                fut.result(timeout=8)
-            except Exception:
-                pass
-        _force_close_all_browsers()
 
     async def _code_provider(self):
         self._code_future = Future()
@@ -266,12 +156,10 @@ class LoginWorker(QRunnable):
     def run(self):
         loop = asyncio.new_event_loop()
         asyncio.set_event_loop(loop)
-        self._loop = loop
         try:
             async def _run():
                 session_manager = SessionManager(platform=self._platform_key)
                 browser_manager = BrowserManager()
-                self._browser_manager = browser_manager
 
                 async with browser_manager:
                     login_manager = self._factory(
@@ -301,7 +189,6 @@ class _StatusPage(QWidget):
     start_login = Signal()
     check_session = Signal()
     logout = Signal()
-    close_browser = Signal()
     select_session = Signal(object)  # SessionRecord or None
     refresh_list = Signal()
 
@@ -399,13 +286,6 @@ class _StatusPage(QWidget):
         self.check_btn.setEnabled(False)
         row1.addWidget(self.check_btn)
         btn_layout.addLayout(row1)
-
-
-        self.close_browser_btn = QPushButton("🔴 بستن مرورگر")
-        self._style_button(self.close_browser_btn, "#dc3545", min_w=400)
-        self.close_browser_btn.clicked.connect(self.close_browser.emit)
-        self.close_browser_btn.setVisible(True)
-        btn_layout.addWidget(self.close_browser_btn)
 
         self.login_btn = QPushButton("🔐 ورود با شماره جدید")
         self._style_button(self.login_btn, self._color)
@@ -510,11 +390,11 @@ class _StatusPage(QWidget):
         )
         self._set_valid_style(is_valid)
 
-        # انتخاب خودکار از لیست (بدون دکمه جداگانه)
+        # انتخاب خودکار (بدون نیاز به دکمه جدا) - بدون باز کردن مرورگر
         self.select_session.emit(rec)
 
     def _on_double_click(self, item: QListWidgetItem):
-        # دابل‌کلیک هم همان انتخاب را دوباره تأیید می‌کند
+        # دابل‌کلیک هم صرفاً همان انتخاب را دوباره تأیید می‌کند (بدون مرورگر)
         rec = item.data(Qt.UserRole) if item else None
         if rec:
             self.select_session.emit(rec)
@@ -744,25 +624,6 @@ class _CodePage(QWidget):
         self.cancel_btn.clicked.connect(self.cancel_login.emit)
         layout.addWidget(self.cancel_btn, alignment=Qt.AlignCenter)
 
-        self.close_browser_btn = QPushButton("🔴 بستن مرورگر")
-        self.close_browser_btn.setStyleSheet("""
-            QPushButton {
-                background-color: #dc3545;
-                color: white;
-                border: none;
-                border-radius: 8px;
-                padding: 10px;
-                font-size: 12px;
-                font-weight: bold;
-            }
-            QPushButton:hover { background-color: #c82333; }
-        """)
-        self.close_browser_btn.setMinimumWidth(350)
-        self.close_browser_btn.setMinimumHeight(40)
-        self.close_browser_btn.clicked.connect(self.cancel_login.emit)
-        layout.addWidget(self.close_browser_btn, alignment=Qt.AlignCenter)
-
-
         self.status_label = QLabel("")
         self.status_label.setAlignment(Qt.AlignCenter)
         self.status_label.setStyleSheet("color: #888; font-size: 11px;")
@@ -874,7 +735,6 @@ class PlatformTab(QWidget):
         self.status_page.start_login.connect(self._on_start_login)
         self.status_page.check_session.connect(self._check_session)
         self.status_page.logout.connect(self._on_logout)
-        self.status_page.close_browser.connect(self._on_close_browser_clicked)
         self.status_page.select_session.connect(self._on_select_session)
         self.status_page.refresh_list.connect(self._reload_session_list)
 
@@ -915,13 +775,14 @@ class PlatformTab(QWidget):
 
     @Slot(object)
     def _on_select_session(self, record: SessionRecord):
-        """انتخاب شماره از لیست."""
+        """انتخاب شماره بدون باز کردن مرورگر."""
         self._current_session = record
         self.status_page.set_status(
-            f"✅ شماره انتخاب شد: {record.phone}\n\n"
+            f"✅ شماره انتخاب شد (بدون باز کردن مرورگر)\n\n"
+            f"شماره: {record.phone}\n"
             f"وضعیت DB: {record.status.value}\n"
             f"کوکی‌ها: {len(record.storage_state.cookies) if record.storage_state else 0}\n\n"
-            f"برای اعتبارسنجی واقعی، «بررسی Session» را بزنید (مرورگر باز می‌شود).",
+            f"برای اعتبارسنجی واقعی روی سایت، «بررسی Session» را بزنید.",
             is_valid=(record.status == SessionStatus.VALID),
         )
         self._log("INFO", f"[{self._platform_name}] Selected session phone={record.phone}")
@@ -953,13 +814,11 @@ class PlatformTab(QWidget):
         worker.signals.session_status.connect(self._on_session_checked)
         worker.signals.error_occurred.connect(self._on_session_check_error)
         worker.signals.status_changed.connect(self._on_status_changed)
-        self._current_check_worker = worker
         QThreadPool.globalInstance().start(worker)
 
     @Slot(str, str)
     def _on_session_checked(self, status_key: str, message: str):
         self.status_page.set_loading(False)
-        self._current_check_worker = None
         self._log("INFO", f"[{self._platform_name}] Session check: {status_key} - {message}")
 
         # بعد از بررسی، لیست را تازه کن
@@ -1048,14 +907,10 @@ class PlatformTab(QWidget):
             self._current_worker.provide_code(code)
 
     def _on_cancel_login(self):
-        self._log("INFO", f"[{self._platform_name}] Login cancelled / close browser by user")
+        self._log("INFO", f"[{self._platform_name}] Login cancelled by user")
         if self._current_worker:
-            if hasattr(self._current_worker, "request_close"):
-                self._current_worker.request_close()
-            else:
-                self._current_worker.cancel()
+            self._current_worker.cancel()
             self._current_worker = None
-        _force_close_all_browsers()
         self._go_to_status()
 
     @Slot(object)
@@ -1130,34 +985,6 @@ class PlatformTab(QWidget):
     # ------------------------------------------------------------------
     # Logout
     # ------------------------------------------------------------------
-
-    def _on_close_browser_clicked(self):
-        """بستن دستی مرورگر توسط کاربر از طریق GUI."""
-        closed_any = False
-        if getattr(self, "_current_check_worker", None):
-            try:
-                self._current_check_worker.request_close()
-                closed_any = True
-            except Exception:
-                pass
-        if getattr(self, "_current_worker", None):
-            try:
-                if hasattr(self._current_worker, "request_close"):
-                    self._current_worker.request_close()
-                else:
-                    self._current_worker.cancel()
-                closed_any = True
-            except Exception:
-                pass
-        _force_close_all_browsers()
-        self.status_page.set_loading(False)
-        if hasattr(self.status_page, "set_status"):
-            self.status_page.set_status("🔴 درخواست بستن مرورگر ارسال شد.")
-        self._log(
-            "INFO",
-            f"[{self._platform_name}] کاربر درخواست بستن مرورگر داد (closed_any={closed_any})",
-        )
-
     def _on_logout(self):
         rec = self.status_page.get_selected_record()
         if not rec:
