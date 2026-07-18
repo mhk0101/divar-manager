@@ -82,14 +82,16 @@ def _force_close_all_browsers() -> None:
         except Exception:
             pass
     else:
-        try:
-            subprocess.run(
-                ["pkill", "-f", "ms-playwright"],
-                capture_output=True,
-                timeout=10,
-            )
-        except Exception:
-            pass
+        # تلاش برای بستن تمام پروسه‌های مرتبط با Playwright و Chromium
+        for pattern in ("ms-playwright", "chromium", "chrome", "playwright"):
+            try:
+                subprocess.run(
+                    ["pkill", "-f", pattern],
+                    capture_output=True,
+                    timeout=5,
+                )
+            except Exception:
+                pass
 
 
 

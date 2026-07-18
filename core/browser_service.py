@@ -84,7 +84,10 @@ class BrowserService:
             self._loop = loop
             self._async_lock = asyncio.Lock()
             self._ready.set()
-            loop.run_forever()
+            try:
+                loop.run_forever()
+            finally:
+                loop.close()
 
         self._thread = threading.Thread(
             target=_runner, name="BrowserServiceLoop", daemon=True
@@ -196,11 +199,17 @@ class BrowserService:
                 pass
             self._playwright = None
         logger.info("Shared browser closed completely")
+        # متوقف کردن loop برای آزادسازی Thread
+        if self._loop and self._loop.is_running():
+            self._loop.call_soon_threadsafe(self._loop.stop)
 
     def request_close_all(self, timeout: float = 15.0) -> None:
         """بستن دستی synchronous - قابل فراخوانی از GUI/هر thread دیگر."""
         try:
-            fut = self.submit(lambda: self._close_all_internal())
+            # استفاده از coroutine مستقیم به جای lambda شکننده
+            async def _close_coro():
+                return await self._close_all_internal()
+            fut = self.submit(_close_coro)
             fut.result(timeout=timeout)
         except Exception as e:
             logger.warning("Error while closing browser: %s", e)
@@ -246,6 +255,13 @@ class SharedBrowserManager:
             except Exception:
                 pass
             self._page = None
+        # بستن Context هم برای پاک‌سازی کوکی‌ها و حافظه
+        if self._context:
+            try:
+                await self._context.close()
+            except Exception:
+                pass
+            self._context = None
 
     @property
     def page(self) -> Page:
