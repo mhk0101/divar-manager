@@ -1,5 +1,10 @@
 """
-SessionManager - مدیر اصلی Sessionها.
+SessionManager - مدیر اصلی Sessionها (نسخه کامل و اصلاح‌شده)
+
+اصلاحات انجام‌شده:
+1. ✅ اضافه شدن متد capture_storage_state() (برای رفع خطای Login)
+2. ✅ اصلاح متد delete() برای حذف فایل JSON (برای رفع مشکل حذف ناقص)
+3. ✅ اصلاح متد delete_by_phone() برای حذف فایل JSON
 
 این کلاس API اصلی برای کار با Session است و تمام عملیات مربوط به
 ذخیره، بازیابی، اعتبارسنجی و به‌روزرسانی Session را مدیریت می‌کند.
@@ -11,6 +16,7 @@ SessionManager - مدیر اصلی Sessionها.
 - مدیریت انقضا و تغییر
 - Logging کامل
 - مستقل از UI
+- حذف کامل Session (DB + JSON)
 """
 
 from __future__ import annotations
@@ -54,6 +60,9 @@ class SessionManager:
         if status == SessionStatus.INVALID:
             # نیاز به Login مجدد
             await sm.mark_invalid(record)
+        
+        # حذف کامل Session (DB + JSON)
+        sm.delete(record)
     """
 
     def __init__(self, platform: str, db: Optional[SessionDB] = None) -> None:
@@ -65,6 +74,67 @@ class SessionManager:
     @property
     def platform(self) -> str:
         return self._platform
+
+    # ------------------------------------------------------------------
+    # ✨ NEW: Capture Storage State (بدون ذخیره در DB)
+    # ------------------------------------------------------------------
+    async def capture_storage_state(self, context: BrowserContext) -> StorageState:
+        """
+        استخراج storage_state از یک BrowserContext بدون ذخیره در DB.
+
+        این متد فقط storage_state را می‌خواند و برمی‌گرداند.
+        برای مقایسه state قبل و بعد از navigation استفاده می‌شود.
+
+        Args:
+            context: BrowserContext فعال
+
+        Returns:
+            StorageState شامل cookies، localStorage و sessionStorage
+        """
+        try:
+            # استخراج storage_state استاندارد Playwright
+            raw_state = await context.storage_state()
+            storage_state = StorageState.from_playwright(raw_state)
+
+            # استخراج sessionStorage از صفحات باز
+            # Playwright به‌صورت پیش‌فرض sessionStorage را در storage_state نمی‌گذارد
+            for page in context.pages:
+                try:
+                    session_data = await page.evaluate("""
+                        () => ({
+                            origin: window.location.origin,
+                            data: Object.fromEntries(
+                                Array.from({length: sessionStorage.length}, (_, i) => {
+                                    const key = sessionStorage.key(i);
+                                    return [key, key === null ? null : sessionStorage.getItem(key)];
+                                })
+                            ),
+                        })
+                    """)
+                    origin = session_data.get("origin")
+                    data = session_data.get("data")
+                    if origin and data:
+                        storage_state.session_storage[origin] = data
+                except PlaywrightError:
+                    # صفحه ممکن است بسته شده باشد
+                    continue
+
+            logger.info(
+                "[%s] Captured storage state: cookies=%d, localStorage_origins=%d, sessionStorage_origins=%d",
+                self._platform,
+                len(storage_state.cookies),
+                len(storage_state.local_storage),
+                len(storage_state.session_storage),
+            )
+
+            return storage_state
+
+        except PlaywrightError as e:
+            logger.error("[%s] Failed to capture storage state: %s", self._platform, e)
+            raise
+        except Exception as e:
+            logger.exception("[%s] Unexpected error capturing storage state: %s", self._platform, e)
+            raise
 
     # ------------------------------------------------------------------
     # ذخیره Session
@@ -112,7 +182,7 @@ class SessionManager:
                     # A page may have closed while the context is being saved.
                     continue
 
-            # Preserve all available auth state.  Tokens are normally already
+            # Preserve all available auth state. Tokens are normally already
             # represented in cookies/localStorage; explicit fields make DB
             # inspection and comparison deterministic as well.
             if access_token is None or refresh_token is None:
@@ -164,7 +234,7 @@ class SessionManager:
         """
         ذخیره Session در SQLite و هم‌زمان export به فایل JSON ثابت.
 
-        فایل JSON در مسیر `data/sessions/{platform}_session.json` نوشته می‌شود
+        فایل JSON در مسیر `data/sessions/{platform}_{phone}_session.json` نوشته می‌شود
         تا مطابق انتظار README و کاربران قابل مشاهده باشد. این فایل همچنین
         می‌تواند مستقیماً به `browser.new_context(storage_state=...)` پاس داده شود.
 
@@ -200,7 +270,7 @@ class SessionManager:
         """
         نوشتن storage_state به صورت فایل JSON دائمی در SESSIONS_DIR.
 
-        مسیر فایل: data/sessions/{platform}_session.json
+        مسیر فایل: data/sessions/{platform}_{phone}_session.json
         """
         SESSIONS_DIR.mkdir(parents=True, exist_ok=True)
         file_path = SESSIONS_DIR / f"{self._platform}_{record.phone}_session.json"
@@ -217,7 +287,7 @@ class SessionManager:
                 "created_at": record.created_at.isoformat() if record.created_at else None,
                 "updated_at": record.updated_at.isoformat() if record.updated_at else None,
                 # Playwright cannot consume this field directly; the DB loader
-                # restores it with an init script.  Keep it in exports for a
+                # restores it with an init script. Keep it in exports for a
                 # complete, inspectable backup.
                 "session_storage": record.storage_state.session_storage,
             },
@@ -338,17 +408,85 @@ class SessionManager:
         return ok
 
     # ------------------------------------------------------------------
-    # حذف
+    # ✨ FIXED: حذف کامل Session (DB + JSON)
     # ------------------------------------------------------------------
     def delete(self, record: SessionRecord) -> bool:
-        """حذف یک Session."""
+        """
+        حذف کامل یک Session.
+
+        این متد هم رکورد را از دیتابیس SQLite حذف می‌کند و هم
+        فایل JSON مربوطه را از data/sessions/ پاک می‌کند.
+
+        Args:
+            record: SessionRecord برای حذف
+
+        Returns:
+            True اگر حذف با موفقیت انجام شد
+        """
         if not record or record.id is None:
             return False
-        return self._db.delete(record.id)
+
+        # گام 1: حذف فایل JSON
+        try:
+            # الگوی نام فایل: {platform}_{phone}_session.json
+            json_file = SESSIONS_DIR / f"{self._platform}_{record.phone}_session.json"
+            if json_file.exists():
+                json_file.unlink()
+                logger.info(
+                    "[%s] Session JSON file deleted: %s",
+                    self._platform, json_file,
+                )
+        except Exception as e:
+            logger.warning(
+                "[%s] Failed to delete session JSON file: %s",
+                self._platform, e,
+            )
+            # ادامه می‌دهیم - حذف DB مهم‌تر است
+
+        # گام 2: حذف از دیتابیس
+        ok = self._db.delete(record.id)
+        if ok:
+            logger.info(
+                "[%s] Session completely deleted: phone=%s (DB + JSON)",
+                self._platform, record.phone,
+            )
+        return ok
 
     def delete_by_phone(self, phone: str) -> bool:
-        """حذف Session بر اساس phone."""
-        return self._db.delete_by_key(self._platform, phone)
+        """
+        حذف Session بر اساس phone.
+
+        هم از دیتابیس و هم فایل JSON حذف می‌شود.
+
+        Args:
+            phone: شماره موبایل
+
+        Returns:
+            True اگر حذف با موفقیت انجام شد
+        """
+        # گام 1: حذف فایل JSON
+        try:
+            json_file = SESSIONS_DIR / f"{self._platform}_{phone}_session.json"
+            if json_file.exists():
+                json_file.unlink()
+                logger.info(
+                    "[%s] Session JSON file deleted: %s",
+                    self._platform, json_file,
+                )
+        except Exception as e:
+            logger.warning(
+                "[%s] Failed to delete session JSON file: %s",
+                self._platform, e,
+            )
+
+        # گام 2: حذف از دیتابیس
+        ok = self._db.delete_by_key(self._platform, phone)
+        if ok:
+            logger.info(
+                "[%s] Session completely deleted: phone=%s (DB + JSON)",
+                self._platform, phone,
+            )
+        return ok
 
     # ------------------------------------------------------------------
     # Export برای Playwright
