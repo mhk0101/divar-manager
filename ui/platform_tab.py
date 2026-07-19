@@ -35,6 +35,7 @@ from PySide6.QtWidgets import (
     QListWidgetItem,
     QMessageBox,
     QPushButton,
+    QSizePolicy,
     QStackedWidget,
     QVBoxLayout,
     QWidget,
@@ -747,6 +748,8 @@ class _StatusPage(QWidget):
 
         container = QWidget()
         container.setMaximumWidth(1300)   # در پنجره‌های بزرگ وسط‌چین، در کوچک‌تر پر می‌شود
+        # ✨ واکنش‌گرا: کانتینر عرض موجود را پر می‌کند (تا سقف maxWidth)
+        container.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
         clayout = QVBoxLayout(container)
         clayout.setSpacing(18)
         clayout.setContentsMargins(0, 0, 0, 0)
@@ -852,11 +855,12 @@ class _StatusPage(QWidget):
 
         clayout.addWidget(actions_card)
 
-        # قرار دادن کانتینر مرکزی در وسط (افقی) و پر کردن ارتفاع
+        # ✨ واکنش‌گرا: کانتینر عرض را پر می‌کند (stretch بالا) و در صفحه‌های
+        # خیلی بزرگ‌تر از maxWidth، به‌وسیلهٔ فاصله‌های کناری وسط‌چین می‌شود.
         outer_h = QHBoxLayout()
-        outer_h.addStretch()
-        outer_h.addWidget(container)
-        outer_h.addStretch()
+        outer_h.addStretch(1)
+        outer_h.addWidget(container, stretch=100)
+        outer_h.addStretch(1)
         outer.addLayout(outer_h, stretch=1)
 
     def _style_button(self, btn: QPushButton, object_name: str, min_w: int = 0):
