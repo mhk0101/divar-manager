@@ -585,30 +585,25 @@ class LoginManager:
             # Save the complete context immediately; save_from_context also reads
             # cookies, localStorage and sessionStorage from open pages.
             if login_response is None:
-                # Compare the authenticated account-page state with the state
-                # after entering the main ads page before deciding to persist.
-                account_state = await self._session.capture_storage_state(self._browser.context)
+                # ✨ FIX: همیشه بعد از Login موفق، Session را ذخیره کن (با status=VALID)
+                logger.info("[divar] ✅ Login successful (logout button detected), saving session...")
+                
+                # باز کردن صفحه اصلی آگهی‌ها
                 await self._open_main_ads_page(page)
-                main_state = await self._session.capture_storage_state(self._browser.context)
-                existing = self._session.load(phone)
-                changed_from_account = account_state.has_changes(main_state)
-                changed_from_saved = existing is None or existing.storage_state.has_changes(main_state)
-                json_path = None
-                if changed_from_account or changed_from_saved:
-                    session_metadata = {
-                        "login_method": "logout_button_then_ads_page",
-                        "phone": phone,
-                        "account_to_ads_state_changed": changed_from_account,
-                        "current_url": page.url,
-                    }
-                    record, json_path = await self._session.save_and_export(
-                        context=self._browser.context, phone=phone,
-                        metadata=session_metadata, storage_state=main_state,
-                    )
-                    logger.info("[divar] Main-page session changed; saved id=%s", record.id)
-                else:
-                    record = existing
-                    logger.info("[divar] Account and main-page state unchanged; keeping saved session id=%s", record.id)
+                await page.wait_for_timeout(2000)  # صبر برای لود کامل
+                
+                # ذخیره Session با status=VALID (همیشه!)
+                session_metadata = {
+                    "login_method": "logout_button_then_ads_page",
+                    "phone": phone,
+                    "current_url": page.url,
+                }
+                record, json_path = await self._session.save_and_export(
+                    context=self._browser.context, phone=phone,
+                    metadata=session_metadata,
+                )
+                logger.info("[divar] ✅ Session saved with status=VALID: id=%s", record.id)
+                
                 self._set_state(LoginState.SUCCESS)
                 return LoginResult(True, self._state, phone=phone,
                                 session_path=str(json_path) if json_path else None)
