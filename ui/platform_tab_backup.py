@@ -26,8 +26,6 @@ from PySide6.QtCore import QObject, QRunnable, QThreadPool, Qt, Signal, Slot, QT
 from PySide6.QtGui import QFont
 from PySide6.QtWidgets import (
     QAbstractItemView,
-    QFrame,
-    QGridLayout,
     QHBoxLayout,
     QLabel,
     QLineEdit,
@@ -399,31 +397,6 @@ class PlatformTab(QWidget):
     def _log(self, level: str, msg: str):
         self.log_message.emit(level, msg)
 
-    def restyle(self):
-        """✨ هنگام سوییچ تم، ویجت‌ها را با QSS سراسری تازه‌سازی می‌کند."""
-        widgets = [
-            getattr(self.status_page, "phone_list", None),
-            getattr(self.status_page, "status_box", None),
-            getattr(self.phone_page, "phone_input", None),
-            getattr(self.code_page, "code_input", None),
-        ]
-        for w in widgets:
-            if w is None:
-                continue
-            try:
-                w.style().unpolish(w)
-                w.style().polish(w)
-            except Exception:
-                pass
-
-    def resizeEvent(self, event):
-        """✨ واکنش‌گرایی: با تغییر اندازه، چیدمان صفحهٔ وضعیت بازچیدمان می‌شود."""
-        super().resizeEvent(event)
-        try:
-            self.status_page.reflow(self.width())
-        except Exception:
-            pass
-
     def _reload_session_list(self):
         """بارگذاری لیست شماره‌ها از SQLite — بدون Playwright."""
         try:
@@ -736,160 +709,128 @@ class _StatusPage(QWidget):
         self._setup_ui(platform_name)
 
     def _setup_ui(self, platform_name: str):
-        # ✨ نام objectName دکمهٔ اصلی بر اساس رنگ برند پلتفرم
-        self._primary_obj_name = (
-            "primaryDivar" if self._color.upper() == "#A62626" else "primarySheypoor"
-        )
+        layout = QVBoxLayout(self)
+        layout.setSpacing(12)
+        layout.setAlignment(Qt.AlignTop)
 
-        # --- لایهٔ بیرونی: مرکز کردن محتوا (واکنش‌گرا) ---
-        outer = QVBoxLayout(self)
-        outer.setContentsMargins(28, 26, 28, 26)
-
-        container = QWidget()
-        container.setMaximumWidth(1300)   # در پنجره‌های بزرگ وسط‌چین، در کوچک‌تر پر می‌شود
-        clayout = QVBoxLayout(container)
-        clayout.setSpacing(18)
-        clayout.setContentsMargins(0, 0, 0, 0)
-
-        # --- عنوان و توضیح ---
         title = QLabel(f"{platform_name}")
-        title.setObjectName("titleLabel")
         title_font = QFont()
         title_font.setPointSize(20)
         title_font.setBold(True)
         title.setFont(title_font)
-        clayout.addWidget(title)
+        title.setAlignment(Qt.AlignCenter)
+        layout.addWidget(title)
 
         hint = QLabel(
-            "شماره‌های ذخیره‌شده را از لیست انتخاب کنید. "
+            "شماره‌های ذخیره‌شده را از لیست انتخاب کنید.\n"
             "مرورگر فقط وقتی «بررسی Session» را بزنید باز می‌شود."
         )
-        hint.setObjectName("subtitleLabel")
+        hint.setAlignment(Qt.AlignCenter)
         hint.setWordWrap(True)
-        clayout.addWidget(hint)
+        hint.setStyleSheet("color: #666; font-size: 12px;")
+        layout.addWidget(hint)
 
-        # --- کارت: لیست شماره‌ها ---
-        list_card = QFrame()
-        list_card.setObjectName("card")
-        list_card_layout = QVBoxLayout(list_card)
-        list_card_layout.setContentsMargins(18, 16, 18, 18)
-        list_card_layout.setSpacing(10)
-
-        list_label = QLabel("📱 لیست شماره‌های وارد‌شده")
-        list_label.setObjectName("subtitleLabel")
-        list_font = QFont()
-        list_font.setBold(True)
-        list_label.setFont(list_font)
-        list_card_layout.addWidget(list_label)
+        list_label = QLabel("📱 لیست شماره‌های وارد‌شده:")
+        list_label.setStyleSheet("font-weight: bold; font-size: 13px;")
+        layout.addWidget(list_label)
 
         self.phone_list = QListWidget()
-        self.phone_list.setMinimumHeight(180)
+        self.phone_list.setMinimumHeight(160)
+        self.phone_list.setMaximumHeight(220)
         self.phone_list.setSelectionMode(QAbstractItemView.SingleSelection)
+        self.phone_list.setStyleSheet("""
+            QListWidget {
+                border: 2px solid #ddd;
+                border-radius: 8px;
+                background: white;
+                font-size: 13px;
+                padding: 4px;
+            }
+            QListWidget::item {
+                padding: 10px;
+                border-bottom: 1px solid #eee;
+            }
+            QListWidget::item:selected {
+                background-color: #e3f2fd;
+                color: #000;
+            }
+            QListWidget::item:hover {
+                background-color: #f5f5f5;
+            }
+        """)
         self.phone_list.itemSelectionChanged.connect(self._on_selection_changed)
         self.phone_list.itemDoubleClicked.connect(self._on_double_click)
-        list_card_layout.addWidget(self.phone_list, stretch=1)   # با ارتفاع کش می‌آید
+        layout.addWidget(self.phone_list)
 
-        clayout.addWidget(list_card, stretch=1)   # کارت لیست فضای عمودی را پر می‌کند
-
-        # --- جعبهٔ وضعیت ---
         self.status_box = QLabel("هیچ شماره‌ای انتخاب نشده است.")
-        self.status_box.setObjectName("statusBox")
         self.status_box.setAlignment(Qt.AlignCenter)
         self.status_box.setWordWrap(True)
-        self.status_box.setMinimumHeight(84)
-        clayout.addWidget(self.status_box)
+        self.status_box.setMinimumHeight(70)
+        self.status_box.setStyleSheet("""
+            QLabel {
+                background-color: #f8f9fa;
+                border: 2px solid #ddd;
+                border-radius: 8px;
+                padding: 12px;
+                font-size: 12px;
+            }
+        """)
+        layout.addWidget(self.status_box)
 
-        # --- کارت: عملیات ---
-        actions_card = QFrame()
-        actions_card.setObjectName("card")
-        actions_layout = QVBoxLayout(actions_card)
-        actions_layout.setContentsMargins(18, 18, 18, 18)
-        actions_layout.setSpacing(10)
+        btn_layout = QVBoxLayout()
+        btn_layout.setSpacing(8)
 
-        # دکمهٔ اصلی (ورود) - تمام عرض
-        self.login_btn = QPushButton("🔐 ورود با شماره جدید")
-        self._style_button(self.login_btn, self._primary_obj_name)
-        self.login_btn.setMinimumWidth(0)
-        self.login_btn.clicked.connect(self.start_login.emit)
-        actions_layout.addWidget(self.login_btn)
+        row1 = QHBoxLayout()
+        self.refresh_btn = QPushButton("🔃 تازه‌سازی لیست")
+        self._style_button(self.refresh_btn, "#17a2b8", min_w=180)
+        self.refresh_btn.clicked.connect(self.refresh_list.emit)
+        row1.addWidget(self.refresh_btn)
 
-        # گرید دکمه‌های ثانویه (دو ستون)
-        grid = QGridLayout()
-        grid.setSpacing(12)
-
-        self.check_btn = QPushButton("🔄 بررسی Session")
-        self._style_button(self.check_btn, "ghostBtn", min_w=0)
+        self.check_btn = QPushButton("🔄 بررسی Session (باز کردن مرورگر)")
+        self._style_button(self.check_btn, "#6c757d", min_w=220)
         self.check_btn.clicked.connect(self.check_session.emit)
         self.check_btn.setEnabled(False)
-        grid.addWidget(self.check_btn, 0, 0)
-
-        self.refresh_btn = QPushButton("🔃 تازه‌سازی لیست")
-        self._style_button(self.refresh_btn, "ghostBtn", min_w=0)
-        self.refresh_btn.clicked.connect(self.refresh_list.emit)
-        grid.addWidget(self.refresh_btn, 0, 1)
+        row1.addWidget(self.check_btn)
+        btn_layout.addLayout(row1)
 
         self.close_browser_btn = QPushButton("🔴 بستن مرورگر")
-        self._style_button(self.close_browser_btn, "dangerBtn", min_w=0)
+        self._style_button(self.close_browser_btn, "#dc3545", min_w=400)
         self.close_browser_btn.clicked.connect(self.close_browser.emit)
-        grid.addWidget(self.close_browser_btn, 1, 0)
+        self.close_browser_btn.setVisible(True)
+        btn_layout.addWidget(self.close_browser_btn)
 
-        self.logout_btn = QPushButton("🚪 حذف Session")
-        self._style_button(self.logout_btn, "dangerBtn", min_w=0)
+        self.login_btn = QPushButton("🔐 ورود با شماره جدید")
+        self._style_button(self.login_btn, self._color)
+        self.login_btn.clicked.connect(self.start_login.emit)
+        btn_layout.addWidget(self.login_btn)
+
+        self.logout_btn = QPushButton("🚪 حذف Session انتخاب‌شده")
+        self._style_button(self.logout_btn, "#e74c3c")
         self.logout_btn.clicked.connect(self.logout.emit)
         self.logout_btn.setEnabled(False)
-        grid.addWidget(self.logout_btn, 1, 1)
+        btn_layout.addWidget(self.logout_btn)
 
-        grid.setColumnStretch(0, 1)
-        grid.setColumnStretch(1, 1)
-        actions_layout.addLayout(grid)
+        layout.addLayout(btn_layout)
+        layout.addStretch()
 
-        # ✨ ذخیرهٔ مرجع‌ها برای واکنش‌گرایی (تک‌ستون/دوستون شدن گرید)
-        self._actions_grid = grid
-        self._action_buttons = [
-            self.check_btn, self.refresh_btn, self.close_browser_btn, self.logout_btn,
-        ]
-        self._actions_narrow = False
-
-        clayout.addWidget(actions_card)
-
-        # قرار دادن کانتینر مرکزی در وسط (افقی) و پر کردن ارتفاع
-        outer_h = QHBoxLayout()
-        outer_h.addStretch()
-        outer_h.addWidget(container)
-        outer_h.addStretch()
-        outer.addLayout(outer_h, stretch=1)
-
-    def _style_button(self, btn: QPushButton, object_name: str, min_w: int = 0):
-        """✨ به‌جای رنگ hardcoded، objectName تنظیم می‌شود تا از تم سراسری پیروی کند."""
-        if min_w:
-            btn.setMinimumWidth(min_w)
-        btn.setMinimumHeight(48)
-        btn.setObjectName(object_name)
-        btn.setCursor(Qt.PointingHandCursor)
+    def _style_button(self, btn: QPushButton, color: str, min_w: int = 400):
+        btn.setMinimumWidth(min_w)
+        btn.setMinimumHeight(42)
         font = QFont()
-        font.setPointSize(12)
+        font.setPointSize(11)
         font.setBold(True)
         btn.setFont(font)
-
-    def reflow(self, width: int):
-        """✨ واکنش‌گرایی: در عرض کم، گرید دکمه‌ها تک‌ستونه می‌شود."""
-        narrow = width < 560
-        if narrow == self._actions_narrow:
-            return
-        self._actions_narrow = narrow
-
-        if narrow:
-            positions = [(0, 0), (1, 0), (2, 0), (3, 0)]   # تک‌ستونه
-        else:
-            positions = [(0, 0), (0, 1), (1, 0), (1, 1)]   # دوستونه
-
-        for btn in self._action_buttons:
-            self._actions_grid.removeWidget(btn)
-        for btn, (r, cpos) in zip(self._action_buttons, positions):
-            self._actions_grid.addWidget(btn, r, cpos)
-
-        self._actions_grid.setColumnStretch(0, 1)
-        self._actions_grid.setColumnStretch(1, 0 if narrow else 1)
+        btn.setStyleSheet(f"""
+            QPushButton {{
+                background-color: {color};
+                color: white;
+                border: none;
+                border-radius: 8px;
+                padding: 10px;
+            }}
+            QPushButton:hover {{ opacity: 0.9; }}
+            QPushButton:disabled {{ background-color: #ccc; color: #666; }}
+        """)
 
     def set_sessions(self, sessions: List[SessionRecord], selected_phone: Optional[str] = None):
         """پر کردن لیست از روی Sessionهای دیتابیس (بدون مرورگر)."""
@@ -968,10 +909,27 @@ class _StatusPage(QWidget):
             self.select_session.emit(rec)
 
     def _set_valid_style(self, is_valid: bool):
-        """✨ رنگ جعبهٔ وضعیت با objectName و از تم سراسری می‌آید."""
-        self.status_box.setObjectName("statusBoxValid" if is_valid else "statusBox")
-        self.status_box.style().unpolish(self.status_box)
-        self.status_box.style().polish(self.status_box)
+        if is_valid:
+            self.status_box.setStyleSheet("""
+                QLabel {
+                    background-color: #d4edda;
+                    border: 2px solid #28a745;
+                    border-radius: 8px;
+                    padding: 12px;
+                    font-size: 12px;
+                    color: #155724;
+                }
+            """)
+        else:
+            self.status_box.setStyleSheet("""
+                QLabel {
+                    background-color: #f8f9fa;
+                    border: 2px solid #ddd;
+                    border-radius: 8px;
+                    padding: 12px;
+                    font-size: 12px;
+                }
+            """)
 
     def set_status(self, text: str, is_valid: bool = False):
         self.status_box.setText(text)
@@ -1001,16 +959,11 @@ class _PhonePage(QWidget):
         self._setup_ui(platform_name)
 
     def _setup_ui(self, platform_name: str):
-        self._primary_obj_name = (
-            "primaryDivar" if self._color.upper() == "#A62626" else "primarySheypoor"
-        )
-
         layout = QVBoxLayout(self)
         layout.setSpacing(20)
         layout.setAlignment(Qt.AlignCenter)
 
         title = QLabel(f"ورود به {platform_name}")
-        title.setObjectName("titleLabel")
         title_font = QFont()
         title_font.setPointSize(18)
         title_font.setBold(True)
@@ -1019,8 +972,8 @@ class _PhonePage(QWidget):
         layout.addWidget(title)
 
         description = QLabel("لطفاً شماره موبایل خود را وارد کنید")
-        description.setObjectName("subtitleLabel")
         description.setAlignment(Qt.AlignCenter)
+        description.setStyleSheet("color: #666;")
         layout.addWidget(description)
 
         layout.addSpacing(20)
@@ -1029,45 +982,57 @@ class _PhonePage(QWidget):
         self.phone_input.setPlaceholderText("09121234567")
         self.phone_input.setAlignment(Qt.AlignCenter)
         phone_font = QFont()
-        phone_font.setPointSize(15)
+        phone_font.setPointSize(14)
         self.phone_input.setFont(phone_font)
-        self.phone_input.setMinimumWidth(260)
-        self.phone_input.setMaximumWidth(520)
-        self.phone_input.setMinimumHeight(50)
+        self.phone_input.setMinimumWidth(350)
         self.phone_input.returnPressed.connect(self._on_submit)
         layout.addWidget(self.phone_input, alignment=Qt.AlignCenter)
 
         self.submit_btn = QPushButton("ادامه")
-        self._style_button(self.submit_btn, self._primary_obj_name)
+        self._style_button(self.submit_btn, self._color)
         self.submit_btn.clicked.connect(self._on_submit)
         layout.addWidget(self.submit_btn, alignment=Qt.AlignCenter)
 
         self.back_btn = QPushButton("← بازگشت")
-        self.back_btn.setObjectName("linkBtn")
-        self.back_btn.setCursor(Qt.PointingHandCursor)
+        self.back_btn.setStyleSheet("""
+            QPushButton {
+                background: transparent;
+                color: #666;
+                border: none;
+                padding: 8px;
+            }
+            QPushButton:hover { color: #333; }
+        """)
         self.back_btn.clicked.connect(self.go_back.emit)
         layout.addWidget(self.back_btn, alignment=Qt.AlignCenter)
 
         self.status_label = QLabel("")
-        self.status_label.setObjectName("statusLabel")
         self.status_label.setAlignment(Qt.AlignCenter)
+        self.status_label.setStyleSheet("color: #888; font-size: 11px;")
         self.status_label.setWordWrap(True)
         self.status_label.setMaximumWidth(450)
         layout.addWidget(self.status_label, alignment=Qt.AlignCenter)
 
         layout.addSpacing(20)
 
-    def _style_button(self, btn: QPushButton, object_name: str):
-        """✨ objectName به‌جای رنگ hardcoded - از تم سراسری پیروی می‌کند."""
-        btn.setMinimumWidth(260)
-        btn.setMaximumWidth(520)
-        btn.setMinimumHeight(52)
-        btn.setObjectName(object_name)
-        btn.setCursor(Qt.PointingHandCursor)
+    def _style_button(self, btn: QPushButton, color: str):
+        btn.setMinimumWidth(350)
+        btn.setMinimumHeight(45)
         font = QFont()
-        font.setPointSize(13)
+        font.setPointSize(12)
         font.setBold(True)
         btn.setFont(font)
+        btn.setStyleSheet(f"""
+            QPushButton {{
+                background-color: {color};
+                color: white;
+                border: none;
+                border-radius: 8px;
+                padding: 12px;
+            }}
+            QPushButton:hover {{ opacity: 0.9; }}
+            QPushButton:disabled {{ background-color: #ccc; }}
+        """)
 
     def _on_submit(self):
         phone = self.phone_input.text().strip()
@@ -1105,16 +1070,11 @@ class _CodePage(QWidget):
         self._setup_ui(platform_name)
 
     def _setup_ui(self, platform_name: str):
-        self._primary_obj_name = (
-            "primaryDivar" if self._color.upper() == "#A62626" else "primarySheypoor"
-        )
-
         layout = QVBoxLayout(self)
         layout.setSpacing(20)
         layout.setAlignment(Qt.AlignCenter)
 
         title = QLabel(f"کد تأیید {platform_name}")
-        title.setObjectName("titleLabel")
         title_font = QFont()
         title_font.setPointSize(18)
         title_font.setBold(True)
@@ -1123,13 +1083,13 @@ class _CodePage(QWidget):
         layout.addWidget(title)
 
         self.description = QLabel(f"کد {self._code_length} رقمی ارسال شده را وارد کنید")
-        self.description.setObjectName("subtitleLabel")
         self.description.setAlignment(Qt.AlignCenter)
+        self.description.setStyleSheet("color: #666;")
         layout.addWidget(self.description)
 
         hint = QLabel("💡 هر زمان خواستید می‌توانید مرورگر را ببندید و دوباره تلاش کنید")
-        hint.setObjectName("hintLabel")
         hint.setAlignment(Qt.AlignCenter)
+        hint.setStyleSheet("color: #888; font-size: 11px; font-style: italic;")
         hint.setWordWrap(True)
         hint.setMaximumWidth(400)
         layout.addWidget(hint, alignment=Qt.AlignCenter)
@@ -1137,7 +1097,6 @@ class _CodePage(QWidget):
         layout.addSpacing(10)
 
         self.code_input = QLineEdit()
-        self.code_input.setObjectName("codeInput")
         self.code_input.setPlaceholderText("۰" * self._code_length)
         self.code_input.setAlignment(Qt.AlignCenter)
         self.code_input.setMaxLength(self._code_length)
@@ -1145,52 +1104,80 @@ class _CodePage(QWidget):
         code_font.setPointSize(24)
         code_font.setBold(True)
         self.code_input.setFont(code_font)
-        self.code_input.setMinimumWidth(260)
-        self.code_input.setMaximumWidth(520)
-        self.code_input.setMinimumHeight(58)
+        self.code_input.setMinimumWidth(350)
+        self.code_input.setStyleSheet("""
+            QLineEdit {
+                letter-spacing: 8px;
+                padding: 15px;
+            }
+        """)
         self.code_input.returnPressed.connect(self._on_submit)
         layout.addWidget(self.code_input, alignment=Qt.AlignCenter)
 
         self.submit_btn = QPushButton("ورود")
-        self._style_button(self.submit_btn, self._primary_obj_name)
+        self._style_button(self.submit_btn, self._color)
         self.submit_btn.clicked.connect(self._on_submit)
         layout.addWidget(self.submit_btn, alignment=Qt.AlignCenter)
 
         self.cancel_btn = QPushButton("✖ لغو و بازگشت")
-        self.cancel_btn.setObjectName("dangerLinkBtn")
-        self.cancel_btn.setCursor(Qt.PointingHandCursor)
+        self.cancel_btn.setStyleSheet("""
+            QPushButton {
+                background: transparent;
+                color: #e74c3c;
+                border: none;
+                padding: 10px;
+                font-size: 12px;
+            }
+            QPushButton:hover { color: #c0392b; text-decoration: underline; }
+        """)
         self.cancel_btn.clicked.connect(self.cancel_login.emit)
         layout.addWidget(self.cancel_btn, alignment=Qt.AlignCenter)
 
         self.close_browser_btn = QPushButton("🔴 بستن مرورگر")
-        self.close_browser_btn.setObjectName("dangerBtn")
-        self.close_browser_btn.setCursor(Qt.PointingHandCursor)
-        self.close_browser_btn.setMinimumWidth(260)
-        self.close_browser_btn.setMaximumWidth(520)
-        self.close_browser_btn.setMinimumHeight(48)
+        self.close_browser_btn.setStyleSheet("""
+            QPushButton {
+                background-color: #dc3545;
+                color: white;
+                border: none;
+                border-radius: 8px;
+                padding: 10px;
+                font-size: 12px;
+                font-weight: bold;
+            }
+            QPushButton:hover { background-color: #c82333; }
+        """)
+        self.close_browser_btn.setMinimumWidth(350)
+        self.close_browser_btn.setMinimumHeight(40)
         self.close_browser_btn.clicked.connect(self.cancel_login.emit)
         layout.addWidget(self.close_browser_btn, alignment=Qt.AlignCenter)
 
         self.status_label = QLabel("")
-        self.status_label.setObjectName("statusLabel")
         self.status_label.setAlignment(Qt.AlignCenter)
+        self.status_label.setStyleSheet("color: #888; font-size: 11px;")
         self.status_label.setWordWrap(True)
         self.status_label.setMaximumWidth(450)
         layout.addWidget(self.status_label, alignment=Qt.AlignCenter)
 
         layout.addSpacing(20)
 
-    def _style_button(self, btn: QPushButton, object_name: str):
-        """✨ objectName به‌جای رنگ hardcoded - از تم سراسری پیروی می‌کند."""
-        btn.setMinimumWidth(260)
-        btn.setMaximumWidth(520)
-        btn.setMinimumHeight(52)
-        btn.setObjectName(object_name)
-        btn.setCursor(Qt.PointingHandCursor)
+    def _style_button(self, btn: QPushButton, color: str):
+        btn.setMinimumWidth(350)
+        btn.setMinimumHeight(45)
         font = QFont()
-        font.setPointSize(13)
+        font.setPointSize(12)
         font.setBold(True)
         btn.setFont(font)
+        btn.setStyleSheet(f"""
+            QPushButton {{
+                background-color: {color};
+                color: white;
+                border: none;
+                border-radius: 8px;
+                padding: 12px;
+            }}
+            QPushButton:hover {{ opacity: 0.9; }}
+            QPushButton:disabled {{ background-color: #ccc; }}
+        """)
 
     def set_phone(self, phone: str):
         self.description.setText(

@@ -147,142 +147,168 @@ class AutomationTab(QWidget):
 
     def _setup_ui(self):
         layout = QVBoxLayout(self)
-        layout.setContentsMargins(30, 20, 30, 20)
-        layout.setSpacing(15)
+        layout.setContentsMargins(28, 24, 28, 24)
+        layout.setSpacing(16)
 
         # عنوان
         title = QLabel("🤖 اتوماسیون دیوار")
+        title.setObjectName("titleLabel")
         title_font = QFont()
         title_font.setPointSize(20)
         title_font.setBold(True)
         title.setFont(title_font)
-        title.setAlignment(Qt.AlignCenter)
         layout.addWidget(title)
 
         hint = QLabel(
-            "شهرها و دسته‌بندی مورد نظر خود را انتخاب کنید و دکمه «شروع» را بزنید.\n"
+            "شهرها و دسته‌بندی مورد نظر خود را انتخاب کنید و دکمه «شروع» را بزنید. "
             "سایت دیوار با فیلترهای انتخاب شده باز می‌شود."
         )
-        hint.setAlignment(Qt.AlignCenter)
+        hint.setObjectName("subtitleLabel")
         hint.setWordWrap(True)
-        hint.setStyleSheet("color: #666; font-size: 12px;")
         layout.addWidget(hint)
 
-        splitter = QSplitter(Qt.Vertical)
+        # ===== ردیف بالا: شهرها و دسته‌بندی کنار هم =====
+        top_splitter = QSplitter(Qt.Horizontal)
 
-        # ===== بخش شهرها =====
+        # ----- بخش شهرها -----
         cities_group = QGroupBox("🏙️ انتخاب شهرها")
         cities_layout = QVBoxLayout(cities_group)
+        cities_layout.setSpacing(10)
 
         city_search_row = QHBoxLayout()
         self.city_search = QLineEdit()
         self.city_search.setPlaceholderText("🔍 جستجوی شهر... (مثال: تهران)")
-        self.city_search.setStyleSheet("QLineEdit { padding: 8px; border: 2px solid #ddd; border-radius: 6px; font-size: 13px; } QLineEdit:focus { border-color: #A62626; }")
         self.city_search.textChanged.connect(self._filter_cities)
-        city_search_row.addWidget(self.city_search)
+        city_search_row.addWidget(self.city_search, stretch=1)
 
         self.selected_cities_count = QLabel("0 شهر")
-        self.selected_cities_count.setStyleSheet("color: #A62626; font-weight: bold; font-size: 12px; min-width: 80px;")
+        self.selected_cities_count.setObjectName("mutedLabel")
         city_search_row.addWidget(self.selected_cities_count)
         cities_layout.addLayout(city_search_row)
 
         self.city_list = QListWidget()
         self.city_list.setSelectionMode(QAbstractItemView.MultiSelection)
-        self.city_list.setMaximumHeight(150)
-        self.city_list.setStyleSheet("""
-            QListWidget { border: 2px solid #ddd; border-radius: 8px; background: white; font-size: 13px; padding: 4px; }
-            QListWidget::item { padding: 6px; border-bottom: 1px solid #eee; }
-            QListWidget::item:selected { background-color: #A62626; color: white; }
-            QListWidget::item:hover { background-color: #f5f5f5; }
-        """)
+        self.city_list.setMinimumHeight(150)
         self.city_list.itemSelectionChanged.connect(self._update_selection_info)
-        cities_layout.addWidget(self.city_list)
+        cities_layout.addWidget(self.city_list, stretch=1)
 
         city_btn_row = QHBoxLayout()
         self.select_all_cities_btn = QPushButton("✅ انتخاب همه")
-        self.select_all_cities_btn.setStyleSheet("QPushButton { background-color: #28a745; color: white; border: none; border-radius: 6px; padding: 6px 12px; font-weight: bold; } QPushButton:hover { background-color: #218838; }")
+        self.select_all_cities_btn.setObjectName("successBtn")
+        self.select_all_cities_btn.setMinimumHeight(40)
+        self.select_all_cities_btn.setCursor(Qt.PointingHandCursor)
         self.select_all_cities_btn.clicked.connect(lambda: self.city_list.selectAll())
         city_btn_row.addWidget(self.select_all_cities_btn)
 
-        self.deselect_all_cities_btn = QPushButton("❌ حذف")
-        self.deselect_all_cities_btn.setStyleSheet("QPushButton { background-color: #dc3545; color: white; border: none; border-radius: 6px; padding: 6px 12px; font-weight: bold; } QPushButton:hover { background-color: #c82333; }")
+        self.deselect_all_cities_btn = QPushButton("❌ حذف انتخاب")
+        self.deselect_all_cities_btn.setObjectName("dangerBtn")
+        self.deselect_all_cities_btn.setMinimumHeight(40)
+        self.deselect_all_cities_btn.setCursor(Qt.PointingHandCursor)
         self.deselect_all_cities_btn.clicked.connect(lambda: self.city_list.clearSelection())
         city_btn_row.addWidget(self.deselect_all_cities_btn)
         cities_layout.addLayout(city_btn_row)
-        splitter.addWidget(cities_group)
+        top_splitter.addWidget(cities_group)
 
-        # ===== بخش دسته‌بندی‌ها =====
+        # ----- بخش دسته‌بندی‌ها -----
         cat_group = QGroupBox("📂 انتخاب دسته‌بندی (اختیاری)")
         cat_layout = QVBoxLayout(cat_group)
+        cat_layout.setSpacing(10)
 
         cat_search_row = QHBoxLayout()
         self.category_search = QLineEdit()
         self.category_search.setPlaceholderText("🔍 جستجوی دسته‌بندی... (مثال: خودرو، مسکونی)")
-        self.category_search.setStyleSheet("QLineEdit { padding: 8px; border: 2px solid #ddd; border-radius: 6px; font-size: 13px; } QLineEdit:focus { border-color: #17a2b8; }")
         self.category_search.textChanged.connect(self._filter_categories)
-        cat_search_row.addWidget(self.category_search)
+        cat_search_row.addWidget(self.category_search, stretch=1)
 
         self.selected_category_label = QLabel("همه دسته‌ها")
-        self.selected_category_label.setStyleSheet("color: #17a2b8; font-weight: bold; font-size: 12px; min-width: 120px;")
+        self.selected_category_label.setObjectName("mutedLabel")
         cat_search_row.addWidget(self.selected_category_label)
         cat_layout.addLayout(cat_search_row)
 
         self.category_list = QListWidget()
         self.category_list.setSelectionMode(QAbstractItemView.SingleSelection)
-        self.category_list.setMaximumHeight(150)
-        self.category_list.setStyleSheet("""
-            QListWidget { border: 2px solid #ddd; border-radius: 8px; background: white; font-size: 13px; padding: 4px; }
-            QListWidget::item { padding: 6px; border-bottom: 1px solid #eee; }
-            QListWidget::item:selected { background-color: #17a2b8; color: white; }
-            QListWidget::item:hover { background-color: #f5f5f5; }
-        """)
+        self.category_list.setMinimumHeight(150)
         self.category_list.itemSelectionChanged.connect(self._update_selection_info)
-        cat_layout.addWidget(self.category_list)
+        cat_layout.addWidget(self.category_list, stretch=1)
 
         cat_btn_row = QHBoxLayout()
         self.clear_category_btn = QPushButton("❌ حذف فیلتر دسته‌بندی")
-        self.clear_category_btn.setStyleSheet("QPushButton { background-color: #6c757d; color: white; border: none; border-radius: 6px; padding: 6px 12px; font-weight: bold; } QPushButton:hover { background-color: #5a6268; }")
+        self.clear_category_btn.setObjectName("ghostBtn")
+        self.clear_category_btn.setMinimumHeight(40)
+        self.clear_category_btn.setCursor(Qt.PointingHandCursor)
         self.clear_category_btn.clicked.connect(self._clear_category)
         cat_btn_row.addWidget(self.clear_category_btn)
         cat_layout.addLayout(cat_btn_row)
-        splitter.addWidget(cat_group)
+        top_splitter.addWidget(cat_group)
+
+        # تقسیم برابر فضا بین دو بخش
+        top_splitter.setSizes([400, 400])
+        layout.addWidget(top_splitter, stretch=1)
 
         # ===== بخش اطلاعات و شروع =====
-        info_group = QGroupBox("📋 اطلاعات")
+        info_group = QGroupBox("📋 اطلاعات و شروع")
         info_layout = QVBoxLayout(info_group)
+        info_layout.setSpacing(12)
 
         self.url_display = QTextEdit()
         self.url_display.setReadOnly(True)
-        self.url_display.setMaximumHeight(80)
-        self.url_display.setStyleSheet("QTextEdit { background-color: #f8f9fa; border: 2px solid #ddd; border-radius: 6px; padding: 8px; font-family: monospace; font-size: 12px; }")
+        self.url_display.setMaximumHeight(96)
         self.url_display.setPlaceholderText("URL دیوار اینجا نمایش داده می‌شود...")
         info_layout.addWidget(self.url_display)
 
+        action_row = QHBoxLayout()
+        action_row.setSpacing(12)
+
         self.start_btn = QPushButton("🚀 شروع - باز کردن دیوار")
-        self.start_btn.setMinimumHeight(50)
+        self.start_btn.setObjectName("primaryDivar")
+        self.start_btn.setCursor(Qt.PointingHandCursor)
+        self.start_btn.setMinimumHeight(52)
         start_font = QFont()
         start_font.setPointSize(14)
         start_font.setBold(True)
         self.start_btn.setFont(start_font)
-        self.start_btn.setStyleSheet("""
-            QPushButton { background-color: #A62626; color: white; border: none; border-radius: 10px; padding: 12px; }
-            QPushButton:hover { background-color: #8B1E1E; }
-            QPushButton:disabled { background-color: #ccc; color: #666; }
-        """)
         self.start_btn.clicked.connect(self._on_start)
         self.start_btn.setEnabled(False)
-        info_layout.addWidget(self.start_btn)
+        action_row.addWidget(self.start_btn, stretch=2)
 
         self.close_btn = QPushButton("🔴 بستن مرورگر")
-        self.close_btn.setStyleSheet("QPushButton { background-color: #dc3545; color: white; border: none; border-radius: 8px; padding: 10px; font-weight: bold; } QPushButton:hover { background-color: #c82333; }")
+        self.close_btn.setObjectName("dangerBtn")
+        self.close_btn.setMinimumHeight(52)
+        self.close_btn.setCursor(Qt.PointingHandCursor)
         self.close_btn.clicked.connect(self._close_browser)
-        info_layout.addWidget(self.close_btn)
+        action_row.addWidget(self.close_btn, stretch=1)
 
-        splitter.addWidget(info_group)
-        layout.addWidget(splitter)
+        info_layout.addLayout(action_row)
+        layout.addWidget(info_group)
 
     def _log(self, level: str, msg: str):
         self.log_message.emit(level, msg)
+
+    def restyle(self):
+        """✨ سازگاری با سوییچ تم - objectNameها از QSS سراسری پیروی می‌کنند."""
+        for w in (self.city_list, self.category_list, self.url_display,
+                  self.city_search, self.category_search):
+            try:
+                w.style().unpolish(w)
+                w.style().polish(w)
+            except Exception:
+                pass
+
+    def resizeEvent(self, event):
+        """✨ واکنش‌گرایی: در عرض کم، شهر و دسته‌بندی زیر هم قرار می‌گیرند."""
+        super().resizeEvent(event)
+        try:
+            if not hasattr(self, "top_splitter"):
+                return
+            w = self.width()
+            if w < 680 and self.top_splitter.orientation() != Qt.Vertical:
+                self.top_splitter.setOrientation(Qt.Vertical)
+                self.top_splitter.setSizes([300, 300])
+            elif w >= 680 and self.top_splitter.orientation() != Qt.Horizontal:
+                self.top_splitter.setOrientation(Qt.Horizontal)
+                self.top_splitter.setSizes([400, 400])
+        except Exception:
+            pass
 
     # ------------------------------------------------------------------
     # بارگذاری داده‌ها

@@ -34,30 +34,23 @@ class LogsTab(QWidget):
 
     def _setup_ui(self):
         layout = QVBoxLayout(self)
-        layout.setContentsMargins(20, 20, 20, 20)
-        layout.setSpacing(10)
+        layout.setContentsMargins(24, 22, 24, 22)
+        layout.setSpacing(12)
 
         # هدر
         header = QHBoxLayout()
         title = QLabel("📋 لاگ‌های سیستم")
+        title.setObjectName("titleLabel")
         title_font = QFont()
-        title_font.setPointSize(14)
+        title_font.setPointSize(15)
         title_font.setBold(True)
         title.setFont(title_font)
         header.addWidget(title)
         header.addStretch()
 
         self.clear_btn = QPushButton("🗑️ پاک کردن")
-        self.clear_btn.setStyleSheet("""
-            QPushButton {
-                background-color: #e74c3c;
-                color: white;
-                border: none;
-                border-radius: 5px;
-                padding: 8px 15px;
-            }
-            QPushButton:hover { background-color: #c0392b; }
-        """)
+        self.clear_btn.setObjectName("dangerBtn")
+        self.clear_btn.setCursor(Qt.PointingHandCursor)
         self.clear_btn.clicked.connect(self._clear_logs)
         header.addWidget(self.clear_btn)
 
@@ -65,42 +58,37 @@ class LogsTab(QWidget):
 
         # توضیح
         description = QLabel("تمام رویدادهای سیستم، خطاها و وضعیت‌ها اینجا نمایش داده می‌شوند")
-        description.setStyleSheet("color: #888; font-size: 11px;")
+        description.setObjectName("hintLabel")
         layout.addWidget(description)
 
         # Text area برای لاگ‌ها
         self.log_text = QTextEdit()
+        self.log_text.setObjectName("logConsole")
         self.log_text.setReadOnly(True)
-        self.log_text.setFontFamily("Consolas, Monaco, monospace")
-        log_font = QFont()
-        log_font.setPointSize(10)
-        self.log_text.setFont(log_font)
-        self.log_text.setStyleSheet("""
-            QTextEdit {
-                background-color: #1e1e1e;
-                color: #d4d4d4;
-                border: 1px solid #333;
-                border-radius: 5px;
-                padding: 10px;
-            }
-        """)
         layout.addWidget(self.log_text)
 
         # Footer
         footer = QHBoxLayout()
         self.count_label = QLabel("تعداد لاگ‌ها: 0")
-        self.count_label.setStyleSheet("color: #888; font-size: 11px;")
+        self.count_label.setObjectName("mutedLabel")
         footer.addWidget(self.count_label)
         footer.addStretch()
 
         self.time_label = QLabel("")
-        self.time_label.setStyleSheet("color: #888; font-size: 11px;")
+        self.time_label.setObjectName("mutedLabel")
         footer.addWidget(self.time_label)
 
         layout.addLayout(footer)
 
         self._log_count = 0
         self._update_time()
+
+    def restyle(self):
+        """✨ با تغییر تم، استایل‌ها از QSS سراسری بازخوانی می‌شوند."""
+        # objectNameها ثابت‌اند و QSS سراسری خودکار اعمال می‌شود؛
+        # این متد فقط برای سازگاری با رابط مشترک تب‌ها وجود دارد.
+        self.style().unpolish(self.log_text)
+        self.style().polish(self.log_text)
 
     def _update_time(self):
         now = datetime.now()
