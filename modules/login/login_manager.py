@@ -34,6 +34,7 @@ from core.login_diagnostics import DiagnosticReport, FailureReason
 from core.post_login_verifier import PlatformConfig, PostLoginVerifier
 from core.retry import OperationCancelled, async_retry
 from core.session_manager import SessionManager
+from core.session_models import SessionStatus
 from modules.login.models import (
     CodeInput,
     LoginResult,
@@ -514,19 +515,23 @@ class LoginManager:
             page_state = await self._detect_page_state(page)
             logger.info("[divar] Current page state: %s", page_state)
             
-            # اگر لاگین است، فقط Session را save کن
+            # اگر لاگین است، فقط Session را save کن (در صورت تغییر)
             if page_state["is_logged_in"]:
-                logger.info("[divar] ✅ Already logged in! Saving session without re-login...")
-                account_state = await self._session.capture_storage_state(self._browser.context)
-                await self._open_main_ads_page(page)
-                main_state = await self._session.capture_storage_state(self._browser.context)
+                logger.info("[divar] ✅ Already logged in! Checking session...")
                 
+                # باز کردن صفحه اصلی آگهی‌ها
+                await self._open_main_ads_page(page)
+                await page.wait_for_timeout(1000)
+                
+                # فقط یک بار capture بعد از navigation
+                current_state = await self._session.capture_storage_state(self._browser.context)
+                
+                # مقایسه با session ذخیره شده قبلی
                 existing = self._session.load(phone)
-                changed_from_account = account_state.has_changes(main_state)
-                changed_from_saved = existing is None or existing.storage_state.has_changes(main_state)
+                has_changed = existing is None or existing.storage_state.has_changes(current_state)
                 
                 json_path = None
-                if changed_from_account or changed_from_saved:
+                if has_changed:
                     session_metadata = {
                         "login_method": "already_logged_in",
                         "phone": phone,
@@ -534,12 +539,11 @@ class LoginManager:
                     }
                     record, json_path = await self._session.save_and_export(
                         context=self._browser.context, phone=phone,
-                        metadata=session_metadata, storage_state=main_state,
+                        metadata=session_metadata, storage_state=current_state,
                     )
-                    logger.info("[divar] Session saved: id=%s", record.id)
+                    logger.info("[divar] Session changed & saved: id=%s", record.id)
                 else:
-                    record = existing
-                    logger.info("[divar] Session unchanged: id=%s", record.id)
+                    logger.info("[divar] Session unchanged, skipping save: id=%s", existing.id if existing else "N/A")
                 
                 self._set_state(LoginState.SUCCESS)
                 return LoginResult(True, self._state, phone=phone,
@@ -585,24 +589,41 @@ class LoginManager:
             # Save the complete context immediately; save_from_context also reads
             # cookies, localStorage and sessionStorage from open pages.
             if login_response is None:
-                # ✨ FIX: همیشه بعد از Login موفق، Session را ذخیره کن (با status=VALID)
-                logger.info("[divar] ✅ Login successful (logout button detected), saving session...")
+                # ✨ FIX: ذخیره Session بعد از Login موفق (با چک تغییرات)
+                logger.info("[divar] ✅ Login successful (logout button detected), checking session...")
                 
                 # باز کردن صفحه اصلی آگهی‌ها
                 await self._open_main_ads_page(page)
                 await page.wait_for_timeout(2000)  # صبر برای لود کامل
                 
-                # ذخیره Session با status=VALID (همیشه!)
-                session_metadata = {
-                    "login_method": "logout_button_then_ads_page",
-                    "phone": phone,
-                    "current_url": page.url,
-                }
-                record, json_path = await self._session.save_and_export(
-                    context=self._browser.context, phone=phone,
-                    metadata=session_metadata,
-                )
-                logger.info("[divar] ✅ Session saved with status=VALID: id=%s", record.id)
+                # Capture state فعلی
+                current_state = await self._session.capture_storage_state(self._browser.context)
+                
+                # مقایسه با session ذخیره شده قبلی
+                existing = self._session.load(phone)
+                has_changed = existing is None or existing.storage_state.has_changes(current_state)
+                
+                json_path = None
+                if has_changed:
+                    # ذخیره Session با status=VALID
+                    session_metadata = {
+                        "login_method": "logout_button_then_ads_page",
+                        "phone": phone,
+                        "current_url": page.url,
+                    }
+                    record, json_path = await self._session.save_and_export(
+                        context=self._browser.context, phone=phone,
+                        metadata=session_metadata, storage_state=current_state,
+                    )
+                    logger.info("[divar] ✅ Session changed & saved with status=VALID: id=%s", record.id)
+                else:
+                    # Session تغییر نکرده - فقط status را به VALID تغییر بده
+                    if existing and existing.status != SessionStatus.VALID:
+                        existing.status = SessionStatus.VALID
+                        self._session._db.update_status(existing.id, SessionStatus.VALID, "login_confirmed")
+                        logger.info("[divar] Session unchanged but status updated to VALID: id=%s", existing.id)
+                    else:
+                        logger.info("[divar] Session unchanged (already VALID): id=%s", existing.id if existing else "N/A")
                 
                 self._set_state(LoginState.SUCCESS)
                 return LoginResult(True, self._state, phone=phone,

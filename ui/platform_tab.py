@@ -299,7 +299,21 @@ class LoginWorker(QRunnable):
                         code_provider=self._code_provider,
                     )
                     self.signals.status_changed.emit("در حال شروع فرآیند ورود...")
-                    return await login_manager.login(self.phone)
+                    result = await login_manager.login(self.phone)
+                    
+                    # ✨ FIX: اگر Login موفق بود، مرورگر باز بماند
+                    if result.success:
+                        self.signals.status_changed.emit(
+                            "✅ ورود موفق! مرورگر باز است.\n"
+                            "هر وقت کارتان تمام شد، پنجره مرورگر را ببندید."
+                        )
+                        try:
+                            # منتظر بمان تا کاربر مرورگر را ببندد
+                            await browser_manager.page.wait_for_event("close", timeout=0)
+                        except Exception:
+                            pass
+                    
+                    return result
 
             result = loop.run_until_complete(_run())
             self.signals.login_finished.emit(result)

@@ -1,12 +1,11 @@
 """
 MainWindow - پنجره اصلی برنامه با QTabWidget.
 
-سه تب:
+چهار تب:
 1. دیوار
 2. شیپور
-3. لاگ‌ها
-
-در شروع برنامه، هر تب به‌طور خودکار Session ذخیره‌شده را بررسی می‌کند.
+3. اتوماسیون (جدید!)
+4. لاگ‌ها
 """
 
 from __future__ import annotations
@@ -28,14 +27,15 @@ PROJECT_ROOT = Path(__file__).resolve().parent.parent
 if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
-from PySide6.QtCore import Signal, QObject  # noqa: E402
+from PySide6.QtCore import Signal, QObject
 
-from core.logger_manager import setup_logging, register_ui_callback  # noqa: E402
-from modules.login import LoginManager as DivarLoginManager  # noqa: E402
-from modules.sheypoor import LoginManager as SheypoorLoginManager  # noqa: E402
+from core.logger_manager import setup_logging, register_ui_callback
+from modules.login import LoginManager as DivarLoginManager
+from modules.sheypoor import LoginManager as SheypoorLoginManager
 
-from ui.platform_tab import PlatformTab  # noqa: E402
-from ui.logs_tab import LogsTab  # noqa: E402
+from ui.platform_tab import PlatformTab
+from ui.logs_tab import LogsTab
+from ui.automation_tab import AutomationTab  # ✨ جدید!
 
 
 class _LogBridge(QObject):
@@ -44,7 +44,7 @@ class _LogBridge(QObject):
 
 
 class MainWindow(QMainWindow):
-    """پنجره اصلی برنامه با سه تب."""
+    """پنجره اصلی برنامه با چهار تب."""
 
     def __init__(self):
         super().__init__()
@@ -104,6 +104,11 @@ class MainWindow(QMainWindow):
         self.sheypoor_tab.log_message.connect(self._on_log)
         self.tabs.addTab(self.sheypoor_tab, "📢 شیپور")
 
+        # ✨ تب اتوماسیون (جدید!)
+        self.automation_tab = AutomationTab()
+        self.automation_tab.log_message.connect(self._on_log)
+        self.tabs.addTab(self.automation_tab, "🤖 اتوماسیون")
+
         # تب لاگ‌ها
         self.logs_tab = LogsTab()
         self.tabs.addTab(self.logs_tab, "📋 لاگ‌ها")
@@ -129,18 +134,14 @@ class MainWindow(QMainWindow):
         self.btn_close_browser.clicked.connect(self._close_all_browsers)
         tb.addWidget(self.btn_close_browser)
 
-
     def _setup_logging(self):
         setup_logging()
-        # پل thread-safe: از هر threadی صدا زده شود، به UI thread منتقل می‌شود
         self._log_bridge.log_received.connect(self.logs_tab.append_log)
         register_ui_callback(self._ui_log_callback)
         self.logs_tab.append_log("INFO", "✅ برنامه با موفقیت شروع شد")
         self.logs_tab.append_log("INFO", "🔄 در حال بررسی Sessionهای ذخیره‌شده...")
 
     def _ui_log_callback(self, level: str, message: str):
-        """callback برای ارسال لاگ‌های logging به UI (thread-safe)."""
-        # از signal استفاده می‌کنیم تا لاگ به UI thread منتقل شود
         self._log_bridge.log_received.emit(level, message)
 
     @Slot(str, str)
@@ -161,9 +162,8 @@ class MainWindow(QMainWindow):
             code_provider=code_provider,
         )
 
-
     def _close_all_browsers(self):
-        """بستن مرورگر از هر دو تب + force close."""
+        """بستن مرورگر از همه تب‌ها + force close."""
         try:
             if hasattr(self, "divar_tab") and hasattr(self.divar_tab, "_on_close_browser_clicked"):
                 self.divar_tab._on_close_browser_clicked()
@@ -174,12 +174,17 @@ class MainWindow(QMainWindow):
                 self.sheypoor_tab._on_close_browser_clicked()
         except Exception:
             pass
+        # ✨ بستن مرورگر اتوماسیون
+        try:
+            if hasattr(self, "automation_tab") and hasattr(self.automation_tab, "_close_browser"):
+                self.automation_tab._close_browser()
+        except Exception:
+            pass
         try:
             from core.browser_service import BrowserService
             BrowserService.instance().request_close_all(timeout=10.0)
         except Exception:
             pass
-        # fallback kill playwright chromium
         try:
             import subprocess
             if sys.platform.startswith("win"):
