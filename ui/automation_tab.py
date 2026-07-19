@@ -4,7 +4,8 @@ AutomationTab - تب اتوماسیون دیوار.
 ویژگی‌ها:
 - نمایش لیست شهرها با قابلیت جستجو
 - انتخاب چندگانه شهرها
-- ساخت URL دیوار با شهرهای انتخاب شده
+- انتخاب دسته‌بندی (اختیاری)
+- ساخت URL دیوار با شهرها و دسته‌بندی انتخاب شده
 - باز کردن سایت دیوار با Session ذخیره شده
 """
 
@@ -37,13 +38,14 @@ from PySide6.QtWidgets import (
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
+
 from core.browser_manager import BrowserManager
 from core.session_manager import SessionManager
-from core.session_models import SessionRecord, SessionStatus
 
 logger = logging.getLogger("divar.automation")
 
 CITIES_FILE = PROJECT_ROOT / "data" / "cities.json"
+CATEGORIES_FILE = PROJECT_ROOT / "data" / "categories.json"
 
 
 # ---------------------------------------------------------------------------
@@ -53,19 +55,19 @@ class AutomationSignals(QObject):
     status_changed = Signal(str)
     error_occurred = Signal(str)
     finished = Signal(str)
-    cities_loaded = Signal(list)
 
 
 # ---------------------------------------------------------------------------
 # Worker برای باز کردن دیوار
 # ---------------------------------------------------------------------------
 class DivarBrowserWorker(QRunnable):
-    """باز کردن سایت دیوار با شهرهای انتخاب شده."""
+    """باز کردن سایت دیوار با شهرها و دسته‌بندی انتخاب شده."""
 
-    def __init__(self, cities_ids: List[int], cities_names: List[str], phone: Optional[str] = None):
+    def __init__(self, url: str, cities_names: List[str], category_name: str, phone: Optional[str] = None):
         super().__init__()
-        self.cities_ids = cities_ids
+        self.url = url
         self.cities_names = cities_names
+        self.category_name = category_name
         self.phone = phone
         self.signals = AutomationSignals()
         self.setAutoDelete(True)
@@ -89,40 +91,35 @@ class DivarBrowserWorker(QRunnable):
         asyncio.set_event_loop(loop)
 
         try:
-            # ساخت URL - همیشه از cities parameter استفاده کن
-            cities_param = ",".join(str(cid) for cid in self.cities_ids)
-            url = f"https://divar.ir/s/iran?cities={cities_param}"
-            
-            self.signals.status_changed.emit(f"🌐 URL: {url}")
+            self.signals.status_changed.emit(f"🌐 URL: {self.url}")
 
             async def _run():
-                # بارگذاری Session
                 sm = SessionManager(platform="divar")
                 record = sm.load(phone=self.phone) if self.phone else sm.load()
-                
+
                 bm = BrowserManager(session_record=record)
                 self._browser_manager = bm
-                
+
                 async with bm:
                     self.signals.status_changed.emit("🔄 در حال باز کردن سایت دیوار...")
-                    
-                    await bm.page.goto(url, wait_until="domcontentloaded", timeout=30_000)
+
+                    await bm.page.goto(self.url, wait_until="domcontentloaded", timeout=30_000)
                     await bm.page.wait_for_load_state("networkidle")
-                    
+
                     self.signals.status_changed.emit(
                         f"✅ سایت دیوار باز شد!\n"
-                        f"URL: {url}\n"
-                        f"شهرها: {', '.join(self.cities_names)}\n\n"
+                        f"URL: {self.url}\n"
+                        f"شهرها: {', '.join(self.cities_names)}\n"
+                        f"دسته‌بندی: {self.category_name}\n\n"
                         f"🟢 مرورگر باز است. هر وقت کارتان تمام شد ببندید."
                     )
-                    
-                    # منتظر بمان تا کاربر مرورگر را ببندد
+
                     try:
                         await bm.page.wait_for_event("close", timeout=0)
                     except Exception:
                         pass
-                
-                self.signals.finished.emit(url)
+
+                self.signals.finished.emit(self.url)
 
             loop.run_until_complete(_run())
 
@@ -136,16 +133,17 @@ class DivarBrowserWorker(QRunnable):
 # تب اتوماسیون
 # ---------------------------------------------------------------------------
 class AutomationTab(QWidget):
-    """تب اتوماسیون - انتخاب شهر و باز کردن دیوار."""
+    """تب اتوماسیون - انتخاب شهر، دسته‌بندی و باز کردن دیوار."""
 
     log_message = Signal(str, str)
 
     def __init__(self, parent=None):
         super().__init__(parent)
         self._cities: List[dict] = []
+        self._categories: List[dict] = []
         self._current_worker: Optional[DivarBrowserWorker] = None
         self._setup_ui()
-        self._load_cities()
+        self._load_data()
 
     def _setup_ui(self):
         layout = QVBoxLayout(self)
@@ -162,149 +160,104 @@ class AutomationTab(QWidget):
         layout.addWidget(title)
 
         hint = QLabel(
-            "شهرهای مورد نظر خود را انتخاب کنید و دکمه «شروع» را بزنید.\n"
-            "سایت دیوار با شهرهای انتخاب شده باز می‌شود."
+            "شهرها و دسته‌بندی مورد نظر خود را انتخاب کنید و دکمه «شروع» را بزنید.\n"
+            "سایت دیوار با فیلترهای انتخاب شده باز می‌شود."
         )
         hint.setAlignment(Qt.AlignCenter)
         hint.setWordWrap(True)
         hint.setStyleSheet("color: #666; font-size: 12px;")
         layout.addWidget(hint)
 
-        # Splitter برای لیست و جزئیات
         splitter = QSplitter(Qt.Vertical)
 
-        # --- بخش جستجو و لیست شهرها ---
-        search_group = QGroupBox("🏙️ انتخاب شهرها")
-        search_layout = QVBoxLayout(search_group)
+        # ===== بخش شهرها =====
+        cities_group = QGroupBox("🏙️ انتخاب شهرها")
+        cities_layout = QVBoxLayout(cities_group)
 
-        # جستجو
-        search_row = QHBoxLayout()
-        search_label = QLabel("🔍 جستجو:")
-        search_label.setStyleSheet("font-weight: bold;")
-        search_row.addWidget(search_label)
+        city_search_row = QHBoxLayout()
+        self.city_search = QLineEdit()
+        self.city_search.setPlaceholderText("🔍 جستجوی شهر... (مثال: تهران)")
+        self.city_search.setStyleSheet("QLineEdit { padding: 8px; border: 2px solid #ddd; border-radius: 6px; font-size: 13px; } QLineEdit:focus { border-color: #A62626; }")
+        self.city_search.textChanged.connect(self._filter_cities)
+        city_search_row.addWidget(self.city_search)
 
-        self.search_input = QLineEdit()
-        self.search_input.setPlaceholderText("نام شهر را وارد کنید... (مثال: تهران)")
-        self.search_input.setStyleSheet("""
-            QLineEdit {
-                padding: 8px;
-                border: 2px solid #ddd;
-                border-radius: 6px;
-                font-size: 13px;
-            }
-            QLineEdit:focus {
-                border-color: #A62626;
-            }
-        """)
-        self.search_input.textChanged.connect(self._filter_cities)
-        search_row.addWidget(self.search_input)
+        self.selected_cities_count = QLabel("0 شهر")
+        self.selected_cities_count.setStyleSheet("color: #A62626; font-weight: bold; font-size: 12px; min-width: 80px;")
+        city_search_row.addWidget(self.selected_cities_count)
+        cities_layout.addLayout(city_search_row)
 
-        self.selected_count = QLabel("0 شهر انتخاب شده")
-        self.selected_count.setStyleSheet("color: #A62626; font-weight: bold; font-size: 12px;")
-        search_row.addWidget(self.selected_count)
-
-        search_layout.addLayout(search_row)
-
-        # لیست شهرها
         self.city_list = QListWidget()
         self.city_list.setSelectionMode(QAbstractItemView.MultiSelection)
-        self.city_list.setMinimumHeight(200)
+        self.city_list.setMaximumHeight(150)
         self.city_list.setStyleSheet("""
-            QListWidget {
-                border: 2px solid #ddd;
-                border-radius: 8px;
-                background: white;
-                font-size: 13px;
-                padding: 4px;
-            }
-            QListWidget::item {
-                padding: 8px;
-                border-bottom: 1px solid #eee;
-            }
-            QListWidget::item:selected {
-                background-color: #A62626;
-                color: white;
-            }
-            QListWidget::item:hover {
-                background-color: #f5f5f5;
-            }
+            QListWidget { border: 2px solid #ddd; border-radius: 8px; background: white; font-size: 13px; padding: 4px; }
+            QListWidget::item { padding: 6px; border-bottom: 1px solid #eee; }
+            QListWidget::item:selected { background-color: #A62626; color: white; }
+            QListWidget::item:hover { background-color: #f5f5f5; }
         """)
         self.city_list.itemSelectionChanged.connect(self._update_selection_info)
-        search_layout.addWidget(self.city_list)
+        cities_layout.addWidget(self.city_list)
 
-        # دکمه‌های انتخاب
-        select_row = QHBoxLayout()
-        
-        self.select_all_btn = QPushButton("✅ انتخاب همه")
-        self.select_all_btn.setStyleSheet("""
-            QPushButton {
-                background-color: #28a745;
-                color: white;
-                border: none;
-                border-radius: 6px;
-                padding: 8px 16px;
-                font-weight: bold;
-            }
-            QPushButton:hover { background-color: #218838; }
+        city_btn_row = QHBoxLayout()
+        self.select_all_cities_btn = QPushButton("✅ انتخاب همه")
+        self.select_all_cities_btn.setStyleSheet("QPushButton { background-color: #28a745; color: white; border: none; border-radius: 6px; padding: 6px 12px; font-weight: bold; } QPushButton:hover { background-color: #218838; }")
+        self.select_all_cities_btn.clicked.connect(lambda: self.city_list.selectAll())
+        city_btn_row.addWidget(self.select_all_cities_btn)
+
+        self.deselect_all_cities_btn = QPushButton("❌ حذف")
+        self.deselect_all_cities_btn.setStyleSheet("QPushButton { background-color: #dc3545; color: white; border: none; border-radius: 6px; padding: 6px 12px; font-weight: bold; } QPushButton:hover { background-color: #c82333; }")
+        self.deselect_all_cities_btn.clicked.connect(lambda: self.city_list.clearSelection())
+        city_btn_row.addWidget(self.deselect_all_cities_btn)
+        cities_layout.addLayout(city_btn_row)
+        splitter.addWidget(cities_group)
+
+        # ===== بخش دسته‌بندی‌ها =====
+        cat_group = QGroupBox("📂 انتخاب دسته‌بندی (اختیاری)")
+        cat_layout = QVBoxLayout(cat_group)
+
+        cat_search_row = QHBoxLayout()
+        self.category_search = QLineEdit()
+        self.category_search.setPlaceholderText("🔍 جستجوی دسته‌بندی... (مثال: خودرو، مسکونی)")
+        self.category_search.setStyleSheet("QLineEdit { padding: 8px; border: 2px solid #ddd; border-radius: 6px; font-size: 13px; } QLineEdit:focus { border-color: #17a2b8; }")
+        self.category_search.textChanged.connect(self._filter_categories)
+        cat_search_row.addWidget(self.category_search)
+
+        self.selected_category_label = QLabel("همه دسته‌ها")
+        self.selected_category_label.setStyleSheet("color: #17a2b8; font-weight: bold; font-size: 12px; min-width: 120px;")
+        cat_search_row.addWidget(self.selected_category_label)
+        cat_layout.addLayout(cat_search_row)
+
+        self.category_list = QListWidget()
+        self.category_list.setSelectionMode(QAbstractItemView.SingleSelection)
+        self.category_list.setMaximumHeight(150)
+        self.category_list.setStyleSheet("""
+            QListWidget { border: 2px solid #ddd; border-radius: 8px; background: white; font-size: 13px; padding: 4px; }
+            QListWidget::item { padding: 6px; border-bottom: 1px solid #eee; }
+            QListWidget::item:selected { background-color: #17a2b8; color: white; }
+            QListWidget::item:hover { background-color: #f5f5f5; }
         """)
-        self.select_all_btn.clicked.connect(self._select_all)
-        select_row.addWidget(self.select_all_btn)
+        self.category_list.itemSelectionChanged.connect(self._update_selection_info)
+        cat_layout.addWidget(self.category_list)
 
-        self.deselect_all_btn = QPushButton("❌ حذف انتخاب")
-        self.deselect_all_btn.setStyleSheet("""
-            QPushButton {
-                background-color: #dc3545;
-                color: white;
-                border: none;
-                border-radius: 6px;
-                padding: 8px 16px;
-                font-weight: bold;
-            }
-            QPushButton:hover { background-color: #c82333; }
-        """)
-        self.deselect_all_btn.clicked.connect(self._deselect_all)
-        select_row.addWidget(self.deselect_all_btn)
+        cat_btn_row = QHBoxLayout()
+        self.clear_category_btn = QPushButton("❌ حذف فیلتر دسته‌بندی")
+        self.clear_category_btn.setStyleSheet("QPushButton { background-color: #6c757d; color: white; border: none; border-radius: 6px; padding: 6px 12px; font-weight: bold; } QPushButton:hover { background-color: #5a6268; }")
+        self.clear_category_btn.clicked.connect(self._clear_category)
+        cat_btn_row.addWidget(self.clear_category_btn)
+        cat_layout.addLayout(cat_btn_row)
+        splitter.addWidget(cat_group)
 
-        self.reload_btn = QPushButton("🔄 بارگذاری مجدد شهرها")
-        self.reload_btn.setStyleSheet("""
-            QPushButton {
-                background-color: #17a2b8;
-                color: white;
-                border: none;
-                border-radius: 6px;
-                padding: 8px 16px;
-                font-weight: bold;
-            }
-            QPushButton:hover { background-color: #138496; }
-        """)
-        self.reload_btn.clicked.connect(self._load_cities)
-        select_row.addWidget(self.reload_btn)
-
-        search_layout.addLayout(select_row)
-        splitter.addWidget(search_group)
-
-        # --- بخش اطلاعات و شروع ---
+        # ===== بخش اطلاعات و شروع =====
         info_group = QGroupBox("📋 اطلاعات")
         info_layout = QVBoxLayout(info_group)
 
-        # URL نمایشی
         self.url_display = QTextEdit()
         self.url_display.setReadOnly(True)
         self.url_display.setMaximumHeight(80)
-        self.url_display.setStyleSheet("""
-            QTextEdit {
-                background-color: #f8f9fa;
-                border: 2px solid #ddd;
-                border-radius: 6px;
-                padding: 8px;
-                font-family: monospace;
-                font-size: 12px;
-            }
-        """)
+        self.url_display.setStyleSheet("QTextEdit { background-color: #f8f9fa; border: 2px solid #ddd; border-radius: 6px; padding: 8px; font-family: monospace; font-size: 12px; }")
         self.url_display.setPlaceholderText("URL دیوار اینجا نمایش داده می‌شود...")
         info_layout.addWidget(self.url_display)
 
-        # دکمه شروع
         self.start_btn = QPushButton("🚀 شروع - باز کردن دیوار")
         self.start_btn.setMinimumHeight(50)
         start_font = QFont()
@@ -312,38 +265,16 @@ class AutomationTab(QWidget):
         start_font.setBold(True)
         self.start_btn.setFont(start_font)
         self.start_btn.setStyleSheet("""
-            QPushButton {
-                background-color: #A62626;
-                color: white;
-                border: none;
-                border-radius: 10px;
-                padding: 12px;
-            }
-            QPushButton:hover {
-                background-color: #8B1E1E;
-            }
-            QPushButton:disabled {
-                background-color: #ccc;
-                color: #666;
-            }
+            QPushButton { background-color: #A62626; color: white; border: none; border-radius: 10px; padding: 12px; }
+            QPushButton:hover { background-color: #8B1E1E; }
+            QPushButton:disabled { background-color: #ccc; color: #666; }
         """)
         self.start_btn.clicked.connect(self._on_start)
         self.start_btn.setEnabled(False)
         info_layout.addWidget(self.start_btn)
 
-        # دکمه بستن مرورگر
         self.close_btn = QPushButton("🔴 بستن مرورگر")
-        self.close_btn.setStyleSheet("""
-            QPushButton {
-                background-color: #dc3545;
-                color: white;
-                border: none;
-                border-radius: 8px;
-                padding: 10px;
-                font-weight: bold;
-            }
-            QPushButton:hover { background-color: #c82333; }
-        """)
+        self.close_btn.setStyleSheet("QPushButton { background-color: #dc3545; color: white; border: none; border-radius: 8px; padding: 10px; font-weight: bold; } QPushButton:hover { background-color: #c82333; }")
         self.close_btn.clicked.connect(self._close_browser)
         info_layout.addWidget(self.close_btn)
 
@@ -354,99 +285,162 @@ class AutomationTab(QWidget):
         self.log_message.emit(level, msg)
 
     # ------------------------------------------------------------------
-    # بارگذاری شهرها
+    # بارگذاری داده‌ها
     # ------------------------------------------------------------------
+    def _load_data(self):
+        self._load_cities()
+        self._load_categories()
+
     def _load_cities(self):
-        """بارگذاری لیست شهرها از فایل JSON."""
         if not CITIES_FILE.exists():
-            self._log("WARNING", "فایل شهرها پیدا نشد. لطفاً fetch_cities.py را اجرا کنید.")
             item = QListWidgetItem("⚠️ فایل شهرها پیدا نشد! ابتدا fetch_cities.py را اجرا کنید.")
             item.setFlags(Qt.NoItemFlags)
             self.city_list.clear()
             self.city_list.addItem(item)
             return
-
         try:
             with open(CITIES_FILE, "r", encoding="utf-8") as f:
                 data = json.load(f)
-
             self._cities = data.get("cities", [])
             self._log("INFO", f"[اتوماسیون] Loaded {len(self._cities)} cities")
-
             self._populate_city_list(self._cities)
-
         except Exception as e:
             self._log("ERROR", f"[اتوماسیون] خطا در بارگذاری شهرها: {e}")
 
-    def _populate_city_list(self, cities: List[dict]):
-        """پر کردن لیست شهرها."""
-        self.city_list.clear()
+    def _load_categories(self):
+        if not CATEGORIES_FILE.exists():
+            item = QListWidgetItem("⚠️ فایل دسته‌بندی‌ها پیدا نشد! ابتدا fetch_categories.py را اجرا کنید.")
+            item.setFlags(Qt.NoItemFlags)
+            self.category_list.clear()
+            self.category_list.addItem(item)
+            return
+        try:
+            with open(CATEGORIES_FILE, "r", encoding="utf-8") as f:
+                data = json.load(f)
+            self._categories = data.get("categories", [])
+            self._log("INFO", f"[اتوماسیون] Loaded {len(self._categories)} categories")
+            self._populate_category_list(self._categories)
+        except Exception as e:
+            self._log("ERROR", f"[اتوماسیون] خطا در بارگذاری دسته‌بندی‌ها: {e}")
 
+    def _populate_city_list(self, cities: List[dict]):
+        self.city_list.clear()
         if not cities:
             item = QListWidgetItem("— هیچ شهری پیدا نشد —")
             item.setFlags(Qt.NoItemFlags)
             self.city_list.addItem(item)
             return
-
         for city in cities:
             city_id = city.get("id", "")
             name = city.get("name", "")
-            slug = city.get("slug", "")
-
-            text = f"{name}"
-            if slug:
-                text += f"  ({slug})"
-            text += f"  [ID: {city_id}]"
-
+            text = f"{name}  [ID: {city_id}]"
             item = QListWidgetItem(text)
             item.setData(Qt.UserRole, city)
             self.city_list.addItem(item)
 
+    def _populate_category_list(self, categories: List[dict]):
+        self.category_list.clear()
+        # آیتم "همه دسته‌ها"
+        all_item = QListWidgetItem("📋 همه دسته‌ها (بدون فیلتر)")
+        all_item.setData(Qt.UserRole, None)
+        self.category_list.addItem(all_item)
+        # دسته‌بندی‌ها
+        for cat in categories:
+            name = cat.get("name", "")
+            category = cat.get("category", "")
+            slug = cat.get("slug", "")
+            display_text = f"{name}"
+            if category:
+                display_text += f"  [{category}]"
+            item = QListWidgetItem(display_text)
+            item.setData(Qt.UserRole, slug)
+            self.category_list.addItem(item)
+        # انتخاب پیش‌فرض: همه دسته‌ها
+        self.category_list.setCurrentRow(0)
+
     def _filter_cities(self, text: str):
-        """فیلتر کردن لیست شهرها بر اساس متن جستجو."""
         if not text.strip():
             self._populate_city_list(self._cities)
             return
-
-        filtered = [
-            city for city in self._cities
-            if text.lower() in city.get("name", "").lower()
-            or text.lower() in city.get("slug", "").lower()
-        ]
+        filtered = [c for c in self._cities if text.lower() in c.get("name", "").lower() or text.lower() in c.get("slug", "").lower()]
         self._populate_city_list(filtered)
 
-    def _select_all(self):
-        """انتخاب همه شهرهای نمایش داده شده."""
-        self.city_list.selectAll()
+    def _filter_categories(self, text: str):
+        self.category_list.clear()
+        all_item = QListWidgetItem("📋 همه دسته‌ها (بدون فیلتر)")
+        all_item.setData(Qt.UserRole, None)
+        self.category_list.addItem(all_item)
+        if not text.strip():
+            for cat in self._categories:
+                name = cat.get("name", "")
+                category = cat.get("category", "")
+                slug = cat.get("slug", "")
+                display_text = f"{name}"
+                if category:
+                    display_text += f"  [{category}]"
+                item = QListWidgetItem(display_text)
+                item.setData(Qt.UserRole, slug)
+                self.category_list.addItem(item)
+            return
+        filtered = [c for c in self._categories if text.lower() in c.get("name", "").lower() or text.lower() in c.get("slug", "").lower() or text.lower() in c.get("category", "").lower()]
+        for cat in filtered:
+            name = cat.get("name", "")
+            category = cat.get("category", "")
+            slug = cat.get("slug", "")
+            display_text = f"{name}"
+            if category:
+                display_text += f"  [{category}]"
+            item = QListWidgetItem(display_text)
+            item.setData(Qt.UserRole, slug)
+            self.category_list.addItem(item)
 
-    def _deselect_all(self):
-        """حذف انتخاب همه."""
-        self.city_list.clearSelection()
+    def _clear_category(self):
+        self.category_list.setCurrentRow(0)
 
     def _update_selection_info(self):
-        """بروزرسانی اطلاعات انتخاب."""
-        selected = self.city_list.selectedItems()
-        count = len(selected)
-        self.selected_count.setText(f"{count} شهر انتخاب شده")
-        self.start_btn.setEnabled(count > 0)
+        selected_cities = self.city_list.selectedItems()
+        city_count = len(selected_cities)
+        self.selected_cities_count.setText(f"{city_count} شهر")
+        self.start_btn.setEnabled(city_count > 0)
 
-        # بروزرسانی URL
+        # دسته‌بندی انتخاب شده
+        selected_cats = self.category_list.selectedItems()
+        if selected_cats:
+            cat_slug = selected_cats[0].data(Qt.UserRole)
+            if cat_slug:
+                cat_name = selected_cats[0].text()
+                self.selected_category_label.setText(cat_name[:20])
+            else:
+                self.selected_category_label.setText("همه دسته‌ها")
+        else:
+            self.selected_category_label.setText("همه دسته‌ها")
+
         self._update_url_display()
 
     def _update_url_display(self):
-        """بروزرسانی نمایش URL."""
-        selected = self.city_list.selectedItems()
-        if not selected:
+        selected_cities = self.city_list.selectedItems()
+        if not selected_cities:
             self.url_display.clear()
             return
 
-        cities_data = [item.data(Qt.UserRole) for item in selected]
+        cities_data = [item.data(Qt.UserRole) for item in selected_cities]
         cities_ids = [c.get("id", 0) for c in cities_data]
         cities_names = [c.get("name", "") for c in cities_data]
 
-        # همیشه از cities parameter استفاده کن
+        # ساخت URL
         cities_param = ",".join(str(cid) for cid in cities_ids)
-        url = f"https://divar.ir/s/iran?cities={cities_param}"
+
+        # دسته‌بندی
+        selected_cats = self.category_list.selectedItems()
+        category_slug = None
+        if selected_cats:
+            category_slug = selected_cats[0].data(Qt.UserRole)
+
+        # همیشه از iran با cities parameter استفاده کن
+        if category_slug:
+            url = f"https://divar.ir/s/iran/{category_slug}?cities={cities_param}"
+        else:
+            url = f"https://divar.ir/s/iran?cities={cities_param}"
 
         self.url_display.setPlainText(
             f"🌐 {url}\n\n"
@@ -457,25 +451,33 @@ class AutomationTab(QWidget):
     # شروع
     # ------------------------------------------------------------------
     def _on_start(self):
-        """شروع - باز کردن دیوار با شهرهای انتخاب شده."""
-        selected = self.city_list.selectedItems()
-        if not selected:
-            QMessageBox.information(
-                self, "انتخاب شهر",
-                "لطفاً حداقل یک شهر انتخاب کنید.",
-            )
+        selected_cities = self.city_list.selectedItems()
+        if not selected_cities:
+            QMessageBox.information(self, "انتخاب شهر", "لطفاً حداقل یک شهر انتخاب کنید.")
             return
 
-        cities_data = [item.data(Qt.UserRole) for item in selected]
+        cities_data = [item.data(Qt.UserRole) for item in selected_cities]
         cities_ids = [c.get("id", 0) for c in cities_data]
         cities_names = [c.get("name", "") for c in cities_data]
 
-        self._log(
-            "INFO",
-            f"[اتوماسیون] شروع: {len(cities_ids)} شهر - {', '.join(cities_names)}",
-        )
+        # دسته‌بندی
+        selected_cats = self.category_list.selectedItems()
+        category_slug = None
+        category_name = "همه دسته‌ها"
+        if selected_cats:
+            category_slug = selected_cats[0].data(Qt.UserRole)
+            if category_slug:
+                category_name = selected_cats[0].text()
 
-        # بارگذاری Session دیوار
+        # همیشه از iran با cities parameter استفاده کن
+        cities_param = ",".join(str(cid) for cid in cities_ids)
+        if category_slug:
+            url = f"https://divar.ir/s/iran/{category_slug}?cities={cities_param}"
+        else:
+            url = f"https://divar.ir/s/iran?cities={cities_param}"
+
+        self._log("INFO", f"[اتوماسیون] شروع: {len(cities_ids)} شهر - دسته: {category_name}")
+
         sm = SessionManager(platform="divar")
         record = sm.load()
         phone = record.phone if record else None
@@ -483,7 +485,7 @@ class AutomationTab(QWidget):
         self.start_btn.setEnabled(False)
         self.start_btn.setText("⏳ در حال باز کردن دیوار...")
 
-        worker = DivarBrowserWorker(cities_ids, cities_names, phone)
+        worker = DivarBrowserWorker(url, cities_names, category_name, phone)
         worker.signals.status_changed.connect(self._on_status_changed)
         worker.signals.error_occurred.connect(self._on_error)
         worker.signals.finished.connect(self._on_finished)
@@ -510,14 +512,11 @@ class AutomationTab(QWidget):
         self._current_worker = None
 
     def _close_browser(self):
-        """بستن مرورگر."""
         if self._current_worker:
             self._current_worker.request_close()
-
         try:
             from ui.platform_tab import _force_close_all_browsers
             _force_close_all_browsers()
         except Exception:
             pass
-
         self._log("INFO", "[اتوماسیون] درخواست بستن مرورگر")
