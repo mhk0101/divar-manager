@@ -45,6 +45,7 @@ if str(PROJECT_ROOT) not in sys.path:
 from core.browser_manager import BrowserManager
 from core.session_manager import SessionManager
 from core.session_models import SessionRecord, SessionStatus
+from playwright.async_api import Error as PlaywrightError
 
 IDLE_TIMEOUT_SECONDS = 300
 OTP_WAIT_TIMEOUT_SECONDS = 300
@@ -191,7 +192,8 @@ class SessionCheckWorker(QRunnable):
                     )
                     try:
                         await bm.page.wait_for_event("close", timeout=0)
-                    except Exception:
+                    except (PlaywrightError, Exception):
+                        # مرورگر ممکن است بسته شده باشد
                         pass
 
                 if status == SessionStatus.VALID:

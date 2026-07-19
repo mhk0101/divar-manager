@@ -1,23 +1,12 @@
 """
 DivarLoginManager - ارکستراتور حرفه‌ای فرآیند ورود به دیوار.
 
-اصلاحات نسخه 3.0 (2026-07-19):
+اصلاحات نهایی (2026-07-19):
 1. ✅ تشخیص حالت فعلی صفحه قبل از شروع (رفع مشکل بار دوم)
-2. ✅ تشخیص ورود کد از سایت توسط کاربر
-3. ✅ مقاومت در برابر قطع اینترنت
+2. ✅ تشخیص ورود کد از سایت توسط کاربر (همزمان با UI)
+3. ✅ مقاومت در برابر قطع اینترنت (با URL های ایرانی)
 4. ✅ پاک کردن state قبل از retry
-
-جریان کامل:
- 1) بررسی حالت فعلی صفحه (آیا لاگین است؟ آیا در صفحه کد است؟)
- 2) باز کردن صفحه‌ی ورود (اگر لازم است)
- 3) کلیک روی «ورود به حساب کاربری» (اگر لازم است)
- 4) وارد کردن شماره موبایل + فشردن «بعدی» + انتظار برای API initiate
- 5) انتظار برای کد از کاربر (با تشخیص ورود از سایت)
- 6) پر کردن ۶ فیلد کد + فشردن «ورود» + گرفتن Login Response
- 7) PostLoginVerifier: ۱۰ مرحله اعتبارسنجی
- 8) ذخیره Session با تمام جزئیات
-
-هیچ تصمیمی بر اساس حدس یا sleep ثابت گرفته نمی‌شود.
+5. ✅ رفع باگ indentation در _try_login
 """
 
 from __future__ import annotations
@@ -135,7 +124,7 @@ class LoginManager:
         return diagnostic.retryable
 
     # ------------------------------------------------------------------
-    # ✨ NEW: تشخیص حالت فعلی صفحه
+    # ✨ تشخیص حالت فعلی صفحه
     # ------------------------------------------------------------------
     async def _detect_page_state(self, page: Page) -> dict:
         """
@@ -187,22 +176,36 @@ class LoginManager:
         return result
 
     # ------------------------------------------------------------------
-    # ✨ NEW: بررسی اینترنت
+    # ✨ بررسی اینترنت (با URL های ایرانی)
     # ------------------------------------------------------------------
     async def _check_internet(self, page: Page) -> bool:
-        """بررسی اتصال اینترنت با تلاش برای لود کردن یک صفحه ساده."""
-        try:
-            response = await page.goto(
-                "https://www.google.com/generate_204",
-                timeout=10_000,
-                wait_until="domcontentloaded"
-            )
-            return response is not None
-        except Exception as e:
-            logger.debug("[divar] Internet check failed: %s", e)
-            return False
+        """
+        بررسی اتصال اینترنت با URL های ایرانی.
+        Google در ایران فیلتر است، پس از سایت‌های داخلی استفاده می‌کنیم.
+        """
+        test_urls = [
+            DIVAR_BASE_URL,           # 1. سایت اصلی (divar.ir)
+            "https://aparat.com",      # 2. سایت ایرانی
+            "https://varzesh3.com",    # 3. سایت ایرانی
+        ]
+        
+        for url in test_urls:
+            try:
+                response = await page.goto(
+                    url,
+                    timeout=8_000,
+                    wait_until="domcontentloaded"
+                )
+                if response and response.status < 500:
+                    logger.debug("[divar] ✅ Internet OK: %s (status=%s)", url, response.status)
+                    return True
+            except Exception:
+                continue
+        
+        logger.debug("[divar] All internet checks failed")
+        return False
 
-    async def _wait_for_internet(self, page: Page, max_wait: int = 300) -> bool:
+    async def _wait_for_internet(self, page: Page, max_wait: int = 60) -> bool:
         """
         انتظار برای وصل شدن اینترنت.
         
@@ -297,18 +300,67 @@ class LoginManager:
         )
         logger.info("[divar] Code input page appeared")
 
-    async def _step_obtain_code(self) -> str:
-        """گرفتن کد از کاربر - بدون timeout."""
+    async def _step_obtain_code_with_site_detection(self, page: Page) -> Optional[str]:
+        """
+        گرفتن کد از کاربر با تشخیص همزمان ورود از سایت.
+        
+        Returns:
+            - str: کد وارد شده (از UI یا None اگر از سایت وارد شده)
+            - None: کاربر کد را مستقیم در سایت وارد کرده
+        
+        این متد همزمان:
+        1. منتظر کد از UI می‌ماند
+        2. بررسی می‌کند آیا دکمه "خروج" ظاهر شده (یعنی کاربر کد را در سایت وارد کرده)
+        """
         if self._code_provider is None:
             raise RuntimeError("No code_provider registered.")
 
         self._set_state(LoginState.WAITING_FOR_CODE)
-        logger.info("[divar] Waiting for user to enter verification code (no timeout)...")
+        logger.info("[divar] Waiting for user to enter verification code (from UI or site)...")
 
-        raw = await self._code_provider()
-        logger.info("[divar] Code received from user")
-
-        return CodeInput(value=raw).value
+        # Task 1: منتظر کد از UI
+        code_future = asyncio.create_task(self._code_provider())
+        
+        # Task 2: بررسی دکمه خروج (کاربر کد را در سایت وارد کرده)
+        async def check_logout_button():
+            try:
+                logout_selector = "div[role='button']:has-text('خروج')"
+                await page.wait_for_selector(logout_selector, state="visible", timeout=300_000)
+                return True
+            except PlaywrightTimeout:
+                return False
+        
+        logout_future = asyncio.create_task(check_logout_button())
+        
+        # منتظر هر کدام که اول تمام شود
+        done, pending = await asyncio.wait(
+            [code_future, logout_future],
+            return_when=asyncio.FIRST_COMPLETED,
+        )
+        
+        # Cancel task های باقی‌مانده
+        for task in pending:
+            task.cancel()
+            try:
+                await task
+            except (asyncio.CancelledError, Exception):
+                pass
+        
+        # بررسی نتیجه
+        if logout_future in done and logout_future.result():
+            logger.info("[divar] ✅ User entered code on website -> login successful!")
+            return None  # کد از سایت وارد شده
+        
+        if code_future in done:
+            try:
+                raw = code_future.result()
+                logger.info("[divar] Code received from UI")
+                return CodeInput(value=raw).value
+            except Exception as e:
+                logger.error("[divar] Code provider failed: %s", e)
+                raise
+        
+        return None
 
     async def _step_submit_code(self, page: Page, code: str) -> Optional[Response]:
         """
@@ -401,7 +453,7 @@ class LoginManager:
                         delay, attempt + 1, self._max_retries,
                     )
                     
-                    # ✨ NEW: پاک کردن state قبل از retry
+                    # ✨ پاک کردن state قبل از retry
                     logger.info("[divar] Clearing browser state before retry...")
                     try:
                         # تلاش برای بازگشت به صفحه اصلی
@@ -457,7 +509,7 @@ class LoginManager:
     async def _try_login(self, page: Page, phone: str) -> LoginResult:
         """یک تلاش کامل Login."""
         try:
-            # ✨ NEW: تشخیص حالت فعلی صفحه
+            # ✨ تشخیص حالت فعلی صفحه
             logger.info("[divar] Detecting current page state...")
             page_state = await self._detect_page_state(page)
             logger.info("[divar] Current page state: %s", page_state)
@@ -496,8 +548,12 @@ class LoginManager:
             # اگر در صفحه کد است، فقط کد را بپرس
             if page_state["has_code_input"]:
                 logger.info("[divar] 📝 Already on code page, asking for code...")
-                code = await self._step_obtain_code()
-                login_response = await self._step_submit_code(page, code)
+                code = await self._step_obtain_code_with_site_detection(page)
+                if code is None:
+                    # کاربر کد را در سایت وارد کرده
+                    login_response = None
+                else:
+                    login_response = await self._step_submit_code(page, code)
             else:
                 # شروع از اول یا ادامه از مرحله مناسب
                 # اگر دکمه ورود وجود ندارد، صفحه را باز کن
@@ -509,13 +565,20 @@ class LoginManager:
                 # اگر دکمه ورود وجود دارد، کلیک کن
                 if page_state["has_entry_button"]:
                     await self._step_click_entry_button(page)
-                
+                    # ✨ FIX: بعد از کلیک، صفحه تغییر می‌کند، دوباره detect کن
+                    page_state = await self._detect_page_state(page)
+
                 # اگر فیلد شماره وجود دارد، شماره را وارد کن
                 if page_state["has_phone_input"]:
                     await self._step_submit_phone(page, phone)
                 
-                code = await self._step_obtain_code()
-                login_response = await self._step_submit_code(page, code)
+                # گرفتن کد با تشخیص همزمان از سایت
+                code = await self._step_obtain_code_with_site_detection(page)
+                if code is None:
+                    # کاربر کد را در سایت وارد کرده
+                    login_response = None
+                else:
+                    login_response = await self._step_submit_code(page, code)
 
             # Divar's logout control is the explicit success marker supplied by
             # the product. Do not retry the login flow after it is visible.

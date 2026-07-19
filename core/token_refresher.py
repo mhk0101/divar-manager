@@ -126,6 +126,10 @@ class TokenRefresher:
         
         Returns:
             tuple of (access_token, refresh_token)
+        
+        Note:
+            - دیوار: sAccessToken (3 ساعت), sRefreshToken (30 روز), sFrontToken
+            - شیپور: access_token (10 دقیقه), refresh_token (90 روز)
         """
         access_token = record.access_token
         refresh_token = record.refresh_token
@@ -133,7 +137,15 @@ class TokenRefresher:
         # اگر در فیلدهای اصلی نیستند، از cookies استخراج کن
         if not access_token or not refresh_token:
             for cookie in record.storage_state.cookies:
-                if cookie.name == "access_token":
+                # دیوار
+                if cookie.name == "sAccessToken":
+                    access_token = cookie.value
+                elif cookie.name == "sRefreshToken":
+                    refresh_token = cookie.value
+                elif cookie.name == "sFrontToken" and not access_token:
+                    access_token = cookie.value  # fallback
+                # شیپور
+                elif cookie.name == "access_token":
                     access_token = cookie.value
                 elif cookie.name == "refresh_token":
                     refresh_token = cookie.value
@@ -155,6 +167,9 @@ class TokenRefresher:
         این متد صفحه‌ای از سایت را باز می‌کند و اجازه می‌دهد
         سایت خودش token را refresh کند (چون refresh_token در کوکی است).
         
+        برای دیوار: sRefreshToken در path /v8/authenticate/session/refresh
+                   دیوار خودش اتوماتیک sAccessToken جدید می‌سازد
+        
         Args:
             page: صفحه مرورگر
             context: BrowserContext
@@ -167,16 +182,17 @@ class TokenRefresher:
             logger.info("[%s] Attempting token refresh via browser navigation", record.platform)
             
             # باز کردن یک صفحه ساده از سایت
-            # سایت باید خودش refresh token را انجام دهد
             if record.platform == "sheypoor":
                 refresh_url = "https://www.sheypoor.com/session/myAccount/myListings/all"
-            else:
+            elif record.platform == "divar":
                 refresh_url = "https://divar.ir/my-divar"
+            else:
+                refresh_url = "https://divar.ir"
             
             await page.goto(refresh_url, wait_until="networkidle", timeout=30_000)
             
             # صبر کن تا سایت token را refresh کند
-            await page.wait_for_timeout(2000)
+            await page.wait_for_timeout(3000)
             
             # استخراج توکن‌های جدید از cookies
             cookies = await context.cookies()
@@ -184,7 +200,13 @@ class TokenRefresher:
             new_refresh_token = None
             
             for cookie in cookies:
-                if cookie["name"] == "access_token":
+                # دیوار
+                if cookie["name"] == "sAccessToken":
+                    new_access_token = cookie["value"]
+                elif cookie["name"] == "sRefreshToken":
+                    new_refresh_token = cookie["value"]
+                # شیپور
+                elif cookie["name"] == "access_token":
                     new_access_token = cookie["value"]
                 elif cookie["name"] == "refresh_token":
                     new_refresh_token = cookie["value"]

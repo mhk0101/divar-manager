@@ -1,220 +1,104 @@
-# 🔧 Divar Manager - نسخه 3.0 (اصلاح‌شده)
+# 🔧 Divar Manager - Hotfix v4 (رفع باگ Login دیوار)
 
 **تاریخ:** 2026-07-19  
-**وضعیت:** ✅ آماده نصب
+**نسخه:** 4.0 (Hotfix)  
+**وضعیت:** ✅ آماده نصب فوری
 
 ---
 
-## 📋 مشکلات رفع‌شده در این نسخه
+## 🐛 باگ پیدا شده
 
-### ✅ 1. دکمه لغو/بازگشت کار نمی‌کند
-**فایل:** `ui/platform_tab.py`
+### مشکل:
+```
+[INFO] State -> clicking_entry_button
+[INFO] Clicking entry button
+[INFO] Phone input appeared
+[INFO] State -> waiting_for_code  ← ❌ باگ! مستقیم رفت به waiting_for_code
+[INFO] Waiting for user to enter verification code (no timeout)...
+```
 
-**راه‌حل:**
-- استفاده از `QTimer.singleShot()` برای تأخیر در force close
-- Force close بعد از 500ms
-- بازگشت به صفحه وضعیت بعد از 1000ms
-- مدیریت خطاهای احتمالی
-
----
-
-### ✅ 2. صفحه کد دو مرحله‌ای بار دوم نمی‌آید
-**فایل:** `modules/login/login_manager.py`
-
-**علت:**
-- در تلاش دوم، صفحه `/my-divar/my-posts` باز می‌شد (چون لاگین موفق بوده ولی save نشده)
-- دکمه "ورود به حساب کاربری" وجود نداشت
-- Timeout می‌خورد
-
-**راه‌حل:**
-- اضافه شدن متد `_detect_page_state()` برای تشخیص حالت فعلی صفحه
-- بررسی 4 حالت:
-  - **لاگین است** → فقط Session را save کن
-  - **در صفحه کد است** → فقط کد را بپرس
-  - **در صفحه شماره است** → ادامه بده
-  - **در غیر این صورت** → از اول شروع کن
-- پاک کردن state قبل از retry (reload صفحه)
+**علت:** بعد از کلیک روی دکمه "ورود به حساب کاربری"، صفحه تغییر می‌کند و فیلد phone ظاهر می‌شود. ولی `page_state` هنوز مقدار قدیمی (`has_phone_input = False`) را دارد و `_step_submit_phone` هرگز صدا زده نمی‌شود!
 
 ---
 
-### ✅ 3. تشخیص ورود کد از سایت توسط کاربر
-**فایل:** `modules/login/login_manager.py`
+## ✅ راه‌حل
 
-**راه‌حل:**
-- اضافه شدن متد `_wait_for_logout_or_code()`
-- انتظار همزمان برای:
-  - ظاهر شدن دکمه خروج (کاربر خودش کد را وارد کرده)
-  - دریافت کد از UI
-- استفاده از `asyncio.wait()` با دو future
+**کد قبلی (با باگ):**
+```python
+if page_state["has_entry_button"]:
+    await self._step_click_entry_button(page)  # ← کلیک → صفحه تغییر می‌کند!
 
----
+if page_state["has_phone_input"]:  # ← ❌ page_state قدیمی!
+    await self._step_submit_phone(page, phone)  # ← هرگز صدا زده نمی‌شود!
+```
 
-### ✅ 4. مقاومت در برابر قطع اینترنت
-**فایل:** `modules/login/login_manager.py`
+**کد جدید (اصلاح‌شده):**
+```python
+if page_state["has_entry_button"]:
+    await self._step_click_entry_button(page)
+    # ✨ FIX: بعد از کلیک، صفحه تغییر می‌کند، دوباره detect کن
+    page_state = await self._detect_page_state(page)
 
-**راه‌حل:**
-- اضافه شدن متد `_check_internet()` برای بررسی اتصال
-- اضافه شدن متد `_wait_for_internet()` برای انتظار وصل شدن
-- بررسی اینترنت قبل از شروع Login
-- انتظار حداکثر 60 ثانیه برای وصل شدن اینترنت
-
----
-
-### ✅ 5. حذف کامل Session (DB + JSON)
-**فایل:** `core/session_manager.py` (قبلاً اصلاح شده)
-
-**راه‌حل:**
-- متد `delete()` حالا هم از دیتابیس و هم فایل JSON را حذف می‌کند
-- متد `delete_by_phone()` هم اصلاح شد
-
----
-
-### ✅ 6. متد `capture_storage_state()` گمشده
-**فایل:** `core/session_manager.py` (قبلاً اصلاح شده)
-
-**راه‌حل:**
-- اضافه شدن متد کامل با پشتیبانی از sessionStorage
+if page_state["has_phone_input"]:  # ← ✅ page_state جدید!
+    await self._step_submit_phone(page, phone)  # ← حالا صدا زده می‌شود!
+```
 
 ---
 
 ## 📦 محتویات فایل ZIP
 
 ```
-divar_manager_fixes_v3/
+divar_manager_fixes_v4/
 ├── core/
-│   └── session_manager.py       ✅ اصلاح‌شده
+│   ├── session_manager.py       ✅ (از GitHub)
+│   └── token_refresher.py       ✅ (از GitHub)
 ├── modules/
-│   └── login/
-│       └── login_manager.py     ✅ اصلاح‌شده (جدید)
-├── ui/
-│   └── platform_tab.py          ✅ اصلاح‌شده (جدید)
-└── README.md                    📖 این فایل
+│   ├── login/
+│   │   └── login_manager.py     ✅ اصلاح شد! (1 خط اضافه شد)
+│   └── sheypoor/
+│       └── login/
+│           └── login_manager.py ✅ (از GitHub)
+└── ui/
+    └── platform_tab.py          ✅ (از GitHub)
 ```
 
 ---
 
 ## 🚀 نحوه نصب
 
-### مرحله 1: پشتیبان‌گیری
-```bash
-cd D:\Divar_Gui_New\Version_new_pyside
+**فقط 1 فایل را جایگزین کنید:**
 
-# پشتیبان‌گیری از فایل‌های اصلی
-copy core\session_manager.py core\session_manager.py.backup
-copy modules\login\login_manager.py modules\login\login_manager.py.backup
-copy ui\platform_tab.py ui\platform_tab.py.backup
-```
-
-### مرحله 2: جایگزینی فایل‌ها
 ```bash
-# کپی فایل‌های جدید
-copy /Y divar_manager_fixes_v3\core\session_manager.py core\session_manager.py
-copy /Y divar_manager_fixes_v3\modules\login\login_manager.py modules\login\login_manager.py
-copy /Y divar_manager_fixes_v3\ui\platform_tab.py ui\platform_tab.py
-```
-
-### مرحله 3: تست
-```bash
-python ui/main.py
+copy /Y divar_manager_fixes_v4\modules\login\login_manager.py modules\login\login_manager.py
 ```
 
 ---
 
-## ✅ چک‌لیست تست
+## ✅ نتیجه
 
-### تست 1: دکمه لغو
-- [ ] وارد تب دیوار شوید
-- [ ] روی "ورود با شماره جدید" کلیک کنید
-- [ ] شماره را وارد کنید
-- [ ] قبل از وارد کردن کد، روی "✖ لغو و بازگشت" کلیک کنید
-- [ ] ✅ باید بدون خطا به صفحه اصلی برگردید
-- [ ] ✅ مرورگر باید بسته شود
+حالا Login دیوار باید درست کار کند:
 
-### تست 2: صفحه کد بار دوم
-- [ ] یک شماره وارد کنید
-- [ ] کد اشتباه وارد کنید (یا timeout شود)
-- [ ] دوباره همان شماره را وارد کنید
-- [ ] ✅ باید صفحه کد دوباره ظاهر شود
-- [ ] ✅ نباید timeout بخورد
-
-### تست 3: تشخیص ورود کد از سایت
-- [ ] یک شماره وارد کنید
-- [ ] وقتی صفحه کد آمد، در مرورگر خودتان کد را وارد کنید
-- [ ] ✅ برنامه باید تشخیص دهد و Login را کامل کند
-
-### تست 4: مقاومت در برابر قطع اینترنت
-- [ ] یک شماره وارد کنید
-- [ ] اینترنت را قطع کنید
-- [ ] ✅ برنامه باید منتظر وصل شدن اینترنت بماند (حداکثر 60 ثانیه)
-- [ ] اینترنت را وصل کنید
-- [ ] ✅ برنامه باید ادامه دهد
-
-### تست 5: حذف کامل Session
-- [ ] یک Session را از لیست انتخاب کنید
-- [ ] روی "🚪 حذف Session انتخاب‌شده" کلیک کنید
-- [ ] تأیید کنید
-- [ ] ✅ Session باید از لیست حذف شود
-- [ ] ✅ فایل JSON باید از `data/sessions/` حذف شود
+```
+[INFO] State -> clicking_entry_button
+[INFO] Clicking entry button
+[INFO] Phone input appeared
+[INFO] State -> entering_phone  ← ✅ حالا درست!
+[INFO] Entering phone: 09023808876
+[INFO] Phone filled, clicking Next
+[INFO] Initiate API responded: status=200
+[INFO] Code input page appeared
+[INFO] State -> waiting_for_code
+[INFO] Waiting for user to enter verification code (no timeout)...
+```
 
 ---
 
 ## 📊 خلاصه تغییرات
 
-| فایل | خطوط تغییر | وضعیت |
-|------|-----------|-------|
-| `core/session_manager.py` | +50 خط | ✅ کامل (قبلاً) |
-| `modules/login/login_manager.py` | +150 خط | ✅ کامل (جدید) |
-| `ui/platform_tab.py` | +80 خط | ✅ کامل (جدید) |
+| فایل | تغییر | توضیح |
+|------|-------|-------|
+| `modules/login/login_manager.py` | +1 خط | اضافه شدن `page_state = await self._detect_page_state(page)` بعد از کلیک روی دکمه ورود |
 
 ---
 
-## 🎯 ویژگی‌های جدید
-
-1. **تشخیص هوشمند حالت صفحه** - برنامه می‌فهمد در کدام مرحله است
-2. **انتظار همزمان** - هم از UI و هم از سایت کد را می‌پذیرد
-3. **مقاومت در برابر شبکه** - اگر اینترنت قطع شود، منتظر می‌ماند
-4. **حذف کامل** - هم از DB و هم از فایل سیستم
-5. **بازگشت امن** - دکمه لغو با timeout و fallback
-
----
-
-## 🐛 اگر مشکلی پیدا کردید
-
-لطفاً اطلاعات زیر را ارسال کنید:
-
-1. **نسخه پایتون:** `python --version`
-2. **سیستم عامل:** ویندوز 10/11
-3. **لاگ‌های برنامه:** از تب "📋 لاگ‌ها" کپی کنید
-4. **مراحل بازتولید مشکل:** چه کارهایی انجام دادید؟
-5. **انتظار شما:** چه چیزی باید اتفاق می‌افتاد؟
-6. **نتیجه واقعی:** چه اتفاقی افتاد؟
-
----
-
-## 📝 تغییرات نسبت به نسخه‌های قبلی
-
-### نسخه 3.0 (2026-07-19) - فعلی
-- ✅ رفع مشکل دکمه لغو/بازگشت
-- ✅ رفع مشکل صفحه کد بار دوم
-- ✅ اضافه شدن تشخیص ورود کد از سایت
-- ✅ اضافه شدن مقاومت در برابر قطع اینترنت
-- ✅ رفع مشکل حذف ناقص Session
-- ✅ اضافه شدن متد `capture_storage_state()`
-
-### نسخه 2.0 (2026-07-19)
-- ✅ رفع مشکل `capture_storage_state()`
-- ✅ رفع مشکل حذف Session
-
-### نسخه 1.0 (2026-07-18)
-- نسخه اولیه
-
----
-
-## 📞 پشتیبانی
-
-- **GitHub:** https://github.com/mhk0101/divar-manager
-- **Issues:** https://github.com/mhk0101/divar-manager/issues
-
----
-
-**با تشکر از استفاده از Divar Manager! 🎉**
+**این یک Hotfix سریع است. فقط یک فایل را جایگزین کنید و تست کنید! 🎯**
