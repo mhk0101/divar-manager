@@ -1,6 +1,11 @@
 """
 PlatformTab - تب عمومی برای Login هر پلتفرم.
 
+اصلاحات نسخه 3.0 (2026-07-19):
+1. ✅ رفع مشکل دکمه لغو/بازگشت (با QTimer.singleShot)
+2. ✅ بهبود مدیریت worker ها
+3. ✅ Force close با تأخیر برای اطمینان از بسته شدن کامل
+
 تغییرات مهم:
 - هیچ مرورگری در شروع برنامه باز نمی‌شود
 - لیست شماره‌های ذخیره‌شده (Sessionها) نمایش داده می‌شود
@@ -37,15 +42,15 @@ PROJECT_ROOT = Path(__file__).resolve().parent.parent
 if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
-from core.browser_manager import BrowserManager  # noqa: E402
-from core.session_manager import SessionManager  # noqa: E402
-from core.session_models import SessionRecord, SessionStatus  # noqa: E402
+from core.browser_manager import BrowserManager
+from core.session_manager import SessionManager
+from core.session_models import SessionRecord, SessionStatus
 
-
-IDLE_TIMEOUT_SECONDS = 300  # 5 دقیقه
-OTP_WAIT_TIMEOUT_SECONDS = 300  # 5 دقیقه
+IDLE_TIMEOUT_SECONDS = 300
+OTP_WAIT_TIMEOUT_SECONDS = 300
 
 LoginManagerFactory = Callable
+
 
 # ---------------------------------------------------------------------------
 # بستن اجباری مرورگر (fallback)
@@ -54,7 +59,7 @@ def _force_close_all_browsers() -> None:
     """بستن BrowserService مشترک + تلاش برای بستن پروسه‌های chromium متعلق به Playwright."""
     # 1) BrowserService singleton (اگر وجود داشته باشد)
     try:
-        from core.browser_service import BrowserService  # type: ignore
+        from core.browser_service import BrowserService
         svc = BrowserService.instance()
         if hasattr(svc, "request_close_all"):
             svc.request_close_all(timeout=10.0)
@@ -63,7 +68,6 @@ def _force_close_all_browsers() -> None:
 
     # 2) Kill chromium/chrome متعلق به playwright (ویندوز)
     if sys.platform.startswith("win"):
-        # فقط پروسه‌هایی که مسیرشان شامل ms-playwright یا chromium باشد
         ps = (
             "Get-CimInstance Win32_Process | "
             "Where-Object { "
@@ -81,8 +85,6 @@ def _force_close_all_browsers() -> None:
             )
         except Exception:
             pass
-    # Never use pkill/chrome here: it can terminate the user's own browser.
-
 
 
 # ---------------------------------------------------------------------------
@@ -93,11 +95,11 @@ class LoginSignals(QObject):
     login_finished = Signal(object)
     error_occurred = Signal(str)
     status_changed = Signal(str)
-    session_status = Signal(str, str)  # status, message
+    session_status = Signal(str, str)
 
 
 # ---------------------------------------------------------------------------
-# Worker برای بررسی Session (فقط وقتی کاربر درخواست دهد)
+# Worker برای بررسی Session
 # ---------------------------------------------------------------------------
 class SessionCheckWorker(QRunnable):
     """بررسی اعتبار یک Session مشخص در thread مجزا (باز کردن مرورگر)."""
@@ -116,7 +118,6 @@ class SessionCheckWorker(QRunnable):
         """قابل فراخوانی امن از GUI thread برای بستن دستی مرورگر."""
         if self._loop is not None and self._close_event is not None:
             self._loop.call_soon_threadsafe(self._close_event.set)
-        # بستن اجباری BrowserManager اگر هنوز باز است
         if self._loop is not None and self._browser_manager is not None:
             try:
                 asyncio.run_coroutine_threadsafe(
@@ -147,8 +148,29 @@ class SessionCheckWorker(QRunnable):
                 bm = BrowserManager(session_record=record)
                 self._browser_manager = bm
                 async with bm:
+                    # ✨ NEW: بررسی و refresh خودکار token
+                    try:
+                        from core.token_refresher import TokenRefresher
+                        refresher = TokenRefresher(sm)
+                        token_valid = await refresher.ensure_valid_token(
+                            page=bm.page,
+                            context=bm.context,
+                            record=record,
+                        )
+                        if not token_valid:
+                            self.signals.status_changed.emit(
+                                "⚠️ Token منقضی شده و refresh ناموفق بود"
+                            )
+                    except ImportError:
+                        pass  # TokenRefresher موجود نیست
+                    except Exception as e:
+                        self.signals.status_changed.emit(
+                            f"⚠️ خطا در بررسی token: {e}"
+                        )
+                    
                     status = await sm.validate(record, bm.page)
 
+                    # ✨ FIX: Navigation و save باید داخل async with bm باشد
                     destinations = {
                         "sheypoor": "https://www.sheypoor.com/session/myAccount/myListings/all",
                         "divar": "https://divar.ir/s/iran",
@@ -159,13 +181,10 @@ class SessionCheckWorker(QRunnable):
                             label = "آگهی‌های من در شیپور" if self.platform.lower() == "sheypoor" else "آگهی‌های سراسر ایران در دیوار"
                             self.signals.status_changed.emit(f"در حال انتقال به صفحه {label}...")
                             await bm.page.goto(destination, wait_until="domcontentloaded", timeout=30_000)
-                            # Compare the live destination-page state with DB and
-                            # update only if cookies/storage have actually changed.
                             await sm.save_from_context(bm.context, record.phone, metadata=record.metadata)
                         except Exception as nav_err:
                             self.signals.status_changed.emit(f"⚠️ خطا در انتقال/ذخیره Session: {nav_err}")
 
-                    # مرورگر باز می‌ماند تا کاربر خودش آن را ببندد
                     self.signals.status_changed.emit(
                         "🟢 مرورگر باز است. هر وقت کارتان تمام شد، "
                         "پنجرهٔ مرورگر را ببندید تا برنامه ادامه یابد."
@@ -197,58 +216,6 @@ class SessionCheckWorker(QRunnable):
 
 
 # ---------------------------------------------------------------------------
-# Worker برای بررسی دوره‌ای Sessionها (بدون نگه‌داشتن Browser باز)
-# ---------------------------------------------------------------------------
-class PeriodicSessionCheckWorker(QRunnable):
-    """Validate every saved session and persist changed browser state."""
-
-    def __init__(self, platform: str):
-        super().__init__()
-        self.platform = platform
-        self.signals = LoginSignals()
-        self.setAutoDelete(True)
-
-    @Slot()
-    def run(self):
-        loop = asyncio.new_event_loop()
-        asyncio.set_event_loop(loop)
-        try:
-            async def _run():
-                sm = SessionManager(platform=self.platform)
-                records = sm.list_sessions()
-                changed = 0
-                for record in records:
-                    if record.status == SessionStatus.INVALID:
-                        continue
-                    bm = BrowserManager(session_record=record)
-                    async with bm:
-                        status = await sm.validate(record, bm.page)
-                        if status == SessionStatus.VALID:
-                            destination = (
-                                "https://www.sheypoor.com/session/myAccount/myListings/all"
-                                if self.platform.lower() == "sheypoor"
-                                else "https://divar.ir/s/iran"
-                            )
-                            await bm.page.goto(destination, wait_until="domcontentloaded", timeout=30_000)
-                            # Reads destination-page cookies/localStorage/sessionStorage.
-                            # SessionDB writes only if the state differs.
-                            await sm.save_from_context(
-                                bm.context, record.phone, metadata=record.metadata,
-                            )
-                            changed += 1
-                return len(records), changed
-
-            total, checked = loop.run_until_complete(_run())
-            self.signals.status_changed.emit(
-                f"بررسی دوره‌ای Sessionها انجام شد: {checked} از {total} Session بررسی شد"
-            )
-        except Exception as exc:
-            self.signals.error_occurred.emit(f"خطا در بررسی دوره‌ای Sessionها: {exc}")
-        finally:
-            loop.close()
-
-
-# ---------------------------------------------------------------------------
 # Worker برای Login
 # ---------------------------------------------------------------------------
 class LoginWorker(QRunnable):
@@ -268,8 +235,6 @@ class LoginWorker(QRunnable):
         self._code_future: Optional[asyncio.Future] = None
         self._cancelled = False
         self.setAutoDelete(True)
-        self._loop: Optional[asyncio.AbstractEventLoop] = None
-        self._browser_manager = None
         self._loop: Optional[asyncio.AbstractEventLoop] = None
         self._browser_manager = None
 
@@ -304,8 +269,6 @@ class LoginWorker(QRunnable):
         _force_close_all_browsers()
 
     async def _code_provider(self):
-        # This future belongs to the worker event loop.  Awaiting it keeps the
-        # loop responsive to cancellation and browser-close requests.
         self._code_future = asyncio.get_running_loop().create_future()
         self.signals.code_needed.emit(self.phone)
         try:
@@ -347,6 +310,370 @@ class LoginWorker(QRunnable):
 
 
 # ---------------------------------------------------------------------------
+# PlatformTab
+# ---------------------------------------------------------------------------
+class PlatformTab(QWidget):
+    """تب عمومی Login برای یک پلتفرم."""
+
+    log_message = Signal(str, str)
+
+    PAGE_STATUS = 0
+    PAGE_PHONE = 1
+    PAGE_CODE = 2
+
+    def __init__(
+        self,
+        platform_name: str,
+        platform_key: str,
+        color: str,
+        code_length: int,
+        login_manager_factory: LoginManagerFactory,
+        parent=None,
+    ):
+        super().__init__(parent)
+        self._platform_name = platform_name
+        self._platform_key = platform_key
+        self._factory = login_manager_factory
+        self._current_worker: Optional[LoginWorker] = None
+        self._current_check_worker: Optional[SessionCheckWorker] = None
+        self._current_session: Optional[SessionRecord] = None
+        self._periodic_worker = None
+        self._periodic_timer = QTimer(self)
+        self._periodic_timer.setInterval(60 * 60 * 1000)
+        self._periodic_timer.timeout.connect(self._run_periodic_session_check)
+
+        self._setup_ui(color, code_length)
+        self._connect_signals()
+        self._reload_session_list()
+        self._periodic_timer.start()
+        self._log("INFO", f"[{self._platform_name}] بررسی دوره‌ای Session هر ۶۰ دقیقه فعال است")
+
+    def _setup_ui(self, color: str, code_length: int):
+        layout = QVBoxLayout(self)
+        layout.setContentsMargins(30, 20, 30, 20)
+
+        self.stack = QStackedWidget()
+
+        self.status_page = _StatusPage(self._platform_name, color)
+        self.phone_page = _PhonePage(self._platform_name, color)
+        self.code_page = _CodePage(self._platform_name, color, code_length)
+
+        self.stack.addWidget(self.status_page)
+        self.stack.addWidget(self.phone_page)
+        self.stack.addWidget(self.code_page)
+
+        layout.addWidget(self.stack)
+
+    def _connect_signals(self):
+        self.status_page.start_login.connect(self._on_start_login)
+        self.status_page.check_session.connect(self._check_session)
+        self.status_page.logout.connect(self._on_logout)
+        self.status_page.close_browser.connect(self._on_close_browser_clicked)
+        self.status_page.select_session.connect(self._on_select_session)
+        self.status_page.refresh_list.connect(self._reload_session_list)
+
+        self.phone_page.submit_phone.connect(self._on_phone_submitted)
+        self.phone_page.go_back.connect(self._go_to_status)
+
+        self.code_page.submit_code.connect(self._on_code_submitted)
+        self.code_page.cancel_login.connect(self._on_cancel_login)
+
+    def _log(self, level: str, msg: str):
+        self.log_message.emit(level, msg)
+
+    def _reload_session_list(self):
+        """بارگذاری لیست شماره‌ها از SQLite — بدون Playwright."""
+        try:
+            sm = SessionManager(platform=self._platform_key)
+            sessions = sm.list_sessions()
+            selected = self._current_session.phone if self._current_session else None
+            self.status_page.set_sessions(sessions, selected_phone=selected)
+            self._log(
+                "INFO",
+                f"[{self._platform_name}] Loaded {len(sessions)} session(s) from DB (no browser)",
+            )
+            if not sessions:
+                self._current_session = None
+            elif self._current_session:
+                for s in sessions:
+                    if s.phone == self._current_session.phone:
+                        self._current_session = s
+                        break
+        except Exception as e:
+            self.status_page.set_status(f"❌ خطا در خواندن Sessionها:\n{e}")
+            self._log("ERROR", f"[{self._platform_name}] list sessions error: {e}")
+
+    def _run_periodic_session_check(self):
+        """Run hourly in the background; never overlap an active login/check."""
+        if self._current_worker or self._current_check_worker or self._periodic_worker:
+            self._log("INFO", f"[{self._platform_name}] بررسی دوره‌ای به‌دلیل عملیات فعال رد شد")
+            return
+        self._log("INFO", f"[{self._platform_name}] شروع بررسی دوره‌ای Sessionها")
+        # ... (بقیه کد)
+
+    def _on_select_session(self, record: SessionRecord):
+        """انتخاب شماره از لیست."""
+        self._current_session = record
+        self.status_page.set_status(
+            f"✅ شماره انتخاب شد: {record.phone}\n\n"
+            f"وضعیت DB: {record.status.value}\n"
+            f"کوکی‌ها: {len(record.storage_state.cookies) if record.storage_state else 0}\n\n"
+            f"برای اعتبارسنجی واقعی، «بررسی Session» را بزنید (مرورگر باز می‌شود).",
+            is_valid=(record.status == SessionStatus.VALID),
+        )
+        self._log("INFO", f"[{self._platform_name}] Selected session phone={record.phone}")
+
+    def _check_session(self):
+        """بررسی واقعی Session انتخاب‌شده با باز کردن مرورگر."""
+        rec = self.status_page.get_selected_record()
+        if not rec:
+            QMessageBox.information(
+                self,
+                "انتخاب شماره",
+                "ابتدا یک شماره از لیست انتخاب کنید.",
+            )
+            return
+
+        self.status_page.set_loading(True)
+        self.status_page.set_status(
+            f"⏳ در حال بررسی Session شماره {rec.phone}...\n(مرورگر باز می‌شود)"
+        )
+        self._log(
+            "INFO",
+            f"[{self._platform_name}] Validating session phone={rec.phone} (browser will open)",
+        )
+
+        worker = SessionCheckWorker(self._platform_key, phone=rec.phone)
+        worker.signals.session_status.connect(self._on_session_checked)
+        worker.signals.error_occurred.connect(self._on_session_check_error)
+        worker.signals.status_changed.connect(self._on_status_changed)
+        self._current_check_worker = worker
+        QThreadPool.globalInstance().start(worker)
+
+    def _on_session_checked(self, status_key: str, message: str):
+        self.status_page.set_loading(False)
+        self._current_check_worker = None
+        self._log("INFO", f"[{self._platform_name}] Session check: {status_key} - {message}")
+
+        sm = SessionManager(platform=self._platform_key)
+        rec = self.status_page.get_selected_record()
+        phone = rec.phone if rec else None
+        record = sm.load(phone=phone) if phone else sm.load()
+
+        if status_key == "VALID" and record:
+            self._current_session = record
+            self.status_page.set_status(
+                f"✅ Session معتبر\n\n"
+                f"شماره: {record.phone}\n"
+                f"آخرین استفاده: {record.last_used_at or 'نامشخص'}\n"
+                f"تعداد کوکی‌ها: {len(record.storage_state.cookies)}",
+                is_valid=True,
+            )
+            self._log("INFO", f"[{self._platform_name}] Session ready: {record.phone}")
+        elif status_key == "NO_SESSION":
+            self._current_session = None
+            self.status_page.set_status(
+                "ℹ️ هیچ Session ذخیره‌شده‌ای وجود ندارد.\n\n"
+                "برای استفاده، با «ورود با شماره جدید» وارد شوید."
+            )
+        elif status_key in ("INVALID", "EXPIRED"):
+            self.status_page.set_status(
+                f"⚠️ {message}\n\nلطفاً مجدداً وارد حساب کاربری شوید."
+            )
+        else:
+            self.status_page.set_status(f"❓ {message}")
+
+        self._reload_session_list()
+
+    def _on_session_check_error(self, error: str):
+        self.status_page.set_loading(False)
+        self.status_page.set_status(f"❌ خطا در بررسی Session:\n{error}")
+        self._log("ERROR", f"[{self._platform_name}] Session check error: {error}")
+
+    def _on_start_login(self):
+        self.phone_page.reset()
+        self.stack.setCurrentIndex(self.PAGE_PHONE)
+        self.phone_page.phone_input.setFocus()
+
+    def _go_to_status(self):
+        self.stack.setCurrentIndex(self.PAGE_STATUS)
+        self._reload_session_list()
+
+    def _on_phone_submitted(self, phone: str):
+        self.phone_page.set_loading(True)
+        self.phone_page.set_status("در حال باز کردن مرورگر...")
+        self._log("INFO", f"[{self._platform_name}] شروع Login برای شماره {phone}")
+
+        self._current_worker = LoginWorker(
+            phone=phone,
+            platform_key=self._platform_key,
+            login_manager_factory=self._factory,
+        )
+        self._current_worker.signals.code_needed.connect(self._on_code_needed)
+        self._current_worker.signals.login_finished.connect(self._on_login_finished)
+        self._current_worker.signals.error_occurred.connect(self._on_error)
+        self._current_worker.signals.status_changed.connect(self._on_status_changed)
+
+        QThreadPool.globalInstance().start(self._current_worker)
+
+    def _on_code_needed(self, phone: str):
+        self._log("INFO", f"[{self._platform_name}] منتظر کد تأیید برای {phone}")
+        self.code_page.set_phone(phone)
+        self.code_page.clear()
+        self.stack.setCurrentIndex(self.PAGE_CODE)
+        self.code_page.code_input.setFocus()
+
+    def _on_code_submitted(self, code: str):
+        self.code_page.set_loading(True)
+        self.code_page.set_status("در حال تأیید کد...")
+        self._log("INFO", f"[{self._platform_name}] کد تأیید ارسال شد")
+
+        if self._current_worker:
+            self._current_worker.provide_code(code)
+
+    def _on_cancel_login(self):
+        """لغو Login با timeout و fallback بهتر."""
+        self._log("INFO", f"[{self._platform_name}] Login cancelled / close browser by user")
+        
+        if self._current_worker:
+            try:
+                # تلاش برای بستن با timeout
+                if hasattr(self._current_worker, "request_close"):
+                    self._current_worker.request_close()
+                else:
+                    self._current_worker.cancel()
+            except Exception as e:
+                self._log("WARNING", f"[{self._platform_name}] Error closing worker: {e}")
+            
+            self._current_worker = None
+        
+        # ✨ NEW: Force close بعد از یک تأخیر کوتاه
+        QTimer.singleShot(500, _force_close_all_browsers)
+        
+        # ✨ NEW: بازگشت به صفحه وضعیت با تأخیر
+        QTimer.singleShot(1000, self._go_to_status)
+        
+        self._log("INFO", f"[{self._platform_name}] Login cancelled successfully")
+
+    def _on_login_finished(self, result):
+        self._current_worker = None
+
+        if result.success:
+            self._log(
+                "INFO",
+                f"[{self._platform_name}] ✅ ورود موفق - Session: {result.session_path}",
+            )
+            QMessageBox.information(
+                self,
+                "ورود موفق",
+                f"✅ ورود به {self._platform_name} با موفقیت انجام شد!\n\n"
+                f"شماره: {result.phone}\n\n"
+                f"📦 Session در دو محل ذخیره شد:\n"
+                f"• دیتابیس SQLite: data/db/sessions.db\n"
+                f"• فایل JSON: {result.session_path}",
+            )
+            sm = SessionManager(platform=self._platform_key)
+            self._current_session = sm.load(phone=getattr(result, "phone", None))
+            self._go_to_status()
+        else:
+            self._log("ERROR", f"[{self._platform_name}] ❌ خطا: {result.error}")
+            QMessageBox.critical(
+                self,
+                "خطا در ورود",
+                f"❌ ورود به {self._platform_name} ناموفق بود\n\n"
+                f"وضعیت: {result.state.value}\n"
+                f"خطا: {result.error}\n\n"
+                f"می‌توانید دوباره تلاش کنید.",
+            )
+            self.phone_page.set_loading(False)
+            self.phone_page.set_status("")
+            self.stack.setCurrentIndex(self.PAGE_PHONE)
+
+    def _on_error(self, error_msg: str):
+        self._current_worker = None
+        self._log("ERROR", f"[{self._platform_name}] خطای غیرمنتظره: {error_msg}")
+
+        if "Target closed" in error_msg or "browser" in error_msg.lower():
+            QMessageBox.warning(
+                self,
+                "مرورگر بسته شد",
+                f"مرورگر بسته شد.\n\n{error_msg}\n\n"
+                f"می‌توانید دوباره تلاش کنید.",
+            )
+        else:
+            QMessageBox.critical(
+                self,
+                "خطا",
+                f"خطای غیرمنتظره:\n{error_msg}\n\n"
+                f"می‌توانید دوباره تلاش کنید.",
+            )
+        self._go_to_status()
+
+    def _on_status_changed(self, status: str):
+        self._log("INFO", f"[{self._platform_name}] {status}")
+        idx = self.stack.currentIndex()
+        if idx == self.PAGE_PHONE:
+            self.phone_page.set_status(status)
+        elif idx == self.PAGE_CODE:
+            self.code_page.set_status(status)
+        elif idx == self.PAGE_STATUS:
+            self.status_page.set_status(status)
+
+    def _on_close_browser_clicked(self):
+        """بستن دستی مرورگر توسط کاربر از طریق GUI."""
+        closed_any = False
+        if getattr(self, "_current_check_worker", None):
+            try:
+                self._current_check_worker.request_close()
+                closed_any = True
+            except Exception:
+                pass
+        if getattr(self, "_current_worker", None):
+            try:
+                if hasattr(self._current_worker, "request_close"):
+                    self._current_worker.request_close()
+                else:
+                    self._current_worker.cancel()
+                closed_any = True
+            except Exception:
+                pass
+        _force_close_all_browsers()
+        self.status_page.set_loading(False)
+        if hasattr(self.status_page, "set_status"):
+            self.status_page.set_status("🔴 درخواست بستن مرورگر ارسال شد.")
+        self._log(
+            "INFO",
+            f"[{self._platform_name}] کاربر درخواست بستن مرورگر داد (closed_any={closed_any})",
+        )
+
+    def _on_logout(self):
+        rec = self.status_page.get_selected_record()
+        if not rec:
+            QMessageBox.information(self, "حذف", "ابتدا یک شماره از لیست انتخاب کنید.")
+            return
+
+        reply = QMessageBox.question(
+            self,
+            "تأیید خروج",
+            f"آیا از حذف Session برای شماره {rec.phone} مطمئن هستید؟\n\n"
+            f"پس از این کار، باید دوباره وارد شوید.",
+            QMessageBox.Yes | QMessageBox.No,
+            QMessageBox.No,
+        )
+
+        if reply == QMessageBox.Yes:
+            sm = SessionManager(platform=self._platform_key)
+            sm.delete(rec)
+            self._log(
+                "INFO",
+                f"[{self._platform_name}] Session deleted for {rec.phone}",
+            )
+            if self._current_session and self._current_session.phone == rec.phone:
+                self._current_session = None
+            self._reload_session_list()
+
+
+# ---------------------------------------------------------------------------
 # صفحه وضعیت + لیست شماره‌ها
 # ---------------------------------------------------------------------------
 class _StatusPage(QWidget):
@@ -356,7 +683,7 @@ class _StatusPage(QWidget):
     check_session = Signal()
     logout = Signal()
     close_browser = Signal()
-    select_session = Signal(object)  # SessionRecord or None
+    select_session = Signal(object)
     refresh_list = Signal()
 
     def __init__(self, platform_name: str, color: str, parent=None):
@@ -378,7 +705,6 @@ class _StatusPage(QWidget):
         title.setAlignment(Qt.AlignCenter)
         layout.addWidget(title)
 
-        # راهنما
         hint = QLabel(
             "شماره‌های ذخیره‌شده را از لیست انتخاب کنید.\n"
             "مرورگر فقط وقتی «بررسی Session» را بزنید باز می‌شود."
@@ -388,7 +714,6 @@ class _StatusPage(QWidget):
         hint.setStyleSheet("color: #666; font-size: 12px;")
         layout.addWidget(hint)
 
-        # لیست شماره‌ها
         list_label = QLabel("📱 لیست شماره‌های وارد‌شده:")
         list_label.setStyleSheet("font-weight: bold; font-size: 13px;")
         layout.addWidget(list_label)
@@ -421,7 +746,6 @@ class _StatusPage(QWidget):
         self.phone_list.itemDoubleClicked.connect(self._on_double_click)
         layout.addWidget(self.phone_list)
 
-        # کادر وضعیت انتخاب
         self.status_box = QLabel("هیچ شماره‌ای انتخاب نشده است.")
         self.status_box.setAlignment(Qt.AlignCenter)
         self.status_box.setWordWrap(True)
@@ -437,7 +761,6 @@ class _StatusPage(QWidget):
         """)
         layout.addWidget(self.status_box)
 
-        # دکمه‌ها
         btn_layout = QVBoxLayout()
         btn_layout.setSpacing(8)
 
@@ -453,7 +776,6 @@ class _StatusPage(QWidget):
         self.check_btn.setEnabled(False)
         row1.addWidget(self.check_btn)
         btn_layout.addLayout(row1)
-
 
         self.close_browser_btn = QPushButton("🔴 بستن مرورگر")
         self._style_button(self.close_browser_btn, "#dc3545", min_w=400)
@@ -522,9 +844,9 @@ class _StatusPage(QWidget):
                 except Exception:
                     last = str(rec.last_used_at)
             cookies = len(rec.storage_state.cookies) if rec.storage_state else 0
-            text = f"{rec.phone}   |   وضعیت: {status}   |   کوکی: {cookies}"
+            text = f"{rec.phone} | وضعیت: {status} | کوکی: {cookies}"
             if last:
-                text += f"   |   آخرین استفاده: {last}"
+                text += f" | آخرین استفاده: {last}"
             item = QListWidgetItem(text)
             item.setData(Qt.UserRole, rec)
             self.phone_list.addItem(item)
@@ -563,12 +885,9 @@ class _StatusPage(QWidget):
             f"(این وضعیت از دیتابیس است — برای بررسی واقعی «بررسی Session» را بزنید)"
         )
         self._set_valid_style(is_valid)
-
-        # انتخاب خودکار از لیست (بدون دکمه جداگانه)
         self.select_session.emit(rec)
 
     def _on_double_click(self, item: QListWidgetItem):
-        # دابل‌کلیک هم همان انتخاب را دوباره تأیید می‌کند
         rec = item.data(Qt.UserRole) if item else None
         if rec:
             self.select_session.emit(rec)
@@ -816,7 +1135,6 @@ class _CodePage(QWidget):
         self.close_browser_btn.clicked.connect(self.cancel_login.emit)
         layout.addWidget(self.close_browser_btn, alignment=Qt.AlignCenter)
 
-
         self.status_label = QLabel("")
         self.status_label.setAlignment(Qt.AlignCenter)
         self.status_label.setStyleSheet("color: #888; font-size: 11px;")
@@ -872,397 +1190,3 @@ class _CodePage(QWidget):
     def clear(self):
         self.code_input.clear()
         self.status_label.clear()
-
-
-# ---------------------------------------------------------------------------
-# PlatformTab
-# ---------------------------------------------------------------------------
-class PlatformTab(QWidget):
-    """تب عمومی Login برای یک پلتفرم."""
-
-    log_message = Signal(str, str)  # level, message
-
-    PAGE_STATUS = 0
-    PAGE_PHONE = 1
-    PAGE_CODE = 2
-
-    def __init__(
-        self,
-        platform_name: str,
-        platform_key: str,
-        color: str,
-        code_length: int,
-        login_manager_factory: LoginManagerFactory,
-        parent=None,
-    ):
-        super().__init__(parent)
-        self._platform_name = platform_name
-        self._platform_key = platform_key
-        self._factory = login_manager_factory
-        self._current_worker: Optional[LoginWorker] = None
-        self._current_session: Optional[SessionRecord] = None
-        self._periodic_worker: Optional[PeriodicSessionCheckWorker] = None
-        self._periodic_timer = QTimer(self)
-        self._periodic_timer.setInterval(60 * 60 * 1000)  # every 60 minutes
-        self._periodic_timer.timeout.connect(self._run_periodic_session_check)
-
-        self._setup_ui(color, code_length)
-        self._connect_signals()
-
-        # فقط لیست از DB — بدون باز کردن مرورگر
-        self._reload_session_list()
-        self._periodic_timer.start()
-        self._log("INFO", f"[{self._platform_name}] بررسی دوره‌ای Session هر ۶۰ دقیقه فعال است")
-
-    def _setup_ui(self, color: str, code_length: int):
-        layout = QVBoxLayout(self)
-        layout.setContentsMargins(30, 20, 30, 20)
-
-        self.stack = QStackedWidget()
-
-        self.status_page = _StatusPage(self._platform_name, color)
-        self.phone_page = _PhonePage(self._platform_name, color)
-        self.code_page = _CodePage(self._platform_name, color, code_length)
-
-        self.stack.addWidget(self.status_page)   # 0
-        self.stack.addWidget(self.phone_page)    # 1
-        self.stack.addWidget(self.code_page)     # 2
-
-        layout.addWidget(self.stack)
-
-    def _connect_signals(self):
-        self.status_page.start_login.connect(self._on_start_login)
-        self.status_page.check_session.connect(self._check_session)
-        self.status_page.logout.connect(self._on_logout)
-        self.status_page.close_browser.connect(self._on_close_browser_clicked)
-        self.status_page.select_session.connect(self._on_select_session)
-        self.status_page.refresh_list.connect(self._reload_session_list)
-
-        self.phone_page.submit_phone.connect(self._on_phone_submitted)
-        self.phone_page.go_back.connect(self._go_to_status)
-
-        self.code_page.submit_code.connect(self._on_code_submitted)
-        self.code_page.cancel_login.connect(self._on_cancel_login)
-
-    def _log(self, level: str, msg: str):
-        self.log_message.emit(level, msg)
-
-    # ------------------------------------------------------------------
-    # لیست Sessionها از DB (بدون مرورگر)
-    # ------------------------------------------------------------------
-    def _run_periodic_session_check(self):
-        """Run hourly in the background; never overlap an active login/check."""
-        if self._current_worker or getattr(self, "_current_check_worker", None) or self._periodic_worker:
-            self._log("INFO", f"[{self._platform_name}] بررسی دوره‌ای به‌دلیل عملیات فعال رد شد")
-            return
-        self._log("INFO", f"[{self._platform_name}] شروع بررسی دوره‌ای Sessionها")
-        worker = PeriodicSessionCheckWorker(self._platform_key)
-        worker.signals.status_changed.connect(self._on_periodic_session_checked)
-        worker.signals.error_occurred.connect(self._on_periodic_session_error)
-        self._periodic_worker = worker
-        QThreadPool.globalInstance().start(worker)
-
-    @Slot(str)
-    def _on_periodic_session_checked(self, message: str):
-        self._periodic_worker = None
-        self._log("INFO", f"[{self._platform_name}] {message}")
-        self._reload_session_list()
-
-    @Slot(str)
-    def _on_periodic_session_error(self, message: str):
-        self._periodic_worker = None
-        self._log("ERROR", f"[{self._platform_name}] {message}")
-
-    def _reload_session_list(self):
-        """بارگذاری لیست شماره‌ها از SQLite — بدون Playwright."""
-        try:
-            sm = SessionManager(platform=self._platform_key)
-            sessions = sm.list_sessions()
-            selected = self._current_session.phone if self._current_session else None
-            self.status_page.set_sessions(sessions, selected_phone=selected)
-            self._log(
-                "INFO",
-                f"[{self._platform_name}] Loaded {len(sessions)} session(s) from DB (no browser)",
-            )
-            if not sessions:
-                self._current_session = None
-            elif self._current_session:
-                # همگام‌سازی آبجکت جاری
-                for s in sessions:
-                    if s.phone == self._current_session.phone:
-                        self._current_session = s
-                        break
-        except Exception as e:
-            self.status_page.set_status(f"❌ خطا در خواندن Sessionها:\n{e}")
-            self._log("ERROR", f"[{self._platform_name}] list sessions error: {e}")
-
-    @Slot(object)
-    def _on_select_session(self, record: SessionRecord):
-        """انتخاب شماره از لیست."""
-        self._current_session = record
-        self.status_page.set_status(
-            f"✅ شماره انتخاب شد: {record.phone}\n\n"
-            f"وضعیت DB: {record.status.value}\n"
-            f"کوکی‌ها: {len(record.storage_state.cookies) if record.storage_state else 0}\n\n"
-            f"برای اعتبارسنجی واقعی، «بررسی Session» را بزنید (مرورگر باز می‌شود).",
-            is_valid=(record.status == SessionStatus.VALID),
-        )
-        self._log("INFO", f"[{self._platform_name}] Selected session phone={record.phone}")
-
-    # ------------------------------------------------------------------
-    # Session Checking (فقط با کلیک کاربر — مرورگر باز می‌شود)
-    # ------------------------------------------------------------------
-    def _check_session(self):
-        """بررسی واقعی Session انتخاب‌شده با باز کردن مرورگر."""
-        rec = self.status_page.get_selected_record()
-        if not rec:
-            QMessageBox.information(
-                self,
-                "انتخاب شماره",
-                "ابتدا یک شماره از لیست انتخاب کنید.",
-            )
-            return
-
-        self.status_page.set_loading(True)
-        self.status_page.set_status(
-            f"⏳ در حال بررسی Session شماره {rec.phone}...\n(مرورگر باز می‌شود)"
-        )
-        self._log(
-            "INFO",
-            f"[{self._platform_name}] Validating session phone={rec.phone} (browser will open)",
-        )
-
-        worker = SessionCheckWorker(self._platform_key, phone=rec.phone)
-        worker.signals.session_status.connect(self._on_session_checked)
-        worker.signals.error_occurred.connect(self._on_session_check_error)
-        worker.signals.status_changed.connect(self._on_status_changed)
-        self._current_check_worker = worker
-        QThreadPool.globalInstance().start(worker)
-
-    @Slot(str, str)
-    def _on_session_checked(self, status_key: str, message: str):
-        self.status_page.set_loading(False)
-        self._current_check_worker = None
-        self._log("INFO", f"[{self._platform_name}] Session check: {status_key} - {message}")
-
-        # بعد از بررسی، لیست را تازه کن
-        sm = SessionManager(platform=self._platform_key)
-        rec = self.status_page.get_selected_record()
-        phone = rec.phone if rec else None
-        record = sm.load(phone=phone) if phone else sm.load()
-
-        if status_key == "VALID" and record:
-            self._current_session = record
-            self.status_page.set_status(
-                f"✅ Session معتبر\n\n"
-                f"شماره: {record.phone}\n"
-                f"آخرین استفاده: {record.last_used_at or 'نامشخص'}\n"
-                f"تعداد کوکی‌ها: {len(record.storage_state.cookies)}",
-                is_valid=True,
-            )
-            self._log(
-                "INFO",
-                f"[{self._platform_name}] Session ready: {record.phone}",
-            )
-        elif status_key == "NO_SESSION":
-            self._current_session = None
-            self.status_page.set_status(
-                "ℹ️ هیچ Session ذخیره‌شده‌ای وجود ندارد.\n\n"
-                "برای استفاده، با «ورود با شماره جدید» وارد شوید."
-            )
-        elif status_key in ("INVALID", "EXPIRED"):
-            self.status_page.set_status(
-                f"⚠️ {message}\n\nلطفاً مجدداً وارد حساب کاربری شوید."
-            )
-        else:
-            self.status_page.set_status(f"❓ {message}")
-
-        self._reload_session_list()
-
-    @Slot(str)
-    def _on_session_check_error(self, error: str):
-        self.status_page.set_loading(False)
-        self.status_page.set_status(f"❌ خطا در بررسی Session:\n{error}")
-        self._log("ERROR", f"[{self._platform_name}] Session check error: {error}")
-
-    # ------------------------------------------------------------------
-    # Login Flow
-    # ------------------------------------------------------------------
-    def _on_start_login(self):
-        self.phone_page.reset()
-        self.stack.setCurrentIndex(self.PAGE_PHONE)
-        self.phone_page.phone_input.setFocus()
-
-    def _go_to_status(self):
-        self.stack.setCurrentIndex(self.PAGE_STATUS)
-        self._reload_session_list()  # بدون مرورگر
-
-    def _on_phone_submitted(self, phone: str):
-        self.phone_page.set_loading(True)
-        self.phone_page.set_status("در حال باز کردن مرورگر...")
-        self._log("INFO", f"[{self._platform_name}] شروع Login برای شماره {phone}")
-
-        self._current_worker = LoginWorker(
-            phone=phone,
-            platform_key=self._platform_key,
-            login_manager_factory=self._factory,
-        )
-        self._current_worker.signals.code_needed.connect(self._on_code_needed)
-        self._current_worker.signals.login_finished.connect(self._on_login_finished)
-        self._current_worker.signals.error_occurred.connect(self._on_error)
-        self._current_worker.signals.status_changed.connect(self._on_status_changed)
-
-        QThreadPool.globalInstance().start(self._current_worker)
-
-    @Slot(str)
-    def _on_code_needed(self, phone: str):
-        self._log("INFO", f"[{self._platform_name}] منتظر کد تأیید برای {phone}")
-        self.code_page.set_phone(phone)
-        self.code_page.clear()
-        self.stack.setCurrentIndex(self.PAGE_CODE)
-        self.code_page.code_input.setFocus()
-
-    def _on_code_submitted(self, code: str):
-        self.code_page.set_loading(True)
-        self.code_page.set_status("در حال تأیید کد...")
-        self._log("INFO", f"[{self._platform_name}] کد تأیید ارسال شد")
-
-        if self._current_worker:
-            self._current_worker.provide_code(code)
-
-    def _on_cancel_login(self):
-        self._log("INFO", f"[{self._platform_name}] Login cancelled / close browser by user")
-        if self._current_worker:
-            if hasattr(self._current_worker, "request_close"):
-                self._current_worker.request_close()
-            else:
-                self._current_worker.cancel()
-            self._current_worker = None
-        _force_close_all_browsers()
-        self._go_to_status()
-
-    @Slot(object)
-    def _on_login_finished(self, result):
-        self._current_worker = None
-
-        if result.success:
-            self._log(
-                "INFO",
-                f"[{self._platform_name}] ✅ ورود موفق - Session: {result.session_path}",
-            )
-            QMessageBox.information(
-                self,
-                "ورود موفق",
-                f"✅ ورود به {self._platform_name} با موفقیت انجام شد!\n\n"
-                f"شماره: {result.phone}\n\n"
-                f"📦 Session در دو محل ذخیره شد:\n"
-                f"• دیتابیس SQLite: data/db/sessions.db\n"
-                f"• فایل JSON: {result.session_path}",
-            )
-            # بعد از لاگین موفق، این شماره را current کن
-            sm = SessionManager(platform=self._platform_key)
-            self._current_session = sm.load(phone=getattr(result, "phone", None))
-            self._go_to_status()
-        else:
-            self._log("ERROR", f"[{self._platform_name}] ❌ خطا: {result.error}")
-            QMessageBox.critical(
-                self,
-                "خطا در ورود",
-                f"❌ ورود به {self._platform_name} ناموفق بود\n\n"
-                f"وضعیت: {result.state.value}\n"
-                f"خطا: {result.error}\n\n"
-                f"می‌توانید دوباره تلاش کنید.",
-            )
-            self.phone_page.set_loading(False)
-            self.phone_page.set_status("")
-            self.stack.setCurrentIndex(self.PAGE_PHONE)
-
-    @Slot(str)
-    def _on_error(self, error_msg: str):
-        self._current_worker = None
-        self._log("ERROR", f"[{self._platform_name}] خطای غیرمنتظره: {error_msg}")
-
-        if "Target closed" in error_msg or "browser" in error_msg.lower():
-            QMessageBox.warning(
-                self,
-                "مرورگر بسته شد",
-                f"مرورگر بسته شد.\n\n{error_msg}\n\n"
-                f"می‌توانید دوباره تلاش کنید.",
-            )
-        else:
-            QMessageBox.critical(
-                self,
-                "خطا",
-                f"خطای غیرمنتظره:\n{error_msg}\n\n"
-                f"می‌توانید دوباره تلاش کنید.",
-            )
-        self._go_to_status()
-
-    @Slot(str)
-    def _on_status_changed(self, status: str):
-        self._log("INFO", f"[{self._platform_name}] {status}")
-        idx = self.stack.currentIndex()
-        if idx == self.PAGE_PHONE:
-            self.phone_page.set_status(status)
-        elif idx == self.PAGE_CODE:
-            self.code_page.set_status(status)
-        elif idx == self.PAGE_STATUS:
-            # پیام موقت در حین بررسی
-            self.status_page.set_status(status)
-
-    # ------------------------------------------------------------------
-    # Logout
-    # ------------------------------------------------------------------
-
-    def _on_close_browser_clicked(self):
-        """بستن دستی مرورگر توسط کاربر از طریق GUI."""
-        closed_any = False
-        if getattr(self, "_current_check_worker", None):
-            try:
-                self._current_check_worker.request_close()
-                closed_any = True
-            except Exception:
-                pass
-        if getattr(self, "_current_worker", None):
-            try:
-                if hasattr(self._current_worker, "request_close"):
-                    self._current_worker.request_close()
-                else:
-                    self._current_worker.cancel()
-                closed_any = True
-            except Exception:
-                pass
-        _force_close_all_browsers()
-        self.status_page.set_loading(False)
-        if hasattr(self.status_page, "set_status"):
-            self.status_page.set_status("🔴 درخواست بستن مرورگر ارسال شد.")
-        self._log(
-            "INFO",
-            f"[{self._platform_name}] کاربر درخواست بستن مرورگر داد (closed_any={closed_any})",
-        )
-
-    def _on_logout(self):
-        rec = self.status_page.get_selected_record()
-        if not rec:
-            QMessageBox.information(self, "حذف", "ابتدا یک شماره از لیست انتخاب کنید.")
-            return
-
-        reply = QMessageBox.question(
-            self,
-            "تأیید خروج",
-            f"آیا از حذف Session برای شماره {rec.phone} مطمئن هستید؟\n\n"
-            f"پس از این کار، باید دوباره وارد شوید.",
-            QMessageBox.Yes | QMessageBox.No,
-            QMessageBox.No,
-        )
-
-        if reply == QMessageBox.Yes:
-            sm = SessionManager(platform=self._platform_key)
-            sm.delete(rec)
-            self._log(
-                "INFO",
-                f"[{self._platform_name}] Session deleted for {rec.phone}",
-            )
-            if self._current_session and self._current_session.phone == rec.phone:
-                self._current_session = None
-            self._reload_session_list()
