@@ -7,6 +7,7 @@ AutomationTab - تب اتوماسیون دیوار.
 - انتخاب دسته‌بندی (اختیاری)
 - ساخت URL دیوار با شهرها و دسته‌بندی انتخاب شده
 - باز کردن سایت دیوار با Session ذخیره شده
+- بستن مرورگر به صورت اختصاصی برای تب اتوماسیون
 """
 
 from __future__ import annotations
@@ -71,24 +72,34 @@ class DivarBrowserWorker(QRunnable):
         self.phone = phone
         self.signals = AutomationSignals()
         self.setAutoDelete(True)
-        self._browser_manager = None
+        self._browser_manager: Optional[BrowserManager] = None
+        self._loop = None
+        self._is_active = True
+
+    def is_browser_running(self) -> bool:
+        if not self._is_active:
+            return False
+        if self._browser_manager is not None:
+            return self._browser_manager.is_running
+        return True
 
     def request_close(self):
-        if self._browser_manager:
+        if self._loop is not None and self._browser_manager is not None:
             import asyncio
             try:
-                loop = asyncio.get_event_loop()
                 asyncio.run_coroutine_threadsafe(
-                    self._browser_manager.stop(), loop
+                    self._browser_manager.stop(), self._loop
                 )
             except Exception:
                 pass
 
     @Slot()
     def run(self):
+        self._is_active = True
         import asyncio
         loop = asyncio.new_event_loop()
         asyncio.set_event_loop(loop)
+        self._loop = loop
 
         try:
             self.signals.status_changed.emit(f"🌐 URL: {self.url}")
@@ -126,6 +137,7 @@ class DivarBrowserWorker(QRunnable):
         except Exception as e:
             self.signals.error_occurred.emit(f"خطا: {e}")
         finally:
+            self._is_active = False
             loop.close()
 
 
@@ -169,6 +181,7 @@ class AutomationTab(QWidget):
 
         # ===== ردیف بالا: شهرها و دسته‌بندی کنار هم =====
         top_splitter = QSplitter(Qt.Horizontal)
+        self.top_splitter = top_splitter
 
         # ----- بخش شهرها -----
         cities_group = QGroupBox("🏙️ انتخاب شهرها")
@@ -241,7 +254,6 @@ class AutomationTab(QWidget):
         cat_layout.addLayout(cat_btn_row)
         top_splitter.addWidget(cat_group)
 
-        # تقسیم برابر فضا بین دو بخش
         top_splitter.setSizes([400, 400])
         layout.addWidget(top_splitter, stretch=1)
 
@@ -264,7 +276,7 @@ class AutomationTab(QWidget):
         self.start_btn.setCursor(Qt.PointingHandCursor)
         self.start_btn.setMinimumHeight(52)
         start_font = QFont()
-        start_font.setPointSize(14)
+        start_font.setPointSize(13)
         start_font.setBold(True)
         self.start_btn.setFont(start_font)
         self.start_btn.clicked.connect(self._on_start)
@@ -285,7 +297,7 @@ class AutomationTab(QWidget):
         self.log_message.emit(level, msg)
 
     def restyle(self):
-        """✨ سازگاری با سوییچ تم - objectNameها از QSS سراسری پیروی می‌کنند."""
+        """سازگاری با سوییچ تم - objectNameها از QSS سراسری پیروی می‌کنند."""
         for w in (self.city_list, self.category_list, self.url_display,
                   self.city_search, self.category_search):
             try:
@@ -295,7 +307,6 @@ class AutomationTab(QWidget):
                 pass
 
     def resizeEvent(self, event):
-        """✨ واکنش‌گرایی: در عرض کم، شهر و دسته‌بندی زیر هم قرار می‌گیرند."""
         super().resizeEvent(event)
         try:
             if not hasattr(self, "top_splitter"):
@@ -310,9 +321,6 @@ class AutomationTab(QWidget):
         except Exception:
             pass
 
-    # ------------------------------------------------------------------
-    # بارگذاری داده‌ها
-    # ------------------------------------------------------------------
     def _load_data(self):
         self._load_cities()
         self._load_categories()
@@ -366,11 +374,9 @@ class AutomationTab(QWidget):
 
     def _populate_category_list(self, categories: List[dict]):
         self.category_list.clear()
-        # آیتم "همه دسته‌ها"
         all_item = QListWidgetItem("📋 همه دسته‌ها (بدون فیلتر)")
         all_item.setData(Qt.UserRole, None)
         self.category_list.addItem(all_item)
-        # دسته‌بندی‌ها
         for cat in categories:
             name = cat.get("name", "")
             category = cat.get("category", "")
@@ -381,7 +387,6 @@ class AutomationTab(QWidget):
             item = QListWidgetItem(display_text)
             item.setData(Qt.UserRole, slug)
             self.category_list.addItem(item)
-        # انتخاب پیش‌فرض: همه دسته‌ها
         self.category_list.setCurrentRow(0)
 
     def _filter_cities(self, text: str):
@@ -429,7 +434,6 @@ class AutomationTab(QWidget):
         self.selected_cities_count.setText(f"{city_count} شهر")
         self.start_btn.setEnabled(city_count > 0)
 
-        # دسته‌بندی انتخاب شده
         selected_cats = self.category_list.selectedItems()
         if selected_cats:
             cat_slug = selected_cats[0].data(Qt.UserRole)
@@ -453,16 +457,13 @@ class AutomationTab(QWidget):
         cities_ids = [c.get("id", 0) for c in cities_data]
         cities_names = [c.get("name", "") for c in cities_data]
 
-        # ساخت URL
         cities_param = ",".join(str(cid) for cid in cities_ids)
 
-        # دسته‌بندی
         selected_cats = self.category_list.selectedItems()
         category_slug = None
         if selected_cats:
             category_slug = selected_cats[0].data(Qt.UserRole)
 
-        # همیشه از iran با cities parameter استفاده کن
         if category_slug:
             url = f"https://divar.ir/s/iran/{category_slug}?cities={cities_param}"
         else:
@@ -473,9 +474,6 @@ class AutomationTab(QWidget):
             f"🏙️ شهرها: {', '.join(cities_names)}"
         )
 
-    # ------------------------------------------------------------------
-    # شروع
-    # ------------------------------------------------------------------
     def _on_start(self):
         selected_cities = self.city_list.selectedItems()
         if not selected_cities:
@@ -486,7 +484,6 @@ class AutomationTab(QWidget):
         cities_ids = [c.get("id", 0) for c in cities_data]
         cities_names = [c.get("name", "") for c in cities_data]
 
-        # دسته‌بندی
         selected_cats = self.category_list.selectedItems()
         category_slug = None
         category_name = "همه دسته‌ها"
@@ -495,7 +492,6 @@ class AutomationTab(QWidget):
             if category_slug:
                 category_name = selected_cats[0].text()
 
-        # همیشه از iran با cities parameter استفاده کن
         cities_param = ",".join(str(cid) for cid in cities_ids)
         if category_slug:
             url = f"https://divar.ir/s/iran/{category_slug}?cities={cities_param}"
@@ -537,12 +533,24 @@ class AutomationTab(QWidget):
         self.start_btn.setText("🚀 شروع - باز کردن دیوار")
         self._current_worker = None
 
+    def is_browser_open(self) -> bool:
+        """بررسی اینکه آیا مرورگر اتوماسیون باز و فعال است یا خیر."""
+        return self._current_worker is not None and self._current_worker.is_browser_running()
+
     def _close_browser(self):
+        """بستن مرورگر اختصاصی اتوماسیون."""
+        if not self.is_browser_open():
+            QMessageBox.information(
+                self,
+                "بستن مرورگر",
+                "ℹ️ هیچ مرورگری برای اتوماسیون باز نیست.",
+            )
+            self._log("INFO", "[اتوماسیون] درخواست بستن مرورگر رد شد (مرورگری باز نیست)")
+            return
+
         if self._current_worker:
-            self._current_worker.request_close()
-        try:
-            from ui.platform_tab import _force_close_all_browsers
-            _force_close_all_browsers()
-        except Exception:
-            pass
-        self._log("INFO", "[اتوماسیون] درخواست بستن مرورگر")
+            try:
+                self._current_worker.request_close()
+                self._log("INFO", "[اتوماسیون] درخواست بستن مرورگر اختصاصی اتوماسیون ارسال شد")
+            except Exception as e:
+                self._log("WARNING", f"[اتوماسیون] خطا در بستن مرورگر اتوماسیون: {e}")

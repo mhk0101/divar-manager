@@ -24,6 +24,7 @@ from PySide6.QtWidgets import (
     QHBoxLayout,
     QLabel,
     QMainWindow,
+    QMessageBox,
     QPushButton,
     QStackedWidget,
     QVBoxLayout,
@@ -75,7 +76,7 @@ class MainWindow(QMainWindow):
     def __init__(self):
         super().__init__()
         self.setWindowTitle("Divar & Sheypoor Manager")
-        self.setMinimumSize(720, 540)   # ✨ قابل کوچک‌شدن برای دیدن واکنش‌گرایی
+        self.setMinimumSize(720, 540)
         self.resize(1100, 760)
 
         self._log_bridge = _LogBridge()
@@ -242,7 +243,6 @@ class MainWindow(QMainWindow):
         if qicon is not None:
             btn.setIcon(qicon)
         elif emoji_fallback_label is not None:
-            # اگر SVG موجود نبود، ایموجی را به ابتدای متن اضافه کن
             btn.setIcon(QIcon())
             if emoji_fallback_label and not btn.text().startswith(icons.emoji(icon_name)):
                 btn.setText(f"{icons.emoji(icon_name)}  {emoji_fallback_label}")
@@ -253,20 +253,16 @@ class MainWindow(QMainWindow):
         muted = c["text_muted"]
         accent = "#A62626"
 
-        # دکمهٔ منو
         self._set_button_icon(self.btn_menu, "menu", c["text"], 24)
 
-        # دکمه‌های ناوبری
         for i, btn in enumerate(self._nav_buttons):
             icon_name = NAV_ITEMS[i][1]
             color = accent if i == self._active_index else muted
             self._set_button_icon(btn, icon_name, color, 22, NAV_ITEMS[i][2])
 
-        # دکمهٔ تم (آیکون خورشید/ماه)
         theme_icon_name = "sun" if is_dark() else "moon"
         self._set_button_icon(self.btn_theme, theme_icon_name, muted, 20, "تم")
 
-        # دکمهٔ بستن مرورگر (آیکون سفید روی پس‌زمینه قرمز)
         self._set_button_icon(self.btn_close_browser, "close", "#ffffff", 20, "بستن مرورگر")
 
     # ------------------------------------------------------------------
@@ -314,14 +310,13 @@ class MainWindow(QMainWindow):
         """اعمال حالت جمع/باز سایدبار روی عرض و متن ویجت‌ها."""
         if self._collapsed:
             self.sidebar.setFixedWidth(SIDEBAR_COLLAPSED)
-            # فقط آیکون‌ها نمایش داده شوند
             self.brand_sub.hide()
             self.accent_bar.hide()
             self.nav_label.hide()
-            self.brand_title.setText("دم")  # خلاصهٔ برند
+            self.brand_title.setText("دم")
             self.brand_title.setAlignment(Qt.AlignCenter)
             for i, btn in enumerate(self._nav_buttons):
-                btn.setText("")            # حذف متن، فقط آیکون
+                btn.setText("")
                 btn.setToolTip(NAV_ITEMS[i][2])
             self.btn_theme.setText("")
             self.btn_theme.setToolTip("تغییر تم")
@@ -367,7 +362,7 @@ class MainWindow(QMainWindow):
         app = QApplication.instance()
         new_theme = toggle_theme(app)
         try:
-            self._on_nav(self._active_index)   # به‌روزرسانی هدر + آیکون‌ها
+            self._on_nav(self._active_index)
             self._refresh_icons()
             self._apply_sidebar_state()
             self.divar_tab.restyle()
@@ -405,50 +400,30 @@ class MainWindow(QMainWindow):
     # بستن مرورگرها
     # ------------------------------------------------------------------
     def _close_all_browsers(self):
-        """بستن مرورگر از همه بخش‌ها + force close."""
-        try:
-            if hasattr(self.divar_tab, "_on_close_browser_clicked"):
-                self.divar_tab._on_close_browser_clicked()
-        except Exception:
-            pass
-        try:
-            if hasattr(self.sheypoor_tab, "_on_close_browser_clicked"):
-                self.sheypoor_tab._on_close_browser_clicked()
-        except Exception:
-            pass
-        try:
-            if hasattr(self.automation_tab, "_close_browser"):
-                self.automation_tab._close_browser()
-        except Exception:
-            pass
-        try:
-            from core.browser_service import BrowserService
-            BrowserService.instance().request_close_all(timeout=10.0)
-        except Exception:
-            pass
-        try:
-            import subprocess
-            if sys.platform.startswith("win"):
-                ps = (
-                    "Get-CimInstance Win32_Process | "
-                    "Where-Object { "
-                    "  ($_.Name -match 'chrome|chromium') -and "
-                    "  ($_.CommandLine -match 'ms-playwright|playwright|chromium') "
-                    "} | "
-                    "ForEach-Object { Stop-Process -Id $_.ProcessId -Force -ErrorAction SilentlyContinue }"
-                )
-                subprocess.run(
-                    ["powershell", "-NoProfile", "-Command", ps],
-                    capture_output=True,
-                    timeout=15,
-                    creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0),
-                )
-        except Exception:
-            pass
-        try:
-            self.logs_tab.append_log("INFO", "🔴 درخواست بستن سراسری مرورگر ارسال شد")
-        except Exception:
-            pass
+        """بستن مرورگرهای تمام تب‌ها به صورت هوشمند."""
+        closed_count = 0
+
+        if hasattr(self.divar_tab, "is_browser_open") and self.divar_tab.is_browser_open():
+            self.divar_tab._on_close_browser_clicked()
+            closed_count += 1
+
+        if hasattr(self.sheypoor_tab, "is_browser_open") and self.sheypoor_tab.is_browser_open():
+            self.sheypoor_tab._on_close_browser_clicked()
+            closed_count += 1
+
+        if hasattr(self.automation_tab, "is_browser_open") and self.automation_tab.is_browser_open():
+            self.automation_tab._close_browser()
+            closed_count += 1
+
+        if closed_count == 0:
+            QMessageBox.information(
+                self,
+                "بستن مرورگر",
+                "ℹ️ هیچ مرورگر بازی پیدا نشد.",
+            )
+            self.logs_tab.append_log("INFO", "ℹ️ هیچ مرورگری برای بستن باز نبود.")
+        else:
+            self.logs_tab.append_log("INFO", f"🔴 درخواست بستن {closed_count} مرورگر باز ارسال شد.")
 
 
 def main():
@@ -457,7 +432,6 @@ def main():
     app.setApplicationName("DivarManager")
     app.setOrganizationName("DivarManager")
 
-    # اعمال تم مدرن (تم ذخیره‌شدهٔ کاربر، پیش‌فرض تیره) + فونت وزیرمتن
     load_saved_theme()
     apply_theme(app)
 
