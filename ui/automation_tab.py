@@ -1,13 +1,13 @@
 """
-AutomationTab - تب اتوماسیون دیوار.
+AutomationTab - تب اتوماسیون دیوار و شیپور.
 
-ویژگی‌ها:
-- نمایش لیست شهرها با قابلیت جستجو
-- انتخاب چندگانه شهرها
-- انتخاب دسته‌بندی (اختیاری)
-- ساخت URL دیوار با شهرها و دسته‌بندی انتخاب شده
-- باز کردن سایت دیوار با Session ذخیره شده
-- بستن مرورگر به صورت اختصاصی برای تب اتوماسیون
+ویژگی‌های پیشرفته:
+- پشتیبانی کامل از الگوی URLهای پیچیده شیپور (تک‌شهری، چندشهری، دسته‌بندی‌ها و زیردسته‌ها)
+- ساخت خودکار لینک شیپور مانند:
+  * تک‌شهری: https://www.sheypoor.com/s/tehran/vehicles
+  * چندشهری: https://www.sheypoor.com/s/iran/real-estate?cities[0]=291&cities[1]=292
+- انتخاب حساب کاربری، تمدید خودکار و جایگزینی کوکی‌ها در پس‌زمینه
+- تفکیک پلتفرم (دیوار / شیپور)
 """
 
 from __future__ import annotations
@@ -18,10 +18,12 @@ import sys
 from pathlib import Path
 from typing import List, Optional
 
-from PySide6.QtCore import Qt, Signal, Slot, QRunnable, QThreadPool, QObject
+from PySide6.QtCore import Qt, Signal, Slot, QRunnable, QThreadPool, QObject, QTimer
 from PySide6.QtGui import QFont
 from PySide6.QtWidgets import (
     QAbstractItemView,
+    QComboBox,
+    QGroupBox,
     QHBoxLayout,
     QLabel,
     QLineEdit,
@@ -29,11 +31,11 @@ from PySide6.QtWidgets import (
     QListWidgetItem,
     QMessageBox,
     QPushButton,
-    QVBoxLayout,
-    QWidget,
-    QGroupBox,
     QSplitter,
     QTextEdit,
+    QVBoxLayout,
+    QWidget,
+    QSizePolicy,
 )
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
@@ -42,11 +44,70 @@ if str(PROJECT_ROOT) not in sys.path:
 
 from core.browser_manager import BrowserManager
 from core.session_manager import SessionManager
+from core.session_models import SessionRecord, SessionStatus
 
 logger = logging.getLogger("divar.automation")
 
-CITIES_FILE = PROJECT_ROOT / "data" / "cities.json"
-CATEGORIES_FILE = PROJECT_ROOT / "data" / "categories.json"
+DIVAR_CITIES_FILE = PROJECT_ROOT / "data" / "cities.json"
+DIVAR_CATEGORIES_FILE = PROJECT_ROOT / "data" / "categories.json"
+
+SHEYPOOR_CITIES_FILE = PROJECT_ROOT / "data" / "sheypoor_cities.json"
+SHEYPOOR_CATEGORIES_FILE = PROJECT_ROOT / "data" / "sheypoor_categories.json"
+
+
+def format_status_persian(status_str: str) -> str:
+    """تبدیل وضعیت انگلیسی به برچسب فارسی زیبا با آیکون."""
+    s = str(status_str).lower()
+    if s == "valid":
+        return "🟢 معتبر"
+    elif s == "invalid":
+        return "🔴 نامعتبر"
+    elif s == "expired":
+        return "🟠 منقضی شده"
+    elif s == "needs_refresh":
+        return "🟡 نیاز به بروزرسانی"
+    return "⚪ بررسی‌نشده"
+
+
+def build_sheypoor_url(cities_data: List[dict], category_slug: Optional[str]) -> str:
+    """
+    ساخت URL دقیق شیپور طبق الگوی رسمی سایت:
+    1. بدون شهر:
+       - https://www.sheypoor.com/s/iran
+       - https://www.sheypoor.com/s/iran/{category}
+    2. تک‌شهری:
+       - https://www.sheypoor.com/s/tehran
+       - https://www.sheypoor.com/s/tehran/vehicles
+    3. چندشهری:
+       - https://www.sheypoor.com/s/iran?cities[0]=291&cities[1]=292&cities[2]=297
+       - https://www.sheypoor.com/s/iran/vehicles?cities[0]=291&cities[1]=292
+    """
+    cat_part = f"/{category_slug}" if category_slug else ""
+
+    if not cities_data:
+        return f"https://www.sheypoor.com/s/iran{cat_part}"
+
+    if len(cities_data) == 1:
+        city_slug = cities_data[0].get("slug") or "iran"
+        return f"https://www.sheypoor.com/s/{city_slug}{cat_part}"
+
+    # چند شهر
+    query_params = "&".join(
+        f"cities[{i}]={c.get('id')}"
+        for i, c in enumerate(cities_data)
+        if c.get("id") is not None
+    )
+    return f"https://www.sheypoor.com/s/iran{cat_part}?{query_params}"
+
+
+def build_divar_url(cities_data: List[dict], category_slug: Optional[str]) -> str:
+    """ساخت URL فیلترشده دیوار."""
+    cities_ids = [c.get("id", 0) for c in cities_data if isinstance(c, dict)]
+    cities_param = ",".join(str(cid) for cid in cities_ids)
+    if category_slug:
+        return f"https://divar.ir/s/iran/{category_slug}?cities={cities_param}" if cities_param else f"https://divar.ir/s/iran/{category_slug}"
+    else:
+        return f"https://divar.ir/s/iran?cities={cities_param}" if cities_param else "https://divar.ir/s/iran"
 
 
 # ---------------------------------------------------------------------------
@@ -59,13 +120,87 @@ class AutomationSignals(QObject):
 
 
 # ---------------------------------------------------------------------------
-# Worker برای باز کردن دیوار
+# Worker پس‌زمینه برای تمدید خودکار و جایگزینی کوکی‌ها (دیوار و شیپور)
 # ---------------------------------------------------------------------------
-class DivarBrowserWorker(QRunnable):
-    """باز کردن سایت دیوار با شهرها و دسته‌بندی انتخاب شده."""
+class BackgroundPeriodicRefresherWorker(QRunnable):
+    """بررسی و جایگزینی خودکار کوکی‌ها و توکن‌ها در پس‌زمینه (برای همه پلتفرم‌ها)."""
 
-    def __init__(self, url: str, cities_names: List[str], category_name: str, phone: Optional[str] = None):
+    def __init__(self, platform: str = "all", phone: Optional[str] = None):
         super().__init__()
+        self.platform = platform
+        self.phone = phone
+        self.signals = AutomationSignals()
+        self.setAutoDelete(True)
+
+    @Slot()
+    def run(self):
+        import asyncio
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+        try:
+            async def _run():
+                platforms = ["divar", "sheypoor"] if self.platform == "all" else [self.platform]
+
+                for plat in platforms:
+                    sm = SessionManager(platform=plat)
+                    records = [sm.load(phone=self.phone)] if self.phone else sm.list_sessions()
+                    records = [r for r in records if r is not None]
+
+                    for record in records:
+                        if record.status == SessionStatus.INVALID:
+                            continue
+
+                        self.signals.status_changed.emit(
+                            f"⏳ بررسی دوره‌ای پس‌زمینه [{plat.upper()}] برای شماره {record.phone}..."
+                        )
+                        bm = BrowserManager(session_record=record, headless=True)
+                        try:
+                            async with bm:
+                                try:
+                                    from core.token_refresher import TokenRefresher
+                                    refresher = TokenRefresher(sm)
+                                    await refresher.ensure_valid_token(bm.page, bm.context, record)
+                                except Exception as te:
+                                    logger.debug("Token refresh error during periodic check: %s", te)
+
+                                status = await sm.validate(record, bm.page)
+                                if status == SessionStatus.VALID:
+                                    await sm.save_from_context(
+                                        bm.context, record.phone, metadata=record.metadata
+                                    )
+                                    self.signals.status_changed.emit(
+                                        f"✅ کوکی‌ها و توکن‌های [{plat.upper()}] شماره {record.phone} با موفقیت بروزرسانی و جایگزین شدند."
+                                    )
+                                else:
+                                    self.signals.status_changed.emit(
+                                        f"⚠️ نشست [{plat.upper()}] شماره {record.phone} نامعتبر تشخیص داده شد."
+                                    )
+                        except Exception as err:
+                            logger.warning("Periodic background check failed for %s (%s): %s", plat, record.phone, err)
+
+            loop.run_until_complete(_run())
+        except Exception as e:
+            logger.error("Background periodic refresher error: %s", e)
+        finally:
+            loop.close()
+
+
+# ---------------------------------------------------------------------------
+# Worker برای باز کردن مرورگر (دیوار یا شیپور)
+# ---------------------------------------------------------------------------
+class AutomationBrowserWorker(QRunnable):
+    """باز کردن مرورگر برای پلتفرم انتخاب شده (دیوار / شیپور)."""
+
+    def __init__(
+        self,
+        platform: str,
+        url: str,
+        cities_names: List[str],
+        category_name: str,
+        phone: str,
+    ):
+        super().__init__()
+        self.platform = platform
         self.url = url
         self.cities_names = cities_names
         self.category_name = category_name
@@ -102,27 +237,46 @@ class DivarBrowserWorker(QRunnable):
         self._loop = loop
 
         try:
-            self.signals.status_changed.emit(f"🌐 URL: {self.url}")
+            plat_name = "دیوار" if self.platform == "divar" else "شیپور"
+            self.signals.status_changed.emit(f"🌐 لینک هدف ({plat_name}): {self.url}")
 
             async def _run():
-                sm = SessionManager(platform="divar")
-                record = sm.load(phone=self.phone) if self.phone else sm.load()
+                sm = SessionManager(platform=self.platform)
+                record = sm.load(phone=self.phone)
+                if not record:
+                    self.signals.error_occurred.emit(f"هیچ حسابی برای {plat_name} با شماره {self.phone} پیدا نشد.")
+                    return
 
+                self.signals.status_changed.emit(
+                    f"📱 در حال بررسی توکن و باز کردن مرورگر [{plat_name}] شماره {record.phone}..."
+                )
                 bm = BrowserManager(session_record=record)
                 self._browser_manager = bm
 
                 async with bm:
-                    self.signals.status_changed.emit("🔄 در حال باز کردن سایت دیوار...")
+                    try:
+                        from core.token_refresher import TokenRefresher
+                        refresher = TokenRefresher(sm)
+                        await refresher.ensure_valid_token(bm.page, bm.context, record)
+                    except Exception as te:
+                        logger.debug("Token pre-check error: %s", te)
 
+                    status = await sm.validate(record, bm.page)
+                    if status == SessionStatus.VALID:
+                        await sm.save_from_context(bm.context, record.phone, metadata=record.metadata)
+
+                    self.signals.status_changed.emit(f"🔄 در حال انتقال به لینک فیلترشده {plat_name}...")
                     await bm.page.goto(self.url, wait_until="domcontentloaded", timeout=30_000)
-                    await bm.page.wait_for_load_state("networkidle")
+                    try:
+                        await bm.page.wait_for_load_state("networkidle", timeout=10_000)
+                    except Exception:
+                        pass
 
+                    details = f"شهرها: {', '.join(self.cities_names)}\nدسته‌بندی: {self.category_name}\n" if self.cities_names else ""
                     self.signals.status_changed.emit(
-                        f"✅ سایت دیوار باز شد!\n"
-                        f"URL: {self.url}\n"
-                        f"شهرها: {', '.join(self.cities_names)}\n"
-                        f"دسته‌بندی: {self.category_name}\n\n"
-                        f"🟢 مرورگر باز است. هر وقت کارتان تمام شد ببندید."
+                        f"✅ مرورگر {plat_name} با شماره {record.phone} باز شد!\n"
+                        f"URL: {self.url}\n{details}\n"
+                        f"🟢 مرورگر باز است. هر وقت کارتان تمام شد، پنجره مرورگر را ببندید."
                     )
 
                     try:
@@ -145,7 +299,7 @@ class DivarBrowserWorker(QRunnable):
 # تب اتوماسیون
 # ---------------------------------------------------------------------------
 class AutomationTab(QWidget):
-    """تب اتوماسیون - انتخاب شهر، دسته‌بندی و باز کردن دیوار."""
+    """تب اتوماسیون - مدیریت اتوماتیک حساب‌های دیوار و شیپور."""
 
     log_message = Signal(str, str)
 
@@ -153,17 +307,21 @@ class AutomationTab(QWidget):
         super().__init__(parent)
         self._cities: List[dict] = []
         self._categories: List[dict] = []
-        self._current_worker: Optional[DivarBrowserWorker] = None
+        self._current_worker: Optional[AutomationBrowserWorker] = None
+
+        self._auto_timer = QTimer(self)
+        self._auto_timer.timeout.connect(self._run_periodic_check)
+
         self._setup_ui()
-        self._load_data()
+        self._on_platform_changed()
+        self._on_interval_changed()
 
     def _setup_ui(self):
         layout = QVBoxLayout(self)
-        layout.setContentsMargins(28, 24, 28, 24)
-        layout.setSpacing(16)
+        layout.setContentsMargins(28, 20, 28, 20)
+        layout.setSpacing(14)
 
-        # عنوان
-        title = QLabel("🤖 اتوماسیون دیوار")
+        title = QLabel("🤖 اتوماسیون دیوار و شیپور")
         title.setObjectName("titleLabel")
         title_font = QFont()
         title_font.setPointSize(20)
@@ -172,25 +330,94 @@ class AutomationTab(QWidget):
         layout.addWidget(title)
 
         hint = QLabel(
-            "شهرها و دسته‌بندی مورد نظر خود را انتخاب کنید و دکمه «شروع» را بزنید. "
-            "سایت دیوار با فیلترهای انتخاب شده باز می‌شود."
+            "پلتفرم، شماره حساب، شهرها و دسته‌بندی را انتخاب کنید. "
+            "کوکی‌ها و نشست‌های هر دو پلتفرم به صورت خودکار و دوره‌ای پس‌زمینه بروزرسانی می‌شوند تا حساب منقضی نشود."
         )
         hint.setObjectName("subtitleLabel")
         hint.setWordWrap(True)
         layout.addWidget(hint)
 
-        # ===== ردیف بالا: شهرها و دسته‌بندی کنار هم =====
+        # ===== بخش اول: پلتفرم، حساب کاربری و بررسی خودکار =====
+        settings_group = QGroupBox("⚙️ انتخاب پلتفرم، حساب کاربری و پایداری کوکی‌ها")
+        settings_layout = QHBoxLayout(settings_group)
+        settings_layout.setSpacing(16)
+        settings_layout.setContentsMargins(16, 16, 16, 16)
+
+        # --- ۱. انتخاب پلتفرم ---
+        plat_col = QVBoxLayout()
+        plat_col.setSpacing(6)
+        plat_lbl = QLabel("📌 انتخاب پلتفرم:")
+        plat_lbl.setObjectName("subtitleLabel")
+        plat_col.addWidget(plat_lbl)
+
+        self.platform_combo = QComboBox()
+        self.platform_combo.setMinimumHeight(42)
+        self.platform_combo.addItem("🔴 دیوار (Divar)", "divar")
+        self.platform_combo.addItem("🔵 شیپور (Sheypoor)", "sheypoor")
+        self.platform_combo.currentIndexChanged.connect(self._on_platform_changed)
+        plat_col.addWidget(self.platform_combo)
+        settings_layout.addLayout(plat_col, stretch=1)
+
+        # --- ۲. انتخاب شماره تلفن ---
+        phone_col = QVBoxLayout()
+        phone_col.setSpacing(6)
+        phone_label = QLabel("📱 انتخاب حساب (شماره تلفن):")
+        phone_label.setObjectName("subtitleLabel")
+        phone_col.addWidget(phone_label)
+
+        phone_row = QHBoxLayout()
+        phone_row.setSpacing(8)
+        self.phone_combo = QComboBox()
+        self.phone_combo.setMinimumHeight(42)
+        self.phone_combo.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
+        self.phone_combo.currentIndexChanged.connect(self._update_selection_info)
+        phone_row.addWidget(self.phone_combo, stretch=1)
+
+        self.refresh_phones_btn = QPushButton("🔃")
+        self.refresh_phones_btn.setObjectName("ghostBtn")
+        self.refresh_phones_btn.setToolTip("به‌روزرسانی لیست شماره‌ها")
+        self.refresh_phones_btn.setMinimumHeight(42)
+        self.refresh_phones_btn.setFixedWidth(44)
+        self.refresh_phones_btn.setCursor(Qt.PointingHandCursor)
+        self.refresh_phones_btn.clicked.connect(self._reload_phone_numbers)
+        phone_row.addWidget(self.refresh_phones_btn)
+
+        phone_col.addLayout(phone_row)
+        settings_layout.addLayout(phone_col, stretch=2)
+
+        # --- ۳. تنظیم بازه بررسی خودکار کوکی‌ها ---
+        interval_col = QVBoxLayout()
+        interval_col.setSpacing(6)
+        interval_label = QLabel("⏱️ بررسی و جایگزینی خودکار کوکی‌ها:")
+        interval_label.setObjectName("subtitleLabel")
+        interval_col.addWidget(interval_label)
+
+        self.interval_combo = QComboBox()
+        self.interval_combo.setMinimumHeight(42)
+        self.interval_combo.addItem("⏱️ هر ۶۰ دقیقه (پیش‌فرض)", 60)
+        self.interval_combo.addItem("⏱️ هر ۱۲۰ دقیقه (۲ ساعت)", 120)
+        self.interval_combo.addItem("📅 روزی یک‌بار (۲۴ ساعت)", 1440)
+        self.interval_combo.addItem("❌ خاموش (غیرفعال)", 0)
+        self.interval_combo.currentIndexChanged.connect(self._on_interval_changed)
+        interval_col.addWidget(self.interval_combo)
+
+        settings_layout.addLayout(interval_col, stretch=2)
+
+        layout.addWidget(settings_group)
+
+        # ===== بخش دوم: شهرها و دسته‌بندی کنار هم =====
         top_splitter = QSplitter(Qt.Horizontal)
         self.top_splitter = top_splitter
 
         # ----- بخش شهرها -----
         cities_group = QGroupBox("🏙️ انتخاب شهرها")
+        self.cities_group = cities_group
         cities_layout = QVBoxLayout(cities_group)
         cities_layout.setSpacing(10)
 
         city_search_row = QHBoxLayout()
         self.city_search = QLineEdit()
-        self.city_search.setPlaceholderText("🔍 جستجوی شهر... (مثال: تهران)")
+        self.city_search.setPlaceholderText("🔍 جستجوی شهر... (مثال: تهران، اسلامشهر)")
         self.city_search.textChanged.connect(self._filter_cities)
         city_search_row.addWidget(self.city_search, stretch=1)
 
@@ -201,21 +428,21 @@ class AutomationTab(QWidget):
 
         self.city_list = QListWidget()
         self.city_list.setSelectionMode(QAbstractItemView.MultiSelection)
-        self.city_list.setMinimumHeight(150)
+        self.city_list.setMinimumHeight(140)
         self.city_list.itemSelectionChanged.connect(self._update_selection_info)
         cities_layout.addWidget(self.city_list, stretch=1)
 
         city_btn_row = QHBoxLayout()
         self.select_all_cities_btn = QPushButton("✅ انتخاب همه")
         self.select_all_cities_btn.setObjectName("successBtn")
-        self.select_all_cities_btn.setMinimumHeight(40)
+        self.select_all_cities_btn.setMinimumHeight(38)
         self.select_all_cities_btn.setCursor(Qt.PointingHandCursor)
         self.select_all_cities_btn.clicked.connect(lambda: self.city_list.selectAll())
         city_btn_row.addWidget(self.select_all_cities_btn)
 
         self.deselect_all_cities_btn = QPushButton("❌ حذف انتخاب")
         self.deselect_all_cities_btn.setObjectName("dangerBtn")
-        self.deselect_all_cities_btn.setMinimumHeight(40)
+        self.deselect_all_cities_btn.setMinimumHeight(38)
         self.deselect_all_cities_btn.setCursor(Qt.PointingHandCursor)
         self.deselect_all_cities_btn.clicked.connect(lambda: self.city_list.clearSelection())
         city_btn_row.addWidget(self.deselect_all_cities_btn)
@@ -223,13 +450,14 @@ class AutomationTab(QWidget):
         top_splitter.addWidget(cities_group)
 
         # ----- بخش دسته‌بندی‌ها -----
-        cat_group = QGroupBox("📂 انتخاب دسته‌بندی (اختیاری)")
+        cat_group = QGroupBox("📂 انتخاب دسته‌بندی و زیردسته‌ها")
+        self.cat_group = cat_group
         cat_layout = QVBoxLayout(cat_group)
         cat_layout.setSpacing(10)
 
         cat_search_row = QHBoxLayout()
         self.category_search = QLineEdit()
-        self.category_search.setPlaceholderText("🔍 جستجوی دسته‌بندی... (مثال: خودرو، مسکونی)")
+        self.category_search.setPlaceholderText("🔍 جستجوی دسته‌بندی و زیردسته... (مثال: خودرو، املاک)")
         self.category_search.textChanged.connect(self._filter_categories)
         cat_search_row.addWidget(self.category_search, stretch=1)
 
@@ -240,14 +468,14 @@ class AutomationTab(QWidget):
 
         self.category_list = QListWidget()
         self.category_list.setSelectionMode(QAbstractItemView.SingleSelection)
-        self.category_list.setMinimumHeight(150)
+        self.category_list.setMinimumHeight(140)
         self.category_list.itemSelectionChanged.connect(self._update_selection_info)
         cat_layout.addWidget(self.category_list, stretch=1)
 
         cat_btn_row = QHBoxLayout()
         self.clear_category_btn = QPushButton("❌ حذف فیلتر دسته‌بندی")
         self.clear_category_btn.setObjectName("ghostBtn")
-        self.clear_category_btn.setMinimumHeight(40)
+        self.clear_category_btn.setMinimumHeight(38)
         self.clear_category_btn.setCursor(Qt.PointingHandCursor)
         self.clear_category_btn.clicked.connect(self._clear_category)
         cat_btn_row.addWidget(self.clear_category_btn)
@@ -257,24 +485,24 @@ class AutomationTab(QWidget):
         top_splitter.setSizes([400, 400])
         layout.addWidget(top_splitter, stretch=1)
 
-        # ===== بخش اطلاعات و شروع =====
-        info_group = QGroupBox("📋 اطلاعات و شروع")
+        # ===== بخش سوم: اطلاعات و شروع =====
+        info_group = QGroupBox("📋 اطلاعات و اجرای مرورگر")
         info_layout = QVBoxLayout(info_group)
-        info_layout.setSpacing(12)
+        info_layout.setSpacing(10)
 
         self.url_display = QTextEdit()
         self.url_display.setReadOnly(True)
-        self.url_display.setMaximumHeight(96)
-        self.url_display.setPlaceholderText("URL دیوار اینجا نمایش داده می‌شود...")
+        self.url_display.setMaximumHeight(88)
+        self.url_display.setPlaceholderText("اطلاعات پلتفرم و شماره انتخاب‌شده...")
         info_layout.addWidget(self.url_display)
 
         action_row = QHBoxLayout()
         action_row.setSpacing(12)
 
-        self.start_btn = QPushButton("🚀 شروع - باز کردن دیوار")
+        self.start_btn = QPushButton("🚀 شروع - باز کردن مرورگر")
         self.start_btn.setObjectName("primaryDivar")
         self.start_btn.setCursor(Qt.PointingHandCursor)
-        self.start_btn.setMinimumHeight(52)
+        self.start_btn.setMinimumHeight(50)
         start_font = QFont()
         start_font.setPointSize(13)
         start_font.setBold(True)
@@ -285,7 +513,7 @@ class AutomationTab(QWidget):
 
         self.close_btn = QPushButton("🔴 بستن مرورگر")
         self.close_btn.setObjectName("dangerBtn")
-        self.close_btn.setMinimumHeight(52)
+        self.close_btn.setMinimumHeight(50)
         self.close_btn.setCursor(Qt.PointingHandCursor)
         self.close_btn.clicked.connect(self._close_browser)
         action_row.addWidget(self.close_btn, stretch=1)
@@ -297,9 +525,9 @@ class AutomationTab(QWidget):
         self.log_message.emit(level, msg)
 
     def restyle(self):
-        """سازگاری با سوییچ تم - objectNameها از QSS سراسری پیروی می‌کنند."""
         for w in (self.city_list, self.category_list, self.url_display,
-                  self.city_search, self.category_search):
+                  self.city_search, self.category_search, self.phone_combo,
+                  self.interval_combo, self.platform_combo):
             try:
                 w.style().unpolish(w)
                 w.style().polish(w)
@@ -321,38 +549,126 @@ class AutomationTab(QWidget):
         except Exception:
             pass
 
-    def _load_data(self):
-        self._load_cities()
-        self._load_categories()
+    def get_selected_platform(self) -> str:
+        return self.platform_combo.currentData() or "divar"
 
-    def _load_cities(self):
-        if not CITIES_FILE.exists():
-            item = QListWidgetItem("⚠️ فایل شهرها پیدا نشد! ابتدا fetch_cities.py را اجرا کنید.")
+    def _on_platform_changed(self):
+        plat = self.get_selected_platform()
+
+        if plat == "sheypoor":
+            self.start_btn.setObjectName("primarySheypoor")
+            self.cities_group.setTitle("🏙️ انتخاب شهرها (شیپور)")
+            self.cat_group.setTitle("📂 انتخاب دسته‌بندی و زیردسته‌ها (شیپور)")
+        else:
+            self.start_btn.setObjectName("primaryDivar")
+            self.cities_group.setTitle("🏙️ انتخاب شهرها (دیوار)")
+            self.cat_group.setTitle("📂 انتخاب دسته‌بندی و زیردسته‌ها (دیوار)")
+
+        self.start_btn.style().unpolish(self.start_btn)
+        self.start_btn.style().polish(self.start_btn)
+
+        self._load_data_for_platform(plat)
+        self._reload_phone_numbers()
+
+    def _load_data_for_platform(self, plat: str):
+        if plat == "sheypoor":
+            c_file = SHEYPOOR_CITIES_FILE
+            cat_file = SHEYPOOR_CATEGORIES_FILE
+        else:
+            c_file = DIVAR_CITIES_FILE
+            cat_file = DIVAR_CATEGORIES_FILE
+
+        self._load_cities(c_file)
+        self._load_categories(cat_file)
+
+    def _reload_phone_numbers(self):
+        self.phone_combo.clear()
+        plat = self.get_selected_platform()
+        plat_name = "دیوار" if plat == "divar" else "شیپور"
+
+        try:
+            sm = SessionManager(platform=plat)
+            sessions = sm.list_sessions()
+            if not sessions:
+                self.phone_combo.addItem(f"— هیچ حسابی برای {plat_name} ذخیره نشده است —", None)
+                self.start_btn.setEnabled(False)
+                self._log("WARNING", f"[اتوماسیون] هیچ حساب {plat_name} یافت نشد.")
+                self._update_selection_info()
+                return
+
+            for rec in sessions:
+                status_p = format_status_persian(rec.status.value if rec.status else "unknown")
+                cookies = len(rec.storage_state.cookies) if (rec.storage_state and rec.storage_state.cookies) else 0
+                label = f"{rec.phone}  |  {status_p}  ({cookies} کوکی)"
+                self.phone_combo.addItem(label, rec.phone)
+
+            self._update_selection_info()
+            self._log("INFO", f"[اتوماسیون] بارگذاری {len(sessions)} شماره حساب {plat_name}")
+        except Exception as e:
+            self._log("ERROR", f"[اتوماسیون] خطا در خواندن لیست شماره‌ها: {e}")
+
+    def get_selected_phone(self) -> Optional[str]:
+        return self.phone_combo.currentData()
+
+    # ------------------------------------------------------------------
+    # تنظیمات بررسی خودکار و دوره‌ای کوکی‌ها
+    # ------------------------------------------------------------------
+    def _on_interval_changed(self):
+        minutes = self.interval_combo.currentData()
+        if minutes and minutes > 0:
+            ms = minutes * 60 * 1000
+            self._auto_timer.setInterval(ms)
+            if not self._auto_timer.isActive():
+                self._auto_timer.start()
+            self._log("INFO", f"[اتوماسیون] بررسی خودکار پس‌زمینه کوکی‌ها روی هر {minutes} دقیقه فعال شد")
+        else:
+            self._auto_timer.stop()
+            self._log("INFO", "[اتوماسیون] بررسی خودکار پس‌زمینه کوکی‌ها غیرفعال گردید")
+
+    def _run_periodic_check(self):
+        if self.is_browser_open():
+            self._log("INFO", "[اتوماسیون] مرورگر در حال استفاده است؛ بررسی دوره‌ای به تعویق افتاد.")
+            return
+
+        self._log("INFO", "[اتوماسیون] شروع بررسی خودکار و جایگزینی پس‌زمینه کوکی‌ها (دیوار و شیپور)...")
+        plat = self.get_selected_platform()
+        phone = self.get_selected_phone()
+
+        worker = BackgroundPeriodicRefresherWorker(platform=plat, phone=phone)
+        worker.signals.status_changed.connect(self._on_status_changed)
+        QThreadPool.globalInstance().start(worker)
+
+    # ------------------------------------------------------------------
+    # بارگذاری داده‌های شهرها و دسته‌ها
+    # ------------------------------------------------------------------
+    def _load_cities(self, filepath: Path):
+        if not filepath.exists():
+            item = QListWidgetItem(f"⚠️ فایل شهرها ({filepath.name}) پیدا نشد!")
             item.setFlags(Qt.NoItemFlags)
             self.city_list.clear()
             self.city_list.addItem(item)
+            self._cities = []
             return
         try:
-            with open(CITIES_FILE, "r", encoding="utf-8") as f:
+            with open(filepath, "r", encoding="utf-8") as f:
                 data = json.load(f)
             self._cities = data.get("cities", [])
-            self._log("INFO", f"[اتوماسیون] Loaded {len(self._cities)} cities")
             self._populate_city_list(self._cities)
         except Exception as e:
             self._log("ERROR", f"[اتوماسیون] خطا در بارگذاری شهرها: {e}")
 
-    def _load_categories(self):
-        if not CATEGORIES_FILE.exists():
-            item = QListWidgetItem("⚠️ فایل دسته‌بندی‌ها پیدا نشد! ابتدا fetch_categories.py را اجرا کنید.")
+    def _load_categories(self, filepath: Path):
+        if not filepath.exists():
+            item = QListWidgetItem(f"⚠️ فایل دسته‌بندی‌ها ({filepath.name}) پیدا نشد!")
             item.setFlags(Qt.NoItemFlags)
             self.category_list.clear()
             self.category_list.addItem(item)
+            self._categories = []
             return
         try:
-            with open(CATEGORIES_FILE, "r", encoding="utf-8") as f:
+            with open(filepath, "r", encoding="utf-8") as f:
                 data = json.load(f)
             self._categories = data.get("categories", [])
-            self._log("INFO", f"[اتوماسیون] Loaded {len(self._categories)} categories")
             self._populate_category_list(self._categories)
         except Exception as e:
             self._log("ERROR", f"[اتوماسیون] خطا در بارگذاری دسته‌بندی‌ها: {e}")
@@ -366,8 +682,10 @@ class AutomationTab(QWidget):
             return
         for city in cities:
             city_id = city.get("id", "")
-            name = city.get("name", "")
-            text = f"{name}  [ID: {city_id}]"
+            name = city.get("display_name") or city.get("name", "")
+            dist_cnt = city.get("districts_count")
+            dist_str = f" ({dist_cnt} محله)" if dist_cnt else ""
+            text = f"{name}{dist_str}"
             item = QListWidgetItem(text)
             item.setData(Qt.UserRole, city)
             self.city_list.addItem(item)
@@ -381,9 +699,13 @@ class AutomationTab(QWidget):
             name = cat.get("name", "")
             category = cat.get("category", "")
             slug = cat.get("slug", "")
-            display_text = f"{name}"
-            if category:
-                display_text += f"  [{category}]"
+            cat_type = cat.get("type", "main")
+
+            if cat_type == "sub" and category:
+                display_text = f"  └── {name}  [{category}]"
+            else:
+                display_text = f"📁 {name}"
+
             item = QListWidgetItem(display_text)
             item.setData(Qt.UserRole, slug)
             self.category_list.addItem(item)
@@ -393,7 +715,13 @@ class AutomationTab(QWidget):
         if not text.strip():
             self._populate_city_list(self._cities)
             return
-        filtered = [c for c in self._cities if text.lower() in c.get("name", "").lower() or text.lower() in c.get("slug", "").lower()]
+        filtered = [
+            c for c in self._cities
+            if text.lower() in c.get("name", "").lower()
+            or text.lower() in c.get("slug", "").lower()
+            or text.lower() in c.get("display_name", "").lower()
+            or text.lower() in c.get("province_name", "").lower()
+        ]
         self._populate_city_list(filtered)
 
     def _filter_categories(self, text: str):
@@ -406,21 +734,24 @@ class AutomationTab(QWidget):
                 name = cat.get("name", "")
                 category = cat.get("category", "")
                 slug = cat.get("slug", "")
-                display_text = f"{name}"
-                if category:
-                    display_text += f"  [{category}]"
+                cat_type = cat.get("type", "main")
+                display_text = f"  └── {name}  [{category}]" if cat_type == "sub" and category else f"📁 {name}"
                 item = QListWidgetItem(display_text)
                 item.setData(Qt.UserRole, slug)
                 self.category_list.addItem(item)
             return
-        filtered = [c for c in self._categories if text.lower() in c.get("name", "").lower() or text.lower() in c.get("slug", "").lower() or text.lower() in c.get("category", "").lower()]
+        filtered = [
+            cat for cat in self._categories
+            if text.lower() in cat.get("name", "").lower()
+            or text.lower() in cat.get("slug", "").lower()
+            or text.lower() in cat.get("category", "").lower()
+        ]
         for cat in filtered:
             name = cat.get("name", "")
             category = cat.get("category", "")
             slug = cat.get("slug", "")
-            display_text = f"{name}"
-            if category:
-                display_text += f"  [{category}]"
+            cat_type = cat.get("type", "main")
+            display_text = f"  └── {name}  [{category}]" if cat_type == "sub" and category else f"📁 {name}"
             item = QListWidgetItem(display_text)
             item.setData(Qt.UserRole, slug)
             self.category_list.addItem(item)
@@ -429,16 +760,22 @@ class AutomationTab(QWidget):
         self.category_list.setCurrentRow(0)
 
     def _update_selection_info(self):
+        plat = self.get_selected_platform()
+        selected_phone = self.get_selected_phone()
+        plat_name = "دیوار" if plat == "divar" else "شیپور"
+
         selected_cities = self.city_list.selectedItems()
         city_count = len(selected_cities)
         self.selected_cities_count.setText(f"{city_count} شهر")
-        self.start_btn.setEnabled(city_count > 0)
+
+        self.start_btn.setEnabled(selected_phone is not None)
+        self.start_btn.setText(f"🚀 شروع - باز کردن {plat_name}")
 
         selected_cats = self.category_list.selectedItems()
         if selected_cats:
             cat_slug = selected_cats[0].data(Qt.UserRole)
             if cat_slug:
-                cat_name = selected_cats[0].text()
+                cat_name = selected_cats[0].text().replace("📁", "").replace("└──", "").strip()
                 self.selected_category_label.setText(cat_name[:20])
             else:
                 self.selected_category_label.setText("همه دسته‌ها")
@@ -448,41 +785,52 @@ class AutomationTab(QWidget):
         self._update_url_display()
 
     def _update_url_display(self):
-        selected_cities = self.city_list.selectedItems()
-        if not selected_cities:
-            self.url_display.clear()
+        plat = self.get_selected_platform()
+        selected_phone = self.get_selected_phone()
+        plat_name = "دیوار" if plat == "divar" else "شیپور"
+
+        if not selected_phone:
+            self.url_display.setPlainText(f"⚠️ لطفاً ابتدا یک حساب کاربری {plat_name} از منوی بالا انتخاب کنید.")
             return
 
-        cities_data = [item.data(Qt.UserRole) for item in selected_cities]
-        cities_ids = [c.get("id", 0) for c in cities_data]
-        cities_names = [c.get("name", "") for c in cities_data]
-
-        cities_param = ",".join(str(cid) for cid in cities_ids)
+        selected_cities = self.city_list.selectedItems()
+        cities_data = [item.data(Qt.UserRole) for item in selected_cities if item.data(Qt.UserRole)]
+        cities_names = [c.get("name", "") for c in cities_data if isinstance(c, dict)]
 
         selected_cats = self.category_list.selectedItems()
         category_slug = None
         if selected_cats:
             category_slug = selected_cats[0].data(Qt.UserRole)
 
-        if category_slug:
-            url = f"https://divar.ir/s/iran/{category_slug}?cities={cities_param}"
+        # ساخت URL مخصوص دیوار یا شیپور
+        if plat == "sheypoor":
+            url = build_sheypoor_url(cities_data, category_slug)
         else:
-            url = f"https://divar.ir/s/iran?cities={cities_param}"
+            url = build_divar_url(cities_data, category_slug)
 
+        city_info = f"🏙️ شهرها ({len(cities_names)}): {', '.join(cities_names)}" if cities_names else "🏙️ همه شهرها (سراسر ایران)"
         self.url_display.setPlainText(
-            f"🌐 {url}\n\n"
-            f"🏙️ شهرها: {', '.join(cities_names)}"
+            f"📌 پلتفرم: {plat_name}\n"
+            f"📱 حساب انتخاب‌شده: {selected_phone}\n"
+            f"🌐 لینک فیلترشده: {url}\n"
+            f"{city_info}"
         )
 
+    # ------------------------------------------------------------------
+    # اجرای اتوماسیون
+    # ------------------------------------------------------------------
     def _on_start(self):
-        selected_cities = self.city_list.selectedItems()
-        if not selected_cities:
-            QMessageBox.information(self, "انتخاب شهر", "لطفاً حداقل یک شهر انتخاب کنید.")
+        plat = self.get_selected_platform()
+        selected_phone = self.get_selected_phone()
+        plat_name = "دیوار" if plat == "divar" else "شیپور"
+
+        if not selected_phone:
+            QMessageBox.information(self, "انتخاب حساب", f"لطفاً ابتدا یک حساب کاربری {plat_name} انتخاب کنید.")
             return
 
-        cities_data = [item.data(Qt.UserRole) for item in selected_cities]
-        cities_ids = [c.get("id", 0) for c in cities_data]
-        cities_names = [c.get("name", "") for c in cities_data]
+        selected_cities = self.city_list.selectedItems()
+        cities_data = [item.data(Qt.UserRole) for item in selected_cities if item.data(Qt.UserRole)]
+        cities_names = [c.get("name", "") for c in cities_data if isinstance(c, dict)]
 
         selected_cats = self.category_list.selectedItems()
         category_slug = None
@@ -490,24 +838,25 @@ class AutomationTab(QWidget):
         if selected_cats:
             category_slug = selected_cats[0].data(Qt.UserRole)
             if category_slug:
-                category_name = selected_cats[0].text()
+                category_name = selected_cats[0].text().replace("📁", "").replace("└──", "").strip()
 
-        cities_param = ",".join(str(cid) for cid in cities_ids)
-        if category_slug:
-            url = f"https://divar.ir/s/iran/{category_slug}?cities={cities_param}"
+        if plat == "sheypoor":
+            url = build_sheypoor_url(cities_data, category_slug)
         else:
-            url = f"https://divar.ir/s/iran?cities={cities_param}"
+            url = build_divar_url(cities_data, category_slug)
 
-        self._log("INFO", f"[اتوماسیون] شروع: {len(cities_ids)} شهر - دسته: {category_name}")
-
-        sm = SessionManager(platform="divar")
-        record = sm.load()
-        phone = record.phone if record else None
+        self._log("INFO", f"[اتوماسیون] شروع اجرای مرورگر {plat_name} برای شماره {selected_phone}")
 
         self.start_btn.setEnabled(False)
-        self.start_btn.setText("⏳ در حال باز کردن دیوار...")
+        self.start_btn.setText(f"⏳ در حال باز کردن {plat_name} ({selected_phone})...")
 
-        worker = DivarBrowserWorker(url, cities_names, category_name, phone)
+        worker = AutomationBrowserWorker(
+            platform=plat,
+            url=url,
+            cities_names=cities_names,
+            category_name=category_name,
+            phone=selected_phone,
+        )
         worker.signals.status_changed.connect(self._on_status_changed)
         worker.signals.error_occurred.connect(self._on_error)
         worker.signals.finished.connect(self._on_finished)
@@ -522,16 +871,17 @@ class AutomationTab(QWidget):
     def _on_error(self, error: str):
         self._log("ERROR", f"[اتوماسیون] {error}")
         self.start_btn.setEnabled(True)
-        self.start_btn.setText("🚀 شروع - باز کردن دیوار")
+        self.start_btn.setText("🚀 شروع - باز کردن مرورگر")
         self._current_worker = None
         QMessageBox.critical(self, "خطا", f"خطا:\n{error}")
 
     @Slot(str)
     def _on_finished(self, url: str):
-        self._log("INFO", f"[اتوماسیون] تمام شد: {url}")
+        self._log("INFO", f"[اتوماسیون] مرورگر بسته شد: {url}")
         self.start_btn.setEnabled(True)
-        self.start_btn.setText("🚀 شروع - باز کردن دیوار")
+        self.start_btn.setText("🚀 شروع - باز کردن مرورگر")
         self._current_worker = None
+        self._reload_phone_numbers()
 
     def is_browser_open(self) -> bool:
         """بررسی اینکه آیا مرورگر اتوماسیون باز و فعال است یا خیر."""

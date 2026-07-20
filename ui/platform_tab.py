@@ -1,11 +1,11 @@
 """
-PlatformTab - تب عمومی برای Login هر پلتفرم.
+PlatformTab - تب عمومی برای Login هر پلتفرم (دیوار / شیپور).
 
-اصلاحات و بهبودهای نهایی:
-1. ✅ چیدمان منظم دکمه‌ها و جلوگیری از روی هم افتادن
-2. ✅ مدیریت دقیق حیات مرورگر و اتصال به‌موقع event loop برای بستن امن
-3. ✅ بررسی واقعی باز بودن مرورگر اختصاصی هر تب (بدون اثر روی سایر تب‌ها)
-4. ✅ به‌روزرسانی آنی و زندهٔ وضعیت کوکی‌ها و اعتبارسنجی
+اصلاحات و امکانات جدید:
+1. ✅ انتخاب بازهٔ بررسی خودکار کوکی‌ها و نشست‌ها (۶۰ دقیقه، ۱۲۰ دقیقه، روزی یک‌بار، غیرفعال)
+2. ✅ بررسی زنده پس‌زمینه و جایگزینی کوکی‌ها و توکن‌ها
+3. ✅ چیدمان منظم دکمه‌ها بدون روی هم افتادن
+4. ✅ کنترل هوشمند مرورگر به تفکیک تب
 """
 
 from __future__ import annotations
@@ -20,6 +20,7 @@ from PySide6.QtCore import QObject, QRunnable, QThreadPool, Qt, Signal, Slot, QT
 from PySide6.QtGui import QFont
 from PySide6.QtWidgets import (
     QAbstractItemView,
+    QComboBox,
     QFrame,
     QGridLayout,
     QHBoxLayout,
@@ -68,7 +69,6 @@ def format_status_persian(status_str: str) -> str:
 # بستن اجباری مرورگر (fallback سراسری)
 # ---------------------------------------------------------------------------
 def _force_close_all_browsers() -> None:
-    """بستن BrowserService مشترک + پروسه‌های chromium (سراسر سیستم)."""
     try:
         from core.browser_service import BrowserService
         svc = BrowserService.instance()
@@ -109,7 +109,62 @@ class LoginSignals(QObject):
 
 
 # ---------------------------------------------------------------------------
-# Worker برای بررسی Session
+# Worker پس‌زمینه برای بررسی دوره‌ای و تمدید خودکار
+# ---------------------------------------------------------------------------
+class BackgroundPeriodicRefresherWorker(QRunnable):
+    """بررسی پس‌زمینه و تمدید خودکار توکن/کوکی‌ها بدون ایجاد مزاحمت برای کاربر."""
+
+    def __init__(self, platform: str, phone: Optional[str] = None):
+        super().__init__()
+        self.platform = platform
+        self.phone = phone
+        self.signals = LoginSignals()
+        self.setAutoDelete(True)
+
+    @Slot()
+    def run(self):
+        import asyncio
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+        try:
+            async def _run():
+                sm = SessionManager(platform=self.platform)
+                records = [sm.load(phone=self.phone)] if self.phone else sm.list_sessions()
+                records = [r for r in records if r is not None]
+
+                for record in records:
+                    if record.status == SessionStatus.INVALID:
+                        continue
+
+                    self.signals.status_changed.emit(
+                        f"🔄 در حال تمدید و جایگزینی کوکی‌های شماره {record.phone} در پس‌زمینه..."
+                    )
+                    bm = BrowserManager(session_record=record, headless=True)
+                    try:
+                        async with bm:
+                            try:
+                                from core.token_refresher import TokenRefresher
+                                refresher = TokenRefresher(sm)
+                                await refresher.ensure_valid_token(bm.page, bm.context, record)
+                            except Exception:
+                                pass
+
+                            status = await sm.validate(record, bm.page)
+                            if status == SessionStatus.VALID:
+                                await sm.save_from_context(bm.context, record.phone, metadata=record.metadata)
+                                self.signals.status_changed.emit(
+                                    f"✅ وضعیت و کوکی‌های شماره {record.phone} با موفقیت در پس‌زمینه به‌روزرسانی شد."
+                                )
+                    except Exception as e:
+                        pass
+
+            loop.run_until_complete(_run())
+        finally:
+            loop.close()
+
+
+# ---------------------------------------------------------------------------
+# Worker برای بررسی Session دستی
 # ---------------------------------------------------------------------------
 class SessionCheckWorker(QRunnable):
     """بررسی اعتبار یک Session مشخص در thread مجزا (باز کردن مرورگر)."""
@@ -133,7 +188,6 @@ class SessionCheckWorker(QRunnable):
         return True
 
     def request_close(self):
-        """قابل فراخوانی امن از GUI thread برای بستن دستی مرورگر این worker."""
         if self._loop is not None and self._close_event is not None:
             self._loop.call_soon_threadsafe(self._close_event.set)
         if self._loop is not None and self._browser_manager is not None:
@@ -183,10 +237,8 @@ class SessionCheckWorker(QRunnable):
                             f"⚠️ خطا در بررسی token: {e}"
                         )
 
-                    # ✨ اعتبارسنجی واقعی زنده روی سایت
                     status = await sm.validate(record, bm.page)
 
-                    # ✨ ارسال آنی سیگنال بروزرسانی به GUI (بدون انتظار برای بستن مرورگر)
                     status_key = status.value.upper()
                     msg = {
                         "VALID": f"Session معتبر است ({record.phone})",
@@ -288,7 +340,6 @@ class LoginWorker(QRunnable):
             self._loop.call_soon_threadsafe(self._cancel_code)
 
     def request_close(self):
-        """لغو login + بستن مرورگر اختصاصی این worker."""
         self.cancel()
         if self._loop is not None and self._browser_manager is not None:
             try:
@@ -357,7 +408,7 @@ class LoginWorker(QRunnable):
 # PlatformTab
 # ---------------------------------------------------------------------------
 class PlatformTab(QWidget):
-    """تب عمومی Login برای یک پلتفرم."""
+    """تب عمومی Login برای یک پلتفرم (دیوار / شیپور)."""
 
     log_message = Signal(str, str)
 
@@ -381,16 +432,14 @@ class PlatformTab(QWidget):
         self._current_worker: Optional[LoginWorker] = None
         self._current_check_worker: Optional[SessionCheckWorker] = None
         self._current_session: Optional[SessionRecord] = None
-        self._periodic_worker = None
+
         self._periodic_timer = QTimer(self)
-        self._periodic_timer.setInterval(60 * 60 * 1000)
         self._periodic_timer.timeout.connect(self._run_periodic_session_check)
 
         self._setup_ui(color, code_length)
         self._connect_signals()
         self._reload_session_list()
-        self._periodic_timer.start()
-        self._log("INFO", f"[{self._platform_name}] بررسی دوره‌ای Session هر ۶۰ دقیقه فعال است")
+        self._on_interval_changed()   # اعمال بازه زمانی پیش‌فرض
 
     def _setup_ui(self, color: str, code_length: int):
         layout = QVBoxLayout(self)
@@ -415,6 +464,7 @@ class PlatformTab(QWidget):
         self.status_page.close_browser.connect(self._on_close_browser_clicked)
         self.status_page.select_session.connect(self._on_select_session)
         self.status_page.refresh_list.connect(self._reload_session_list)
+        self.status_page.interval_changed.connect(self._on_interval_changed)
 
         self.phone_page.submit_phone.connect(self._on_phone_submitted)
         self.phone_page.go_back.connect(self._go_to_status)
@@ -426,10 +476,10 @@ class PlatformTab(QWidget):
         self.log_message.emit(level, msg)
 
     def restyle(self):
-        """هنگام سوییچ تم، ویجت‌ها را با QSS سراسری تازه‌سازی می‌کند."""
         widgets = [
             getattr(self.status_page, "phone_list", None),
             getattr(self.status_page, "status_box", None),
+            getattr(self.status_page, "interval_combo", None),
             getattr(self.phone_page, "phone_input", None),
             getattr(self.code_page, "code_input", None),
         ]
@@ -450,7 +500,6 @@ class PlatformTab(QWidget):
             pass
 
     def is_browser_open(self) -> bool:
-        """بررسی اینکه آیا مرورگر اختصاصی برای این تب باز و فعال است یا خیر."""
         if self._current_check_worker and self._current_check_worker.is_browser_running():
             return True
         if self._current_worker and self._current_worker.is_browser_running():
@@ -458,7 +507,6 @@ class PlatformTab(QWidget):
         return False
 
     def _reload_session_list(self):
-        """بارگذاری لیست شماره‌ها از SQLite."""
         try:
             sm = SessionManager(platform=self._platform_key)
             sessions = sm.list_sessions()
@@ -479,14 +527,32 @@ class PlatformTab(QWidget):
             self.status_page.set_status(f"❌ خطا در خواندن Sessionها:\n{e}")
             self._log("ERROR", f"[{self._platform_name}] list sessions error: {e}")
 
+    def _on_interval_changed(self):
+        minutes = self.status_page.get_selected_interval()
+        if minutes and minutes > 0:
+            ms = minutes * 60 * 1000
+            self._periodic_timer.setInterval(ms)
+            if not self._periodic_timer.isActive():
+                self._periodic_timer.start()
+            self._log("INFO", f"[{self._platform_name}] بررسی دوره‌ای کوکی‌ها روی هر {minutes} دقیقه فعال شد")
+        else:
+            self._periodic_timer.stop()
+            self._log("INFO", f"[{self._platform_name}] بررسی دوره‌ای کوکی‌ها غیرفعال شد")
+
     def _run_periodic_session_check(self):
-        if self._current_worker or self._current_check_worker or self._periodic_worker:
-            self._log("INFO", f"[{self._platform_name}] بررسی دوره‌ای به‌دلیل عملیات فعال رد شد")
+        if self.is_browser_open():
+            self._log("INFO", f"[{self._platform_name}] بررسی دوره‌ای به‌دلیل باز بودن مرورگر به تعویق افتاد")
             return
-        self._log("INFO", f"[{self._platform_name}] شروع بررسی دوره‌ای Sessionها")
+
+        self._log("INFO", f"[{self._platform_name}] شروع بررسی دوره‌ای و بروزرسانی پس‌زمینه کوکی‌ها...")
+        rec = self.status_page.get_selected_record()
+        phone = rec.phone if rec else None
+
+        worker = BackgroundPeriodicRefresherWorker(platform=self._platform_key, phone=phone)
+        worker.signals.status_changed.connect(self._on_status_changed)
+        QThreadPool.globalInstance().start(worker)
 
     def _on_select_session(self, record: SessionRecord):
-        """انتخاب شماره از لیست."""
         self._current_session = record
         status_persian = format_status_persian(record.status.value if record.status else "unknown")
         cookies = len(record.storage_state.cookies) if (record.storage_state and record.storage_state.cookies) else 0
@@ -502,7 +568,6 @@ class PlatformTab(QWidget):
         self._log("INFO", f"[{self._platform_name}] Selected session phone={record.phone}")
 
     def _check_session(self):
-        """بررسی واقعی Session انتخاب‌شده با باز کردن مرورگر."""
         rec = self.status_page.get_selected_record()
         if not rec:
             QMessageBox.information(
@@ -529,7 +594,6 @@ class PlatformTab(QWidget):
         QThreadPool.globalInstance().start(worker)
 
     def _on_session_checked(self, status_key: str, message: str):
-        """به‌روزرسانی آنی و زندهٔ GUI هنگام تغییر وضعیت Session."""
         sm = SessionManager(platform=self._platform_key)
         rec = self.status_page.get_selected_record()
         phone = rec.phone if rec else None
@@ -610,7 +674,6 @@ class PlatformTab(QWidget):
             self._current_worker.provide_code(code)
 
     def _on_cancel_login(self):
-        """لغو Login و بستن مرورگر اختصاصی این تب."""
         self._log("INFO", f"[{self._platform_name}] Login cancelled / close browser by user")
 
         if self._current_worker:
@@ -690,10 +753,6 @@ class PlatformTab(QWidget):
             self.status_page.set_status(status)
 
     def _on_close_browser_clicked(self):
-        """
-        بستن دستی مرورگر اختصاصی این تب.
-        ابتدا بررسی می‌کند آیا مرورگری برای این تب باز است یا خیر.
-        """
         if not self.is_browser_open():
             QMessageBox.information(
                 self,
@@ -768,6 +827,7 @@ class _StatusPage(QWidget):
     close_browser = Signal()
     select_session = Signal(object)
     refresh_list = Signal()
+    interval_changed = Signal()
 
     def __init__(self, platform_name: str, color: str, parent=None):
         super().__init__(parent)
@@ -781,13 +841,13 @@ class _StatusPage(QWidget):
         )
 
         outer = QVBoxLayout(self)
-        outer.setContentsMargins(28, 26, 28, 26)
+        outer.setContentsMargins(28, 20, 28, 20)
 
         container = QWidget()
         container.setMaximumWidth(1300)
         container.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
         clayout = QVBoxLayout(container)
-        clayout.setSpacing(18)
+        clayout.setSpacing(14)
         clayout.setContentsMargins(0, 0, 0, 0)
 
         # --- عنوان و توضیح ---
@@ -800,8 +860,7 @@ class _StatusPage(QWidget):
         clayout.addWidget(title)
 
         hint = QLabel(
-            "شماره‌های ذخیره‌شده را از لیست انتخاب کنید. "
-            "مرورگر فقط وقتی «بررسی Session» را بزنید باز می‌شود."
+            "شماره‌های ذخیره‌شده را انتخاب کنید. وضعیت کوکی‌ها و توکن‌ها به‌صورت خودکار پس‌زمینه بروزرسانی می‌شوند."
         )
         hint.setObjectName("subtitleLabel")
         hint.setWordWrap(True)
@@ -811,7 +870,7 @@ class _StatusPage(QWidget):
         list_card = QFrame()
         list_card.setObjectName("card")
         list_card_layout = QVBoxLayout(list_card)
-        list_card_layout.setContentsMargins(18, 16, 18, 18)
+        list_card_layout.setContentsMargins(18, 14, 18, 16)
         list_card_layout.setSpacing(10)
 
         list_label = QLabel("📱 لیست شماره‌های وارد‌شده")
@@ -822,7 +881,7 @@ class _StatusPage(QWidget):
         list_card_layout.addWidget(list_label)
 
         self.phone_list = QListWidget()
-        self.phone_list.setMinimumHeight(180)
+        self.phone_list.setMinimumHeight(160)
         self.phone_list.setSelectionMode(QAbstractItemView.SingleSelection)
         self.phone_list.itemSelectionChanged.connect(self._on_selection_changed)
         self.phone_list.itemDoubleClicked.connect(self._on_double_click)
@@ -830,29 +889,49 @@ class _StatusPage(QWidget):
 
         clayout.addWidget(list_card, stretch=1)
 
+        # --- کارت تنظیم بازه بررسی خودکار ---
+        interval_card = QFrame()
+        interval_card.setObjectName("card")
+        interval_layout = QHBoxLayout(interval_card)
+        interval_layout.setContentsMargins(16, 10, 16, 10)
+        interval_layout.setSpacing(12)
+
+        interval_lbl = QLabel("⏱️ تنظیم بازه زمانی بررسی و بروزرسانی خودکار کوکی‌ها:")
+        interval_lbl.setObjectName("subtitleLabel")
+        interval_layout.addWidget(interval_lbl)
+
+        self.interval_combo = QComboBox()
+        self.interval_combo.setMinimumHeight(38)
+        self.interval_combo.addItem("⏱️ هر ۶۰ دقیقه (پیش‌فرض)", 60)
+        self.interval_combo.addItem("⏱️ هر ۱۲۰ دقیقه (۲ ساعت)", 120)
+        self.interval_combo.addItem("📅 روزی یک‌بار (۲۴ ساعت)", 1440)
+        self.interval_combo.addItem("❌ خاموش (غیرفعال)", 0)
+        self.interval_combo.currentIndexChanged.connect(lambda: self.interval_changed.emit())
+        interval_layout.addWidget(self.interval_combo, stretch=1)
+
+        clayout.addWidget(interval_card)
+
         # --- جعبهٔ وضعیت ---
         self.status_box = QLabel("هیچ شماره‌ای انتخاب نشده است.")
         self.status_box.setObjectName("statusBox")
         self.status_box.setAlignment(Qt.AlignCenter)
         self.status_box.setWordWrap(True)
-        self.status_box.setMinimumHeight(84)
+        self.status_box.setMinimumHeight(78)
         clayout.addWidget(self.status_box)
 
         # --- کارت: عملیات و دکمه‌ها ---
         actions_card = QFrame()
         actions_card.setObjectName("card")
         actions_layout = QVBoxLayout(actions_card)
-        actions_layout.setContentsMargins(18, 18, 18, 18)
-        actions_layout.setSpacing(12)
+        actions_layout.setContentsMargins(18, 16, 18, 16)
+        actions_layout.setSpacing(10)
 
-        # دکمهٔ اصلی (ورود) - تمام عرض
         self.login_btn = QPushButton("🔐 ورود با شماره جدید")
         self._style_button(self.login_btn, self._primary_obj_name)
         self.login_btn.setToolTip("ورود حساب جدید با دریافت کد SMS")
         self.login_btn.clicked.connect(self.start_login.emit)
         actions_layout.addWidget(self.login_btn)
 
-        # گرید دکمه‌های ثانویه (دو ستون تمیز)
         grid = QGridLayout()
         grid.setSpacing(10)
 
@@ -904,7 +983,7 @@ class _StatusPage(QWidget):
     def _style_button(self, btn: QPushButton, object_name: str, min_w: int = 0):
         if min_w:
             btn.setMinimumWidth(min_w)
-        btn.setMinimumHeight(44)
+        btn.setMinimumHeight(42)
         btn.setObjectName(object_name)
         btn.setCursor(Qt.PointingHandCursor)
         font = QFont()
@@ -912,8 +991,10 @@ class _StatusPage(QWidget):
         font.setBold(True)
         btn.setFont(font)
 
+    def get_selected_interval(self) -> int:
+        return self.interval_combo.currentData() or 0
+
     def reflow(self, width: int):
-        """واکنش‌گرایی: در عرض کم، گرید دکمه‌ها تک‌ستونه می‌شود."""
         narrow = width < 560
         if narrow == self._actions_narrow:
             return
@@ -937,7 +1018,6 @@ class _StatusPage(QWidget):
         self._actions_grid.setColumnStretch(1, 0 if narrow else 1)
 
     def set_sessions(self, sessions: List[SessionRecord], selected_phone: Optional[str] = None):
-        """پر کردن لیست از روی Sessionهای دیتابیس با نمایش فارسی دقیق."""
         self._sessions = list(sessions or [])
         self.phone_list.clear()
 
