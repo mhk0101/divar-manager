@@ -1,13 +1,12 @@
 """
-AutomationTab - تب اتوماسیون دیوار و شیپور.
+AutomationTab - تب اتوماسیون پیشرفته دیوار و شیپور (اجرای راهکار ۱: بروزرسانی زنده از داخل مرورگر فعال).
 
-ویژگی‌های پیشرفته:
-- پشتیبانی کامل از الگوی URLهای پیچیده شیپور (تک‌شهری، چندشهری، دسته‌بندی‌ها و زیردسته‌ها)
-- ساخت خودکار لینک شیپور مانند:
-  * تک‌شهری: https://www.sheypoor.com/s/tehran/vehicles
-  * چندشهری: https://www.sheypoor.com/s/iran/real-estate?cities[0]=291&cities[1]=292
-- انتخاب حساب کاربری، تمدید خودکار و جایگزینی کوکی‌ها در پس‌زمینه
-- تفکیک پلتفرم (دیوار / شیپور)
+ویژگی‌های منحصر به‌فرد:
+- راهکار ۱: استخراج و جایگزینی زندهٔ کوکی‌ها مستقیماً از داخل مرورگر فعال بدون باز کردن مرورگر جدید یا ایجاد تداخل
+- عدم تداخل در کار اتوماسیون‌های آینده (بررسی آگهی، ثبت پیام و غیره)
+- پشتیبانی کامل از هر دو پلتفرم (دیوار و شیپور)
+- امکان تنظیم زمان‌بندی سفارشی (بر حسب دقیقه با QSpinBox + دکمه‌های میانبر)
+- نمایش کشیده و بلند لیست شهرها و دسته‌بندی‌ها جهت سهولت انتخاب
 """
 
 from __future__ import annotations
@@ -31,6 +30,7 @@ from PySide6.QtWidgets import (
     QListWidgetItem,
     QMessageBox,
     QPushButton,
+    QSpinBox,
     QSplitter,
     QTextEdit,
     QVBoxLayout,
@@ -70,18 +70,7 @@ def format_status_persian(status_str: str) -> str:
 
 
 def build_sheypoor_url(cities_data: List[dict], category_slug: Optional[str]) -> str:
-    """
-    ساخت URL دقیق شیپور طبق الگوی رسمی سایت:
-    1. بدون شهر:
-       - https://www.sheypoor.com/s/iran
-       - https://www.sheypoor.com/s/iran/{category}
-    2. تک‌شهری:
-       - https://www.sheypoor.com/s/tehran
-       - https://www.sheypoor.com/s/tehran/vehicles
-    3. چندشهری:
-       - https://www.sheypoor.com/s/iran?cities[0]=291&cities[1]=292&cities[2]=297
-       - https://www.sheypoor.com/s/iran/vehicles?cities[0]=291&cities[1]=292
-    """
+    """ساخت URL دقیق شیپور طبق الگوی رسمی سایت."""
     cat_part = f"/{category_slug}" if category_slug else ""
 
     if not cities_data:
@@ -91,7 +80,6 @@ def build_sheypoor_url(cities_data: List[dict], category_slug: Optional[str]) ->
         city_slug = cities_data[0].get("slug") or "iran"
         return f"https://www.sheypoor.com/s/{city_slug}{cat_part}"
 
-    # چند شهر
     query_params = "&".join(
         f"cities[{i}]={c.get('id')}"
         for i, c in enumerate(cities_data)
@@ -120,10 +108,10 @@ class AutomationSignals(QObject):
 
 
 # ---------------------------------------------------------------------------
-# Worker پس‌زمینه برای تمدید خودکار و جایگزینی کوکی‌ها (دیوار و شیپور)
+# Worker پس‌زمینه برای تمدید خودکار (زمانی که مرورگر بسته است)
 # ---------------------------------------------------------------------------
 class BackgroundPeriodicRefresherWorker(QRunnable):
-    """بررسی و جایگزینی خودکار کوکی‌ها و توکن‌ها در پس‌زمینه (برای همه پلتفرم‌ها)."""
+    """بررسی و جایگزینی خودکار کوکی‌ها هنگامی که مرورگر اصلی باز نیست."""
 
     def __init__(self, platform: str = "all", phone: Optional[str] = None):
         super().__init__()
@@ -186,10 +174,10 @@ class BackgroundPeriodicRefresherWorker(QRunnable):
 
 
 # ---------------------------------------------------------------------------
-# Worker برای باز کردن مرورگر (دیوار یا شیپور)
+# Worker برای اجرای اتوماسیون (با پشتیبانی از راهکار ۱: استخراج زنده از مرورگر)
 # ---------------------------------------------------------------------------
 class AutomationBrowserWorker(QRunnable):
-    """باز کردن مرورگر برای پلتفرم انتخاب شده (دیوار / شیپور)."""
+    """باز کردن مرورگر اتوماسیون و بروزرسانی زندهٔ کوکی‌ها از داخل پنجره فعال."""
 
     def __init__(
         self,
@@ -198,6 +186,7 @@ class AutomationBrowserWorker(QRunnable):
         cities_names: List[str],
         category_name: str,
         phone: str,
+        interval_minutes: int = 60,
     ):
         super().__init__()
         self.platform = platform
@@ -205,6 +194,7 @@ class AutomationBrowserWorker(QRunnable):
         self.cities_names = cities_names
         self.category_name = category_name
         self.phone = phone
+        self.interval_minutes = interval_minutes
         self.signals = AutomationSignals()
         self.setAutoDelete(True)
         self._browser_manager: Optional[BrowserManager] = None
@@ -276,13 +266,48 @@ class AutomationBrowserWorker(QRunnable):
                     self.signals.status_changed.emit(
                         f"✅ مرورگر {plat_name} با شماره {record.phone} باز شد!\n"
                         f"URL: {self.url}\n{details}\n"
-                        f"🟢 مرورگر باز است. هر وقت کارتان تمام شد، پنجره مرورگر را ببندید."
+                        f"🟢 (راهکار ۱ فعال) کوکی‌ها به صورت زنده از همین مرورگر بروزرسانی خواهند شد."
                     )
+
+                    # ✨ راهکار ۱: حلقهٔ بروزرسانی زندهٔ کوکی‌ها مستقیم از داخل مرورگر فعال
+                    live_saver_task = None
+                    if self.interval_minutes > 0:
+                        async def _live_cookie_saver_loop():
+                            while True:
+                                try:
+                                    await asyncio.sleep(self.interval_minutes * 60)
+                                    if bm.page.is_closed():
+                                        break
+
+                                    live_state = await sm.capture_storage_state(bm.context)
+                                    existing = sm.load(self.phone)
+                                    has_changes = existing is None or existing.storage_state.has_changes(live_state)
+
+                                    if has_changes:
+                                        await sm.save_from_context(
+                                            context=bm.context,
+                                            phone=self.phone,
+                                            metadata={"live_in_browser_capture": True, "url": bm.page.url},
+                                            storage_state=live_state,
+                                        )
+                                        self.signals.status_changed.emit(
+                                            f"🔄 (راهکار ۱) کوکی‌ها و توکن‌های نشست زنده [{plat_name}] شماره {self.phone} مستقیماً از مرورگر فعال استخراج و در دیتابیس جایگزین شدند."
+                                        )
+                                except asyncio.CancelledError:
+                                    break
+                                except Exception as err:
+                                    logger.debug("Live in-browser capture error: %s", err)
+                                    break
+
+                        live_saver_task = asyncio.create_task(_live_cookie_saver_loop())
 
                     try:
                         await bm.page.wait_for_event("close", timeout=0)
                     except Exception:
                         pass
+                    finally:
+                        if live_saver_task and not live_saver_task.done():
+                            live_saver_task.cancel()
 
                 self.signals.finished.emit(self.url)
 
@@ -318,8 +343,8 @@ class AutomationTab(QWidget):
 
     def _setup_ui(self):
         layout = QVBoxLayout(self)
-        layout.setContentsMargins(28, 20, 28, 20)
-        layout.setSpacing(14)
+        layout.setContentsMargins(24, 18, 24, 18)
+        layout.setSpacing(12)
 
         title = QLabel("🤖 اتوماسیون دیوار و شیپور")
         title.setObjectName("titleLabel")
@@ -331,27 +356,27 @@ class AutomationTab(QWidget):
 
         hint = QLabel(
             "پلتفرم، شماره حساب، شهرها و دسته‌بندی را انتخاب کنید. "
-            "کوکی‌ها و نشست‌های هر دو پلتفرم به صورت خودکار و دوره‌ای پس‌زمینه بروزرسانی می‌شوند تا حساب منقضی نشود."
+            "بروزرسانی کوکی‌ها به صورت زنده از داخل همان مرورگر فعال انجام می‌شود (راهکار ۱) تا تداخلی در کار اتوماسیون رخ ندهد."
         )
         hint.setObjectName("subtitleLabel")
         hint.setWordWrap(True)
         layout.addWidget(hint)
 
-        # ===== بخش اول: پلتفرم، حساب کاربری و بررسی خودکار =====
-        settings_group = QGroupBox("⚙️ انتخاب پلتفرم، حساب کاربری و پایداری کوکی‌ها")
+        # ===== بخش اول: تنظیمات پلتفرم، حساب کاربری و بازه خودکار سفارشی =====
+        settings_group = QGroupBox("⚙️ تنظیمات پلتفرم، حساب کاربری و بازه بررسی سفارشی کوکی‌ها")
         settings_layout = QHBoxLayout(settings_group)
-        settings_layout.setSpacing(16)
-        settings_layout.setContentsMargins(16, 16, 16, 16)
+        settings_layout.setSpacing(14)
+        settings_layout.setContentsMargins(14, 14, 14, 14)
 
         # --- ۱. انتخاب پلتفرم ---
         plat_col = QVBoxLayout()
-        plat_col.setSpacing(6)
-        plat_lbl = QLabel("📌 انتخاب پلتفرم:")
+        plat_col.setSpacing(4)
+        plat_lbl = QLabel("📌 پلتفرم:")
         plat_lbl.setObjectName("subtitleLabel")
         plat_col.addWidget(plat_lbl)
 
         self.platform_combo = QComboBox()
-        self.platform_combo.setMinimumHeight(42)
+        self.platform_combo.setMinimumHeight(40)
         self.platform_combo.addItem("🔴 دیوار (Divar)", "divar")
         self.platform_combo.addItem("🔵 شیپور (Sheypoor)", "sheypoor")
         self.platform_combo.currentIndexChanged.connect(self._on_platform_changed)
@@ -360,15 +385,15 @@ class AutomationTab(QWidget):
 
         # --- ۲. انتخاب شماره تلفن ---
         phone_col = QVBoxLayout()
-        phone_col.setSpacing(6)
-        phone_label = QLabel("📱 انتخاب حساب (شماره تلفن):")
+        phone_col.setSpacing(4)
+        phone_label = QLabel("📱 حساب کاربری (شماره تلفن):")
         phone_label.setObjectName("subtitleLabel")
         phone_col.addWidget(phone_label)
 
         phone_row = QHBoxLayout()
-        phone_row.setSpacing(8)
+        phone_row.setSpacing(6)
         self.phone_combo = QComboBox()
-        self.phone_combo.setMinimumHeight(42)
+        self.phone_combo.setMinimumHeight(40)
         self.phone_combo.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
         self.phone_combo.currentIndexChanged.connect(self._update_selection_info)
         phone_row.addWidget(self.phone_combo, stretch=1)
@@ -376,8 +401,8 @@ class AutomationTab(QWidget):
         self.refresh_phones_btn = QPushButton("🔃")
         self.refresh_phones_btn.setObjectName("ghostBtn")
         self.refresh_phones_btn.setToolTip("به‌روزرسانی لیست شماره‌ها")
-        self.refresh_phones_btn.setMinimumHeight(42)
-        self.refresh_phones_btn.setFixedWidth(44)
+        self.refresh_phones_btn.setMinimumHeight(40)
+        self.refresh_phones_btn.setFixedWidth(42)
         self.refresh_phones_btn.setCursor(Qt.PointingHandCursor)
         self.refresh_phones_btn.clicked.connect(self._reload_phone_numbers)
         phone_row.addWidget(self.refresh_phones_btn)
@@ -385,38 +410,83 @@ class AutomationTab(QWidget):
         phone_col.addLayout(phone_row)
         settings_layout.addLayout(phone_col, stretch=2)
 
-        # --- ۳. تنظیم بازه بررسی خودکار کوکی‌ها ---
+        # --- ۳. تنظیم بازه خودکار سفارشی (تایپ عدد یا دکمه‌های سریع) ---
         interval_col = QVBoxLayout()
-        interval_col.setSpacing(6)
-        interval_label = QLabel("⏱️ بررسی و جایگزینی خودکار کوکی‌ها:")
+        interval_col.setSpacing(4)
+        interval_label = QLabel("⏱️ زمان بررسی خودکار کوکی‌ها (دقیقه):")
         interval_label.setObjectName("subtitleLabel")
         interval_col.addWidget(interval_label)
 
-        self.interval_combo = QComboBox()
-        self.interval_combo.setMinimumHeight(42)
-        self.interval_combo.addItem("⏱️ هر ۶۰ دقیقه (پیش‌فرض)", 60)
-        self.interval_combo.addItem("⏱️ هر ۱۲۰ دقیقه (۲ ساعت)", 120)
-        self.interval_combo.addItem("📅 روزی یک‌بار (۲۴ ساعت)", 1440)
-        self.interval_combo.addItem("❌ خاموش (غیرفعال)", 0)
-        self.interval_combo.currentIndexChanged.connect(self._on_interval_changed)
-        interval_col.addWidget(self.interval_combo)
+        interval_row = QHBoxLayout()
+        interval_row.setSpacing(4)
 
-        settings_layout.addLayout(interval_col, stretch=2)
+        self.interval_spinbox = QSpinBox()
+        self.interval_spinbox.setMinimumHeight(40)
+        self.interval_spinbox.setRange(0, 10080)
+        self.interval_spinbox.setValue(60)
+        self.interval_spinbox.setSuffix(" دقیقه")
+        self.interval_spinbox.setToolTip("۰ = غیرفعال | عدد دلخواه (۱، ۲، ۶۰، ۱۲۰ و ...)")
+        self.interval_spinbox.valueChanged.connect(self._on_interval_changed)
+        interval_row.addWidget(self.interval_spinbox, stretch=1)
+
+        btn_1 = QPushButton("۱ دک")
+        btn_1.setObjectName("ghostBtn")
+        btn_1.setMinimumHeight(40)
+        btn_1.setToolTip("تست سریع: هر ۱ دقیقه")
+        btn_1.clicked.connect(lambda: self.interval_spinbox.setValue(1))
+        interval_row.addWidget(btn_1)
+
+        btn_2 = QPushButton("۲ دک")
+        btn_2.setObjectName("ghostBtn")
+        btn_2.setMinimumHeight(40)
+        btn_2.setToolTip("تست سریع: هر ۲ دقیقه")
+        btn_2.clicked.connect(lambda: self.interval_spinbox.setValue(2))
+        interval_row.addWidget(btn_2)
+
+        btn_60 = QPushButton("۶۰دک")
+        btn_60.setObjectName("ghostBtn")
+        btn_60.setMinimumHeight(40)
+        btn_60.clicked.connect(lambda: self.interval_spinbox.setValue(60))
+        interval_row.addWidget(btn_60)
+
+        btn_120 = QPushButton("۱۲۰دک")
+        btn_120.setObjectName("ghostBtn")
+        btn_120.setMinimumHeight(40)
+        btn_120.clicked.connect(lambda: self.interval_spinbox.setValue(120))
+        interval_row.addWidget(btn_120)
+
+        btn_24h = QPushButton("۲۴ساعت")
+        btn_24h.setObjectName("ghostBtn")
+        btn_24h.setMinimumHeight(40)
+        btn_24h.clicked.connect(lambda: self.interval_spinbox.setValue(1440))
+        interval_row.addWidget(btn_24h)
+
+        btn_off = QPushButton("❌ غیرفعال")
+        btn_off.setObjectName("dangerBtn")
+        btn_off.setMinimumHeight(40)
+        btn_off.clicked.connect(lambda: self.interval_spinbox.setValue(0))
+        interval_row.addWidget(btn_off)
+
+        interval_col.addLayout(interval_row)
+        settings_layout.addLayout(interval_col, stretch=4)
 
         layout.addWidget(settings_group)
 
-        # ===== بخش دوم: شهرها و دسته‌بندی کنار هم =====
+        # ===== بخش دوم: شهرها و دسته‌بندی کشیده از نظر طولی =====
         top_splitter = QSplitter(Qt.Horizontal)
         self.top_splitter = top_splitter
+        top_splitter.setMinimumHeight(350)
 
         # ----- بخش شهرها -----
         cities_group = QGroupBox("🏙️ انتخاب شهرها")
         self.cities_group = cities_group
         cities_layout = QVBoxLayout(cities_group)
-        cities_layout.setSpacing(10)
+        cities_layout.setSpacing(8)
+        cities_layout.setContentsMargins(12, 12, 12, 12)
 
         city_search_row = QHBoxLayout()
         self.city_search = QLineEdit()
+        self.city_search.setMinimumHeight(38)
         self.city_search.setPlaceholderText("🔍 جستجوی شهر... (مثال: تهران، اسلامشهر)")
         self.city_search.textChanged.connect(self._filter_cities)
         city_search_row.addWidget(self.city_search, stretch=1)
@@ -428,21 +498,21 @@ class AutomationTab(QWidget):
 
         self.city_list = QListWidget()
         self.city_list.setSelectionMode(QAbstractItemView.MultiSelection)
-        self.city_list.setMinimumHeight(140)
+        self.city_list.setMinimumHeight(280)
         self.city_list.itemSelectionChanged.connect(self._update_selection_info)
         cities_layout.addWidget(self.city_list, stretch=1)
 
         city_btn_row = QHBoxLayout()
         self.select_all_cities_btn = QPushButton("✅ انتخاب همه")
         self.select_all_cities_btn.setObjectName("successBtn")
-        self.select_all_cities_btn.setMinimumHeight(38)
+        self.select_all_cities_btn.setMinimumHeight(36)
         self.select_all_cities_btn.setCursor(Qt.PointingHandCursor)
         self.select_all_cities_btn.clicked.connect(lambda: self.city_list.selectAll())
         city_btn_row.addWidget(self.select_all_cities_btn)
 
         self.deselect_all_cities_btn = QPushButton("❌ حذف انتخاب")
         self.deselect_all_cities_btn.setObjectName("dangerBtn")
-        self.deselect_all_cities_btn.setMinimumHeight(38)
+        self.deselect_all_cities_btn.setMinimumHeight(36)
         self.deselect_all_cities_btn.setCursor(Qt.PointingHandCursor)
         self.deselect_all_cities_btn.clicked.connect(lambda: self.city_list.clearSelection())
         city_btn_row.addWidget(self.deselect_all_cities_btn)
@@ -453,10 +523,12 @@ class AutomationTab(QWidget):
         cat_group = QGroupBox("📂 انتخاب دسته‌بندی و زیردسته‌ها")
         self.cat_group = cat_group
         cat_layout = QVBoxLayout(cat_group)
-        cat_layout.setSpacing(10)
+        cat_layout.setSpacing(8)
+        cat_layout.setContentsMargins(12, 12, 12, 12)
 
         cat_search_row = QHBoxLayout()
         self.category_search = QLineEdit()
+        self.category_search.setMinimumHeight(38)
         self.category_search.setPlaceholderText("🔍 جستجوی دسته‌بندی و زیردسته... (مثال: خودرو، املاک)")
         self.category_search.textChanged.connect(self._filter_categories)
         cat_search_row.addWidget(self.category_search, stretch=1)
@@ -468,22 +540,22 @@ class AutomationTab(QWidget):
 
         self.category_list = QListWidget()
         self.category_list.setSelectionMode(QAbstractItemView.SingleSelection)
-        self.category_list.setMinimumHeight(140)
+        self.category_list.setMinimumHeight(280)
         self.category_list.itemSelectionChanged.connect(self._update_selection_info)
         cat_layout.addWidget(self.category_list, stretch=1)
 
         cat_btn_row = QHBoxLayout()
         self.clear_category_btn = QPushButton("❌ حذف فیلتر دسته‌بندی")
         self.clear_category_btn.setObjectName("ghostBtn")
-        self.clear_category_btn.setMinimumHeight(38)
+        self.clear_category_btn.setMinimumHeight(36)
         self.clear_category_btn.setCursor(Qt.PointingHandCursor)
         self.clear_category_btn.clicked.connect(self._clear_category)
         cat_btn_row.addWidget(self.clear_category_btn)
         cat_layout.addLayout(cat_btn_row)
         top_splitter.addWidget(cat_group)
 
-        top_splitter.setSizes([400, 400])
-        layout.addWidget(top_splitter, stretch=1)
+        top_splitter.setSizes([500, 500])
+        layout.addWidget(top_splitter, stretch=10)
 
         # ===== بخش سوم: اطلاعات و شروع =====
         info_group = QGroupBox("📋 اطلاعات و اجرای مرورگر")
@@ -527,7 +599,7 @@ class AutomationTab(QWidget):
     def restyle(self):
         for w in (self.city_list, self.category_list, self.url_display,
                   self.city_search, self.category_search, self.phone_combo,
-                  self.interval_combo, self.platform_combo):
+                  self.interval_spinbox, self.platform_combo):
             try:
                 w.style().unpolish(w)
                 w.style().polish(w)
@@ -542,10 +614,10 @@ class AutomationTab(QWidget):
             w = self.width()
             if w < 680 and self.top_splitter.orientation() != Qt.Vertical:
                 self.top_splitter.setOrientation(Qt.Vertical)
-                self.top_splitter.setSizes([300, 300])
+                self.top_splitter.setSizes([350, 350])
             elif w >= 680 and self.top_splitter.orientation() != Qt.Horizontal:
                 self.top_splitter.setOrientation(Qt.Horizontal)
-                self.top_splitter.setSizes([400, 400])
+                self.top_splitter.setSizes([500, 500])
         except Exception:
             pass
 
@@ -614,23 +686,24 @@ class AutomationTab(QWidget):
     # تنظیمات بررسی خودکار و دوره‌ای کوکی‌ها
     # ------------------------------------------------------------------
     def _on_interval_changed(self):
-        minutes = self.interval_combo.currentData()
-        if minutes and minutes > 0:
+        minutes = self.interval_spinbox.value()
+        if minutes > 0:
             ms = minutes * 60 * 1000
             self._auto_timer.setInterval(ms)
             if not self._auto_timer.isActive():
                 self._auto_timer.start()
-            self._log("INFO", f"[اتوماسیون] بررسی خودکار پس‌زمینه کوکی‌ها روی هر {minutes} دقیقه فعال شد")
+            self._log("INFO", f"[اتوماسیون] بررسی خودکار پس‌زمینه کوکی‌ها روی هر {minutes} دقیقه تنظیم شد")
         else:
             self._auto_timer.stop()
-            self._log("INFO", "[اتوماسیون] بررسی خودکار پس‌زمینه کوکی‌ها غیرفعال گردید")
+            self._log("INFO", "[اتوماسیون] بررسی خودکار پس‌زمینه کوکی‌ها غیرفعال گردید (مقدار ۰ دقیقه)")
 
     def _run_periodic_check(self):
+        # اگر مرورگر باز است، راهکار ۱ به صورت زنده از داخل همان مرورگر بروزرسانی را انجام می‌دهد
         if self.is_browser_open():
-            self._log("INFO", "[اتوماسیون] مرورگر در حال استفاده است؛ بررسی دوره‌ای به تعویق افتاد.")
             return
 
-        self._log("INFO", "[اتوماسیون] شروع بررسی خودکار و جایگزینی پس‌زمینه کوکی‌ها (دیوار و شیپور)...")
+        minutes = self.interval_spinbox.value()
+        self._log("INFO", f"[اتوماسیون] شروع بررسی خودکار پس‌زمینه کوکی‌ها (دوره {minutes} دقیقه‌ای)...")
         plat = self.get_selected_platform()
         phone = self.get_selected_phone()
 
@@ -802,7 +875,6 @@ class AutomationTab(QWidget):
         if selected_cats:
             category_slug = selected_cats[0].data(Qt.UserRole)
 
-        # ساخت URL مخصوص دیوار یا شیپور
         if plat == "sheypoor":
             url = build_sheypoor_url(cities_data, category_slug)
         else:
@@ -845,7 +917,8 @@ class AutomationTab(QWidget):
         else:
             url = build_divar_url(cities_data, category_slug)
 
-        self._log("INFO", f"[اتوماسیون] شروع اجرای مرورگر {plat_name} برای شماره {selected_phone}")
+        interval_mins = self.interval_spinbox.value()
+        self._log("INFO", f"[اتوماسیون] شروع اجرای مرورگر {plat_name} برای شماره {selected_phone} (راهکار ۱ فعال)")
 
         self.start_btn.setEnabled(False)
         self.start_btn.setText(f"⏳ در حال باز کردن {plat_name} ({selected_phone})...")
@@ -856,6 +929,7 @@ class AutomationTab(QWidget):
             cities_names=cities_names,
             category_name=category_name,
             phone=selected_phone,
+            interval_minutes=interval_mins,
         )
         worker.signals.status_changed.connect(self._on_status_changed)
         worker.signals.error_occurred.connect(self._on_error)
