@@ -1,0 +1,34 @@
+============================================================
+نتایج حل کپچا با EasyOCR (دو روش)
+============================================================
+
+📸 download (3).png:
+   Raw:      
+   Advanced: 
+   نهایی:    (ناموفق)
+
+📸 download (4).png:
+   Raw:      4944
+   Advanced: 4974
+   نهایی:    4944
+
+📸 download (5).png:
+   Raw:      
+   Advanced: 2646
+   نهایی:    2646
+
+📸 download (6).png:
+   Raw:      R2
+   Advanced: 
+   نهایی:    R2
+
+📸 download (7).png:
+   Raw:      
+   Advanced: 
+   نهایی:    (ناموفق)
+
+📸 download.png:
+   Raw:      3259
+   Advanced: 3759
+   نهایی:    3259
+

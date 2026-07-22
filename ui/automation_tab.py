@@ -1,16 +1,13 @@
 """
-AutomationTab - تب اتوماسیون پیشرفته دیوار و شیپور به همراه استخراج هوشمند و ارسال چت خودکار.
+AutomationTab - تب اتوماسیون پیشرفته دیوار و شیپور به همراه استخراج هوشمند شماره تماس، پوشه‌بندی اکسل و ارسال هم‌زمان چت.
 
-ویژگی‌های برتر:
-- محدوده مجاز ارسال چت بین ۱ تا ۳۰ پیام در هر نوبت
-- عدم ارسال پیام تکراری به چت‌ها (فیلتر بر اساس سوابق ارسال)
-- گزینه چت به‌صورت پیش‌فرض فعال است (Checked)
-- وقفه دقیق ۳ ثانیه‌ای بین هر اسکرول هنگام استخراج آگهی‌ها
-- قابلیت اسکرول کامل روی تمام صفحه (QScrollArea) با چیدمان بلند و کشیدهٔ طولی المان‌ها
-- عدم ثبت آگهی‌های تکراری
-- ارسال خودکار پیام در چت دیوار برای آگهی‌های استخراج‌شده بر اساس متن ورودی کاربر (لینک https://divar.ir/chat/{token})
-- نمایش زنده آگهی‌های استخراج‌شده در جدول با امکان کپی مستقیم لینک‌ها به Clipboard
-- ذخیره خودکار خروجی در فایل‌های JSON و CSV (در مسیر data/extracted_ads/)
+ویژگی‌های جدید:
+- پشتیبانی ۲ طرفه کامل از استخراج شماره و چت خودکار در **شیپور** و **دیوار**
+- ورود به آگهی شیپور، کلیک روی «تماس با ۰۹۱۲...» و استخراج شماره کامل
+- ارسال خودکار پیام به چت شیپور با آدرس https://www.sheypoor.com/session/myChats?listingId={id}
+- همگام‌سازی ۱ به ۱ استخراج شماره با ارسال چت برای همان آگهی‌ها
+- ذخیره و پوشه‌بندی اتوماتیک شماره‌ها در فایل‌های اکسل بر اساس استان/شهر، دسته‌بندی و پیش‌شماره (0912، 0917، 0933)
+- اسکرول کامل روی کل صفحه (QScrollArea)
 - بروزرسانی و استخراج زنده کوکی‌ها از داخل مرورگر فعال (راهکار ۱)
 """
 
@@ -56,7 +53,7 @@ if str(PROJECT_ROOT) not in sys.path:
 from core.browser_manager import BrowserManager
 from core.session_manager import SessionManager
 from core.session_models import SessionRecord, SessionStatus
-from modules.ad_extractor import AdExtractor, save_extracted_ads
+from modules.ad_extractor import AdExtractor, organize_and_save_phone_excel, save_extracted_ads
 
 logger = logging.getLogger("divar.automation")
 
@@ -187,10 +184,10 @@ class BackgroundPeriodicRefresherWorker(QRunnable):
 
 
 # ---------------------------------------------------------------------------
-# Worker برای اجرای اتوماسیون، استخراج و ارسال پیام چت
+# Worker برای اجرای اتوماسیون، استخراج شماره تماس و ارسال پیام چت
 # ---------------------------------------------------------------------------
 class AutomationBrowserWorker(QRunnable):
-    """باز کردن مرورگر، استخراج آگهی‌ها و ارسال پیام در چت دیوار."""
+    """باز کردن مرورگر، استخراج آگهی‌ها، استخراج شماره تماس و ارسال پیام در چت."""
 
     def __init__(
         self,
@@ -203,6 +200,9 @@ class AutomationBrowserWorker(QRunnable):
         max_pages: int = 3,
         chat_message: Optional[str] = None,
         max_chats: int = 10,
+        extract_phone: bool = True,
+        max_phones: int = 10,
+        sync_phone_chat: bool = True,
     ):
         super().__init__()
         self.platform = platform
@@ -214,6 +214,9 @@ class AutomationBrowserWorker(QRunnable):
         self.max_pages = max_pages
         self.chat_message = chat_message
         self.max_chats = max_chats
+        self.extract_phone = extract_phone
+        self.max_phones = max_phones
+        self.sync_phone_chat = sync_phone_chat
         self.signals = AutomationSignals()
         self.setAutoDelete(True)
         self._browser_manager: Optional[BrowserManager] = None
@@ -291,47 +294,163 @@ class AutomationBrowserWorker(QRunnable):
                         progress_callback=lambda msg: self.signals.status_changed.emit(f"[استخراج] {msg}"),
                     )
 
-                    # ✨ ۲. ارسال پیام در چت دیوار (تا سقف بین ۱ تا ۳۰ چت و عدم ارسال پیام تکراری)
-                    if self.platform == "divar" and self.chat_message and self.chat_message.strip() and extracted_ads:
+                    # ارسال فوری نتایج اولیه به جدول UI
+                    if extracted_ads:
+                        self.signals.ads_extracted.emit(list(extracted_ads))
+                        save_extracted_ads(extracted_ads, self.platform, self.phone)
+                    else:
+                        self.signals.status_changed.emit("ℹ️ هیچ آگهی جدیدی پیدا نشد (آگهی‌های قبلی تکراری بودند).")
+
+                    loc_title = ", ".join(self.cities_names) if self.cities_names else "سراسر_ایران"
+
+                    # ✨ ۲. سناریوی هم‌زمان (Sync): استخراج شماره تماس دقیقا برای همان آگهی‌هایی که چت فرستاده می‌شود
+                    if self.sync_phone_chat and self.chat_message and self.chat_message.strip() and extracted_ads:
                         unmessaged_ads = [ad for ad in extracted_ads if ad.get("token") and ad.get("token") not in extractor.messaged_tokens]
                         target_ads = unmessaged_ads[:self.max_chats]
 
                         if not unmessaged_ads:
                             self.signals.status_changed.emit(
-                                "ℹ️ تمام آگهی‌های استخراج‌شده قبلاً پیام دریافت کرده‌اند؛ هیچ پیام تکراری ارسال نشد."
+                                f"ℹ️ تمام آگهی‌های استخراج‌شده قبلاً پیام چت دریافت کرده‌اند؛ آگهی جدیدی باقی نمانده است."
                             )
                         else:
                             self.signals.status_changed.emit(
-                                f"💬 شروع ارسال پیام چت به {len(target_ads)} آگهی جدید (سقف تنظیمی: {self.max_chats} چت)..."
+                                f"💬🔗 همگام‌سازی فعال: استخراج شماره تماس و ارسال چت هم‌زمان برای {len(target_ads)} آگهی {plat_name}..."
                             )
                             for idx, ad in enumerate(target_ads, 1):
                                 token = ad.get("token")
-                                if not token:
-                                    continue
+                                ad_url = ad.get("url")
 
+                                # الف) استخراج شماره تماس برای این آگهی
+                                if self.platform == "divar":
+                                    p_num, has_chat = await extractor.extract_divar_phone_number(
+                                        token=token,
+                                        progress_callback=lambda msg: self.signals.status_changed.emit(f"[همگام {idx}/{len(target_ads)}] {msg}"),
+                                    )
+                                else:
+                                    p_num, has_chat = await extractor.extract_sheypoor_phone_number(
+                                        url=ad_url,
+                                        progress_callback=lambda msg: self.signals.status_changed.emit(f"[همگام {idx}/{len(target_ads)}] {msg}"),
+                                    )
+
+                                ad["phone_number"] = p_num if p_num else "ناموجود/مخفی"
+
+                                if p_num and p_num.startswith("09") and len(p_num) == 11:
+                                    excel_saved = organize_and_save_phone_excel(
+                                        phone_number=p_num,
+                                        title=ad.get("title", ""),
+                                        location_name=loc_title,
+                                        category_name=self.category_name,
+                                        platform=self.platform,
+                                        url=ad.get("url", ""),
+                                    )
+                                    self.signals.status_changed.emit(
+                                        f"💾 شماره {p_num} در اکسل {excel_saved.name} ذخیره گردید."
+                                    )
+
+                                # ب) ارسال پیام در چت همان آگهی
                                 self.signals.status_changed.emit(
-                                    f"💬 [{idx}/{len(target_ads)}] در حال ارسال پیام به فروشنده: «{ad.get('title')}»..."
+                                    f"💬 [{idx}/{len(target_ads)}] در حال ارسال پیام به چت فروشنده {plat_name}: «{ad.get('title')}»..."
                                 )
-                                sent_ok = await extractor.send_divar_chat_message(
-                                    token=token,
-                                    message_text=self.chat_message,
-                                    progress_callback=lambda msg: self.signals.status_changed.emit(f"[چت دیوار] {msg}"),
-                                )
+                                if self.platform == "divar":
+                                    sent_ok = await extractor.send_divar_chat_message(
+                                        token=token,
+                                        message_text=self.chat_message,
+                                        progress_callback=lambda msg: self.signals.status_changed.emit(f"[چت دیوار] {msg}"),
+                                    )
+                                else:
+                                    sent_ok = await extractor.send_sheypoor_chat_message(
+                                        listing_id=token,
+                                        message_text=self.chat_message,
+                                        progress_callback=lambda msg: self.signals.status_changed.emit(f"[چت شیپور] {msg}"),
+                                    )
+
                                 ad["chat_sent"] = sent_ok
 
-                    # ذخیره‌سازی خروجی JSON و CSV
-                    if extracted_ads:
-                        json_file, csv_file = save_extracted_ads(extracted_ads, self.platform, self.phone)
-                        self.signals.status_changed.emit(
-                            f"💾 {len(extracted_ads)} آگهی در فایل‌های خروجی ذخیره شدند:\n• {json_file.name}\n• {csv_file.name}"
-                        )
-                        self.signals.ads_extracted.emit(extracted_ads)
+                                # بروزرسانی آنی جدول UI
+                                self.signals.ads_extracted.emit(list(extracted_ads))
+                                save_extracted_ads(extracted_ads, self.platform, self.phone)
+
+                    # ✨ ۳. سناریوی مستقل (غیرهمگام): استخراج شماره مجزا و ارسال چت مجزا
                     else:
-                        self.signals.status_changed.emit("ℹ️ هیچ آگهی جدیدی پیدا نشد (آگهی‌های قبلی تکراری بودند).")
+                        if self.extract_phone and self.max_phones > 0 and extracted_ads:
+                            target_phone_ads = extracted_ads[:self.max_phones]
+                            self.signals.status_changed.emit(
+                                f"📞 در حال استخراج شماره تماس {len(target_phone_ads)} آگهی {plat_name} (سقف: {self.max_phones} شماره)..."
+                            )
+
+                            for idx, ad in enumerate(target_phone_ads, 1):
+                                token = ad.get("token")
+                                ad_url = ad.get("url")
+
+                                if self.platform == "divar":
+                                    p_num, has_chat = await extractor.extract_divar_phone_number(
+                                        token=token,
+                                        progress_callback=lambda msg: self.signals.status_changed.emit(f"[شماره تماس {idx}/{len(target_phone_ads)}] {msg}"),
+                                    )
+                                else:
+                                    p_num, has_chat = await extractor.extract_sheypoor_phone_number(
+                                        url=ad_url,
+                                        progress_callback=lambda msg: self.signals.status_changed.emit(f"[شماره تماس {idx}/{len(target_phone_ads)}] {msg}"),
+                                    )
+
+                                ad["phone_number"] = p_num if p_num else "ناموجود/مخفی"
+
+                                if p_num and p_num.startswith("09") and len(p_num) == 11:
+                                    excel_saved = organize_and_save_phone_excel(
+                                        phone_number=p_num,
+                                        title=ad.get("title", ""),
+                                        location_name=loc_title,
+                                        category_name=self.category_name,
+                                        platform=self.platform,
+                                        url=ad.get("url", ""),
+                                    )
+                                    self.signals.status_changed.emit(
+                                        f"💾 شماره {p_num} در اکسل {excel_saved.name} ذخیره شد."
+                                    )
+
+                                self.signals.ads_extracted.emit(list(extracted_ads))
+                                save_extracted_ads(extracted_ads, self.platform, self.phone)
+
+                        if self.chat_message and self.chat_message.strip() and extracted_ads:
+                            unmessaged_ads = [ad for ad in extracted_ads if ad.get("token") and ad.get("token") not in extractor.messaged_tokens]
+                            target_ads = unmessaged_ads[:self.max_chats]
+
+                            if not unmessaged_ads:
+                                self.signals.status_changed.emit(
+                                    f"ℹ️ تمام آگهی‌های استخراج‌شده قبلاً پیام دریافت کرده‌اند؛ هیچ پیام تکراری ارسال نشد."
+                                )
+                            else:
+                                self.signals.status_changed.emit(
+                                    f"💬 شروع ارسال پیام چت به {len(target_ads)} آگهی جدید {plat_name} (سقف تنظیمی: {self.max_chats} چت)..."
+                                )
+                                for idx, ad in enumerate(target_ads, 1):
+                                    token = ad.get("token")
+
+                                    self.signals.status_changed.emit(
+                                        f"💬 [{idx}/{len(target_ads)}] در حال ارسال پیام به فروشنده {plat_name}: «{ad.get('title')}»..."
+                                    )
+                                    if self.platform == "divar":
+                                        sent_ok = await extractor.send_divar_chat_message(
+                                            token=token,
+                                            message_text=self.chat_message,
+                                            progress_callback=lambda msg: self.signals.status_changed.emit(f"[چت دیوار] {msg}"),
+                                        )
+                                    else:
+                                        sent_ok = await extractor.send_sheypoor_chat_message(
+                                            listing_id=token,
+                                            message_text=self.chat_message,
+                                            progress_callback=lambda msg: self.signals.status_changed.emit(f"[چت شیپور] {msg}"),
+                                        )
+
+                                    ad["chat_sent"] = sent_ok
+
+                                    self.signals.ads_extracted.emit(list(extracted_ads))
+                                    save_extracted_ads(extracted_ads, self.platform, self.phone)
 
                     details = f"شهرها: {', '.join(self.cities_names)}\nدسته‌بندی: {self.category_name}\n" if self.cities_names else ""
                     self.signals.status_changed.emit(
-                        f"✅ مرورگر {plat_name} با شماره {record.phone} باز است!\n"
+                        f"✅ فرآیند استخراج و اتوماسیون {plat_name} با موفقیت انجام شد!\n"
+                        f"تعداد آگهی‌های استخراج‌شده: {len(extracted_ads)}\n"
                         f"URL: {self.url}\n{details}\n"
                         f"🟢 (راهکار ۱ فعال) کوکی‌ها به صورت زنده از همین مرورگر بروزرسانی خواهند شد."
                     )
@@ -391,7 +510,7 @@ class AutomationBrowserWorker(QRunnable):
 # تب اتوماسیون (با لایه QScrollArea برای اسکرول کامل صفحه)
 # ---------------------------------------------------------------------------
 class AutomationTab(QWidget):
-    """تب اتوماسیون - مدیریت اتوماتیک حساب‌ها، اسکرول طولی کشیده و ارسال چت."""
+    """تب اتوماسیون - مدیریت اتوماتیک حساب‌ها، استخراج شماره تماس و ارسال چت."""
 
     log_message = Signal(str, str)
 
@@ -432,7 +551,7 @@ class AutomationTab(QWidget):
 
         hint = QLabel(
             "پلتفرم، شهرها، دسته‌بندی و تعداد صفحات استخراج را مشخص کنید. "
-            "برنامه آگهی‌های غیرتکراری را استخراج کرده و در صورت فعال‌سازی، متن تنظیم‌شده را به سقف انتخابی (بین ۱ تا ۳۰ چت) در چت دیوار ارسال می‌کند."
+            "برنامه شماره تماس فروشندگان را استخراج کرده و پیام سفارشی را در چت ارسال می‌نماید."
         )
         hint.setObjectName("subtitleLabel")
         hint.setWordWrap(True)
@@ -630,45 +749,93 @@ class AutomationTab(QWidget):
         top_splitter.setSizes([500, 500])
         layout.addWidget(top_splitter)
 
-        # ===== بخش سوم: ارسال پیام در چت دیوار =====
-        chat_group = QGroupBox("💬 ارسال پیام خودکار در چت دیوار (ویژه دیوار)")
-        self.chat_group = chat_group
-        chat_layout = QVBoxLayout(chat_group)
-        chat_layout.setSpacing(10)
-        chat_layout.setContentsMargins(14, 14, 14, 14)
+        # ===== بخش سوم: استخراج شماره تماس و ارسال پیام در چت =====
+        options_group = QGroupBox("📞 استخراج شماره تماس و 💬 ارسال پیام خودکار (دیوار و شیپور)")
+        self.options_group = options_group
+        options_layout = QVBoxLayout(options_group)
+        options_layout.setSpacing(10)
+        options_layout.setContentsMargins(14, 14, 14, 14)
 
+        # ✨ گزینه‌ی همگام‌سازی استخراج شماره دقیقاً برای آگهی‌های پیام چت
+        self.sync_phone_chat_checkbox = QCheckBox("🔗 استخراج هم‌زمان شماره تماس برای همان آگهی‌هایی که پیام چت فرستاده می‌شود (پیش‌فرض)")
+        self.sync_phone_chat_checkbox.setObjectName("titleLabel")
+        self.sync_phone_chat_checkbox.setCursor(Qt.PointingHandCursor)
+        self.sync_phone_chat_checkbox.setChecked(True)
+        options_layout.addWidget(self.sync_phone_chat_checkbox)
+
+        # --- ۱. تنظیمات استخراج شماره تماس جداگانه ---
+        phone_top_row = QHBoxLayout()
+        phone_top_row.setSpacing(10)
+
+        self.extract_phone_checkbox = QCheckBox("📞 استخراج مجزا شماره تماس سایر آگهی‌ها")
+        self.extract_phone_checkbox.setObjectName("subtitleLabel")
+        self.extract_phone_checkbox.setCursor(Qt.PointingHandCursor)
+        self.extract_phone_checkbox.setChecked(True)
+        phone_top_row.addWidget(self.extract_phone_checkbox, stretch=1)
+
+        max_phones_lbl = QLabel("📞 سقف استخراج شماره مجزا:")
+        max_phones_lbl.setObjectName("subtitleLabel")
+        phone_top_row.addWidget(max_phones_lbl)
+
+        self.max_phones_spinbox = QSpinBox()
+        self.max_phones_spinbox.setMinimumHeight(38)
+        self.max_phones_spinbox.setRange(0, 1000)
+        self.max_phones_spinbox.setValue(10)          # پیش‌فرض ۱۰ شماره
+        self.max_phones_spinbox.setSuffix(" شماره")
+        self.max_phones_spinbox.setToolTip("۰ = عدم استخراج شماره مجزا | یا تعیین عدد دلخواه")
+        phone_top_row.addWidget(self.max_phones_spinbox)
+
+        btn_p5 = QPushButton("۵ شماره")
+        btn_p5.setObjectName("ghostBtn")
+        btn_p5.setMinimumHeight(38)
+        btn_p5.clicked.connect(lambda: self.max_phones_spinbox.setValue(5))
+        phone_top_row.addWidget(btn_p5)
+
+        btn_p10 = QPushButton("۱۰ شماره")
+        btn_p10.setObjectName("ghostBtn")
+        btn_p10.setMinimumHeight(38)
+        btn_p10.clicked.connect(lambda: self.max_phones_spinbox.setValue(10))
+        phone_top_row.addWidget(btn_p10)
+
+        btn_p_off = QPushButton("❌ غیرفعال")
+        btn_p_off.setObjectName("dangerBtn")
+        btn_p_off.setMinimumHeight(38)
+        btn_p_off.clicked.connect(lambda: self.max_phones_spinbox.setValue(0))
+        phone_top_row.addWidget(btn_p_off)
+
+        options_layout.addLayout(phone_top_row)
+
+        # --- ۲. تنظیمات ارسال چت خودکار ---
         chat_top_row = QHBoxLayout()
         chat_top_row.setSpacing(10)
 
-        # ✨ گزینه‌ی ارسال چت به‌صورت پیش‌فرض فعال است (Checked)
         self.chat_enable_checkbox = QCheckBox("✉️ ارسال خودکار پیام به چت فروشندگان پس از استخراج آگهی‌ها")
         self.chat_enable_checkbox.setObjectName("subtitleLabel")
         self.chat_enable_checkbox.setCursor(Qt.PointingHandCursor)
-        self.chat_enable_checkbox.setChecked(True)   # ✨ پیش‌فرض فعال
+        self.chat_enable_checkbox.setChecked(True)
         chat_top_row.addWidget(self.chat_enable_checkbox, stretch=1)
 
-        # ✨ ورودی تعیین حداکثر تعداد چت برای ارسال پیام (محدوده بین ۱ تا ۳۰)
         max_chats_lbl = QLabel("✉️ حداکثر تعداد پیام ارسالی:")
         max_chats_lbl.setObjectName("subtitleLabel")
         chat_top_row.addWidget(max_chats_lbl)
 
         self.max_chats_spinbox = QSpinBox()
         self.max_chats_spinbox.setMinimumHeight(38)
-        self.max_chats_spinbox.setRange(1, 30)       # ✨ حداقل ۱ و حداکثر ۳۰ پیام
+        self.max_chats_spinbox.setRange(1, 30)       # محدوده بین ۱ تا ۳۰ پیام
         self.max_chats_spinbox.setValue(10)          # پیش‌فرض ۱۰ پیام
         self.max_chats_spinbox.setSuffix(" چت")
         self.max_chats_spinbox.setToolTip("حداقل ۱ و حداکثر ۳۰ چت در هر نوبت نادیده گرفتن چت‌های تکراری")
         chat_top_row.addWidget(self.max_chats_spinbox)
 
-        chat_layout.addLayout(chat_top_row)
+        options_layout.addLayout(chat_top_row)
 
         self.chat_message_input = QTextEdit()
         self.chat_message_input.setMinimumHeight(80)
         self.chat_message_input.setMaximumHeight(120)
-        self.chat_message_input.setPlaceholderText("متن پیام سفارشی خود را جهت ارسال در چت دیوار وارد کنید (مثال: سلام، آگهی شما را دیدم، آیا موجود است؟)")
-        chat_layout.addWidget(self.chat_message_input)
+        self.chat_message_input.setPlaceholderText("متن پیام سفارشی خود را جهت ارسال در چت وارد کنید (مثال: سلام، آگهی شما را دیدم، آیا موجود است؟)")
+        options_layout.addWidget(self.chat_message_input)
 
-        layout.addWidget(chat_group)
+        layout.addWidget(options_group)
 
         # ===== بخش چهارم: اطلاعات و اجرای اتوماسیون =====
         info_group = QGroupBox("📋 اطلاعات و اجرای مرورگر")
@@ -713,13 +880,14 @@ class AutomationTab(QWidget):
         results_layout.setContentsMargins(14, 14, 14, 14)
 
         self.results_table = QTableWidget()
-        self.results_table.setColumnCount(5)
-        self.results_table.setHorizontalHeaderLabels(["#", "عنوان آگهی", "لینک مستقیم آگهی", "وضعیت چت", "زمان استخراج"])
+        self.results_table.setColumnCount(6)
+        self.results_table.setHorizontalHeaderLabels(["#", "عنوان آگهی", "شماره تماس", "لینک مستقیم آگهی", "وضعیت چت", "زمان استخراج"])
         self.results_table.horizontalHeader().setSectionResizeMode(0, QHeaderView.ResizeToContents)
         self.results_table.horizontalHeader().setSectionResizeMode(1, QHeaderView.Stretch)
-        self.results_table.horizontalHeader().setSectionResizeMode(2, QHeaderView.Stretch)
-        self.results_table.horizontalHeader().setSectionResizeMode(3, QHeaderView.ResizeToContents)
+        self.results_table.horizontalHeader().setSectionResizeMode(2, QHeaderView.ResizeToContents)
+        self.results_table.horizontalHeader().setSectionResizeMode(3, QHeaderView.Stretch)
         self.results_table.horizontalHeader().setSectionResizeMode(4, QHeaderView.ResizeToContents)
+        self.results_table.horizontalHeader().setSectionResizeMode(5, QHeaderView.ResizeToContents)
         self.results_table.setMinimumHeight(260)
         results_layout.addWidget(self.results_table)
 
@@ -757,7 +925,8 @@ class AutomationTab(QWidget):
         for w in (self.city_list, self.category_list, self.url_display,
                   self.city_search, self.category_search, self.phone_combo,
                   self.interval_spinbox, self.platform_combo, self.pages_spinbox,
-                  self.max_chats_spinbox, self.results_table, self.chat_message_input):
+                  self.max_chats_spinbox, self.max_phones_spinbox, self.results_table,
+                  self.chat_message_input, self.sync_phone_chat_checkbox):
             try:
                 w.style().unpolish(w)
                 w.style().polish(w)
@@ -789,13 +958,10 @@ class AutomationTab(QWidget):
             self.start_btn.setObjectName("primarySheypoor")
             self.cities_group.setTitle("🏙️ انتخاب شهرها (شیپور)")
             self.cat_group.setTitle("📂 انتخاب دسته‌بندی و زیردسته‌ها (شیپور)")
-            self.chat_group.setEnabled(False)
-            self.chat_enable_checkbox.setToolTip("ارسال چت خودکار فعلاً اختصاصاً برای دیوار فعال است.")
         else:
             self.start_btn.setObjectName("primaryDivar")
             self.cities_group.setTitle("🏙️ انتخاب شهرها (دیوار)")
             self.cat_group.setTitle("📂 انتخاب دسته‌بندی و زیردسته‌ها (دیوار)")
-            self.chat_group.setEnabled(True)
 
         self.start_btn.style().unpolish(self.start_btn)
         self.start_btn.style().polish(self.start_btn)
@@ -1035,21 +1201,29 @@ class AutomationTab(QWidget):
 
         pages = self.pages_spinbox.value()
         max_c = self.max_chats_spinbox.value()
-        chat_status = f"فعال 🟢 (حداکثر {max_c} چت)" if (self.chat_enable_checkbox.isChecked() and plat == "divar") else "غیرفعال"
+        max_p = self.max_phones_spinbox.value()
+        sync_active = self.sync_phone_chat_checkbox.isChecked()
+
+        chat_status = f"فعال 🟢 (حداکثر {max_c} چت)" if self.chat_enable_checkbox.isChecked() else "غیرفعال"
+        if sync_active and self.chat_enable_checkbox.isChecked():
+            phone_status = f"همگام با چت 🔗 (همان {max_c} آگهی)"
+        else:
+            phone_status = f"فعال 🟢 (حداکثر {max_p} شماره)" if (self.extract_phone_checkbox.isChecked() and max_p > 0) else "غیرفعال"
+
         city_info = f"🏙️ شهرها ({len(cities_names)}): {', '.join(cities_names)}" if cities_names else "🏙️ همه شهرها (سراسر ایران)"
         self.url_display.setPlainText(
-            f"📌 پلتفرم: {plat_name}  |  📄 صفحات: {pages} صفحه  |  💬 چت خودکار: {chat_status}\n"
+            f"📌 پلتفرم: {plat_name}  |  📄 صفحات: {pages} صفحه  |  📞 استخراج شماره: {phone_status}  |  💬 چت: {chat_status}\n"
             f"📱 حساب انتخاب‌شده: {selected_phone}\n"
             f"🌐 لینک فیلترشده: {url}\n"
             f"{city_info}"
         )
 
     # ------------------------------------------------------------------
-    # پردازش آگهی‌های استخراج‌شده و نمایش در جدول
+    # پردازش آگهی‌های استخراج‌شده و نمایش آنی و زنده در جدول
     # ------------------------------------------------------------------
     @Slot(list)
     def _on_ads_extracted(self, ads: List[dict]):
-        self._extracted_ads.extend(ads)
+        self._extracted_ads = ads
         self.results_table.setRowCount(0)
         self.results_table.setRowCount(len(self._extracted_ads))
 
@@ -1058,6 +1232,14 @@ class AutomationTab(QWidget):
             item_idx.setTextAlignment(Qt.AlignCenter)
 
             item_title = QTableWidgetItem(ad.get("title", ""))
+
+            p_val = ad.get("phone_number", "در حال استخراج...")
+            item_phone = QTableWidgetItem(p_val)
+            item_phone.setTextAlignment(Qt.AlignCenter)
+            if p_val and p_val not in ("استخراج‌نشده", "در حال استخراج...", "ناموجود/مخفی", "فقط چت (شماره مخفی)", "ثبت‌نشده در شیپور", "تماس ناشناس (بدون شماره)"):
+                item_phone.setForeground(Qt.darkGreen)
+            elif "مخفی" in p_val or "فقط چت" in p_val or "ناشناس" in p_val:
+                item_phone.setForeground(Qt.darkYellow)
 
             item_url = QTableWidgetItem(ad.get("url", ""))
             item_url.setForeground(Qt.blue)
@@ -1071,12 +1253,12 @@ class AutomationTab(QWidget):
 
             self.results_table.setItem(row, 0, item_idx)
             self.results_table.setItem(row, 1, item_title)
-            self.results_table.setItem(row, 2, item_url)
-            self.results_table.setItem(row, 3, item_chat)
-            self.results_table.setItem(row, 4, item_time)
+            self.results_table.setItem(row, 2, item_phone)
+            self.results_table.setItem(row, 3, item_url)
+            self.results_table.setItem(row, 4, item_chat)
+            self.results_table.setItem(row, 5, item_time)
 
         self.ads_count_lbl.setText(f"تعداد آگهی‌های یافت‌شده: {len(self._extracted_ads)}")
-        self._log("INFO", f"[اتوماسیون] {len(ads)} آگهی جدید به جدول اضافه شد (مجموع کل: {len(self._extracted_ads)}).")
 
     def _copy_all_links(self):
         if not self._extracted_ads:
@@ -1130,10 +1312,12 @@ class AutomationTab(QWidget):
         interval_mins = self.interval_spinbox.value()
         max_p = self.pages_spinbox.value()
         max_c = self.max_chats_spinbox.value()
+        max_ph = self.max_phones_spinbox.value() if self.extract_phone_checkbox.isChecked() else 0
+        sync_phone_chat = self.sync_phone_chat_checkbox.isChecked()
 
         # چت متنی
         chat_msg = None
-        if plat == "divar" and self.chat_enable_checkbox.isChecked():
+        if self.chat_enable_checkbox.isChecked():
             chat_msg = self.chat_message_input.toPlainText().strip()
             if not chat_msg:
                 QMessageBox.warning(self, "متن چت خالی است", "لطفاً متن پیام چت را وارد کنید یا گزینه‌ی ارسال پیام را غیرفعال کنید.")
@@ -1141,7 +1325,7 @@ class AutomationTab(QWidget):
 
         self._log(
             "INFO",
-            f"[اتوماسیون] شروع اجرای مرورگر {plat_name} برای شماره {selected_phone} (استخراج {max_p} صفحه، حداکثر {max_c} چت)"
+            f"[اتوماسیون] شروع اجرای مرورگر {plat_name} برای شماره {selected_phone} (همگام‌سازی استخراج شماره با چت: {'فعال' if sync_phone_chat else 'غیرفعال'})"
         )
 
         self.start_btn.setEnabled(False)
@@ -1157,6 +1341,9 @@ class AutomationTab(QWidget):
             max_pages=max_p,
             chat_message=chat_msg,
             max_chats=max_c,
+            extract_phone=(max_ph > 0 or sync_phone_chat),
+            max_phones=max_ph,
+            sync_phone_chat=sync_phone_chat,
         )
         worker.signals.status_changed.connect(self._on_status_changed)
         worker.signals.error_occurred.connect(self._on_error)

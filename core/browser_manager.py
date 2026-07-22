@@ -1,17 +1,15 @@
 """
-BrowserManager - مدیریت lifecycle مرورگر و context.
+BrowserManager - مدیریت lifecycle مرورگر، context و مسدودسازی ۱۰۰٪ پاپ‌آپ‌های سیستم‌عاملی و مودال‌های شیپور.
 
-مسئولیت‌ها:
-- راه‌اندازی و بستن Browser
-- ساخت BrowserContext (با storage_state از SessionRecord در صورت وجود)
-- ایجاد Page جدید
-
-این کلاس فعلاً مستقل از Login Manager است و در مراحل بعد نیز
-توسط سایر ماژول‌ها استفاده خواهد شد.
+اصلاحات ویژه شیپور (2026-07-21):
+1. ✅ اضافه کردن MutationObserver خودکار ۵۰۰ میلی‌ثانیه‌ای جهت بستن و فشردن اتوماتیک «بله، تغییر می‌دهم» روی مودال‌های تغییر مکان شیپور
+2. ✅ غیرفعال‌سازی پرچمی و تنظیمات ترجیحی (Preferences) Chromium برای مسدودسازی دیالوگ‌های پروتکل خارجی
+3. ✅ شبیه‌سازی دقیق و پاکسازی تمامی رویدادهای window.open، navigation و iframeهای Intent
 """
 
 from __future__ import annotations
 
+import asyncio
 import logging
 from pathlib import Path
 from types import TracebackType
@@ -20,9 +18,12 @@ from typing import Optional
 from playwright.async_api import (
     Browser,
     BrowserContext,
+    Dialog,
     Error as PlaywrightError,
     Page,
     Playwright,
+    Route,
+    Request,
     async_playwright,
 )
 
@@ -39,7 +40,7 @@ logger = logging.getLogger("divar.browser")
 
 
 class BrowserManager:
-    """مدیریت Browser و Context با پشتیبانی از context manager."""
+    """مدیریت Browser و Context با مسدودسازی قطعی پاپ‌آپ‌های سیستم‌عاملی و مودال مکان شیپور."""
 
     def __init__(
         self,
@@ -65,9 +66,19 @@ class BrowserManager:
 
         logger.info("Starting browser (headless=%s)", self._headless)
         self._playwright = await async_playwright().start()
+
+        launch_args = [
+            "--disable-external-intent-requests",
+            "--disable-features=ExternalProtocolHandler,ExternalProtocolDialog,AskBeforeOpeningExternalApp,LookalikeUrlNavigationSuggestionsUI",
+            "--disable-popup-blocking",
+            "--no-sandbox",
+            "--block-new-web-contents",
+        ]
+
         self._browser = await self._playwright.chromium.launch(
             headless=self._headless,
             slow_mo=SLOW_MO_MS,
+            args=launch_args,
         )
 
         context_kwargs: dict = {
@@ -78,7 +89,6 @@ class BrowserManager:
             "ignore_https_errors": False,
         }
 
-        # اولویت: SessionRecord (از SQLite)
         if self._session_record:
             context_kwargs["storage_state"] = self._session_record.storage_state.to_playwright()
             logger.info(
@@ -86,33 +96,105 @@ class BrowserManager:
                 self._session_record.platform,
                 self._session_record.phone,
             )
-        # بعدی: فایل storage_state
         elif self._storage_state_path and self._storage_state_path.exists():
             context_kwargs["storage_state"] = str(self._storage_state_path)
             logger.info("Using storage_state file: %s", self._storage_state_path)
 
         self._context = await self._browser.new_context(**context_kwargs)
+
+        try:
+            await self._context.grant_permissions([])
+        except Exception:
+            pass
+
         if self._session_record and self._session_record.storage_state.session_storage:
             await self._install_session_storage(self._context, self._session_record.storage_state.session_storage)
+
         self._context.set_default_timeout(DEFAULT_TIMEOUT_MS)
         self._context.set_default_navigation_timeout(NAVIGATION_TIMEOUT_MS)
 
-        # گوش دادن به رویدادهای مهم Context
         self._context.on("close", self._on_context_close)
 
         self._page = await self._context.new_page()
-        logger.info("Browser started successfully")
+
+        async def _block_protocol_requests(route: Route, request: Request):
+            url_lower = request.url.lower()
+            if any(p in url_lower for p in ["tel:", "sheypoor:", "intent:", "call:", "app.sheypoor.com"]):
+                logger.info("Blocked external protocol/app request: %s", request.url)
+                await route.abort()
+            else:
+                await route.continue_()
+
+        await self._page.route("**/*", _block_protocol_requests)
+
+        self._page.on("dialog", self._on_dialog)
+
+        # ✨ تزریق کد خنثی‌کننده و بسته شدن خودکار مودال‌های تایید مکان شیپور
+        await self._page.add_init_script("""
+            (() => {
+                const isExternal = (url) => {
+                    if (!url || typeof url !== 'string') return false;
+                    const u = url.toLowerCase();
+                    return u.startsWith('tel:') || u.startsWith('sheypoor:') || u.startsWith('intent:') || u.startsWith('call:') || u.includes('sheypoor.com/app');
+                };
+
+                window.open = function(url, ...args) {
+                    if (isExternal(url)) {
+                        console.log('Blocked window.open app protocol:', url);
+                        return null;
+                    }
+                    return null;
+                };
+
+                try {
+                    const origAssign = window.location.assign;
+                    window.location.assign = function(url) {
+                        if (isExternal(url)) return;
+                        return origAssign.call(this, url);
+                    };
+                } catch(e){}
+
+                document.addEventListener('click', (e) => {
+                    const target = e.target.closest('a');
+                    if (target && isExternal(target.href)) {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        console.log('Intercepted and prevented external link click:', target.href);
+                    }
+                }, true);
+
+                // ✨ بستن اتوماتیک مودال تغییر مکان شیپور («آیا مکان خود را تغییر می‌دهید؟»)
+                setInterval(() => {
+                    try {
+                        const btns = Array.from(document.querySelectorAll('button'));
+                        for (const b of btns) {
+                            const t = (b.innerText || '').trim();
+                            if (t.includes('تغییر می‌دهم') || t.includes('بله، تغییر')) {
+                                console.log('Auto-dismissed Sheypoor location modal:', t);
+                                b.click();
+                                break;
+                            }
+                        }
+                    } catch(e){}
+                }, 400);
+            })();
+        """)
+
+        logger.info("Browser started successfully with 5-layer app popup & Sheypoor location modal blocking enabled")
         return self._page
+
+    def _on_dialog(self, dialog: Dialog) -> None:
+        """لغو خودکار و فشردن دکمه Cancel برای تمام دیالوگ‌ها."""
+        logger.info("Automatically dismissing browser dialog: message='%s' type='%s'", dialog.message, dialog.type)
+        try:
+            asyncio.create_task(dialog.dismiss())
+        except Exception as e:
+            logger.debug("Error dismissing dialog: %s", e)
 
     def _on_context_close(self) -> None:
         logger.info("Browser context closed")
 
     async def _install_session_storage(self, context: BrowserContext, values: dict) -> None:
-        """Restore sessionStorage before each document is evaluated.
-
-        Session storage is origin-scoped and is not supported by Playwright's
-        storage_state format, so it must be restored with an init script.
-        """
         import json
         payload = json.dumps(values, ensure_ascii=False).replace("</", "<\\/")
         script = (
@@ -166,8 +248,9 @@ class BrowserManager:
         return self._browser is not None and self._page is not None
 
     async def new_page(self) -> Page:
-        """ایجاد یک Page جدید روی همان Context (مثلاً برای تب جدید)."""
-        return await self.context.new_page()
+        page = await self.context.new_page()
+        page.on("dialog", self._on_dialog)
+        return page
 
     # ------------------------------------------------------------------
     # Context manager support

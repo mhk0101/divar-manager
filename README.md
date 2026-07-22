@@ -1,127 +1,124 @@
-# 🎯 Divar Manager - نسخه نهایی و کامل
+# 🎯 Divar Manager — استخراج هوشمند شماره تماس و ارسال پیام خودکار
 
-## 📦 محتویات (همه در یک فایل)
+مدیریت خودکار آگهی‌های **دیوار** و **شیپور** با PySide6 + Playwright
 
+---
+
+## ✨ قابلیت‌ها
+
+| قابلیت | دیوار | شیپور |
+|--------|:-----:|:-----:|
+| ورود خودکار (Login) | ✅ | ✅ |
+| مدیریت Session و کوکی | ✅ | ✅ |
+| استخراج آگهی (چند صفحه) | ✅ | ✅ |
+| استخراج شماره تماس | ✅ | ✅ |
+| ارسال پیام چت خودکار | ✅ | ✅ |
+| حل خودکار کپچا (EasyOCR) | — | ✅ |
+| Escape فیزیکی (Win32 API) | — | ✅ |
+| وقفه تصادفی ضد کپچا | — | ✅ |
+| ذخیره اکسل پوشه‌بندی شده | ✅ | ✅ |
+| بروزرسانی زنده کوکی‌ها | ✅ | ✅ |
+| تشخیص بسته شدن دستی مرورگر | ✅ | ✅ |
+
+---
+
+## 📦 نصب
+
+```bash
+pip install -r requirements.txt
+playwright install chromium
 ```
-divar_complete/
-├── core/
-│   ├── session_manager.py       ✅ حذف کامل + capture_storage_state
-│   └── token_refresher.py       ✅ Auto-refresh (دیوار + شیپور)
-├── modules/
-│   ├── login/
-│   │   └── login_manager.py     ✅ Login دیوار (همه اصلاحات)
-│   └── sheypoor/login/
-│       └── login_manager.py     ✅ Login شیپور
-├── ui/
-│   ├── platform_tab.py          ✅ UI (دکمه لغو + مرورگر باز)
-│   ├── automation_tab.py        🤖 تب اتوماسیون
-│   └── main_window.py           🪟 پنجره اصلی (4 تب)
-├── fetch_cities.py              📡 دریافت لیست شهرها
-└── README.md                    📖 این فایل
+
+نیازمندی‌ها (`requirements.txt`):
+```
+playwright==1.49.1
+pydantic==2.9.2
+openpyxl>=3.1.0
+easyocr>=1.7.0
+opencv-python-headless>=4.8.0
+pillow>=10.0.0
+numpy>=1.24.0
+PySide6>=6.5.0
 ```
 
 ---
 
-## 🚀 نصب (فقط یک دستور!)
-
-```bash
-# همه فایل‌ها را کپی کنید:
-xcopy /E /I /Y divar_complete\* .
-```
-
-یا به صورت دستی:
-
-```bash
-# Core
-copy /Y divar_complete\core\session_manager.py core\
-copy /Y divar_complete\core\token_refresher.py core\
-
-# Login Managers
-copy /Y divar_complete\modules\login\login_manager.py modules\login\
-copy /Y divar_complete\modules\sheypoor\login\login_manager.py modules\sheypoor\login\
-
-# UI
-copy /Y divar_complete\ui\platform_tab.py ui\
-copy /Y divar_complete\ui\automation_tab.py ui\
-copy /Y divar_complete\ui\main_window.py ui\
-
-# Automation
-copy /Y divar_complete\fetch_cities.py .
-```
-
----
-
-## 🤖 تب اتوماسیون
-
-### مرحله 1: دریافت لیست شهرها
-
-```bash
-python fetch_cities.py
-```
-
-خروجی: `data/cities.json`
-
-### مرحله 2: اجرا
+## 🚀 اجرا
 
 ```bash
 python ui/main.py
 ```
 
-حالا 4 تب می‌بینید:
-- 🏠 دیوار
-- 📢 شیپور
-- 🤖 اتوماسیون (جدید!)
-- 📋 لاگ‌ها
+---
+
+## 📂 ساختار پروژه
+
+```
+├── core/
+│   ├── browser_manager.py      # مدیریت مرورگر + مسدودسازی popup
+│   ├── session_manager.py      # مدیریت نشست‌ها
+│   ├── session_db.py           # دیتابیس نشست‌ها
+│   ├── session_models.py       # مدل‌های داده
+│   └── token_refresher.py      # تمدید خودکار توکن
+├── modules/
+│   ├── ad_extractor.py         # ⭐ استخراج شماره + چت + Escape + کپچا
+│   ├── captcha_solver.py       # ⭐ حل خودکار کپچا با EasyOCR
+│   ├── phone_selector.py       # انتخاب پیش‌شماره
+│   ├── login/                  # ورود دیوار
+│   └── sheypoor/login/         # ورود شیپور
+├── ui/
+│   ├── automation_tab.py       # تب اتوماسیون اصلی
+│   ├── platform_tab.py         # تب مدیریت حساب‌ها
+│   ├── main_window.py          # پنجره اصلی
+│   └── logs_tab.py             # تب لاگ‌ها
+├── data/
+│   ├── sheypoor_cities.json    # شهرهای شیپور
+│   └── sheypoor_categories.json# دسته‌بندی‌های شیپور
+├── tests/                      # تست‌های خودکار
+├── fetch_cities.py             # دریافت شهرهای دیوار
+├── fetch_categories.py         # دریافت دسته‌بندی‌های دیوار
+├── fetch_sheypoor_locations.py # دریافت شهرهای شیپور
+├── fetch_sheypoor_categories.py# دریافت دسته‌بندی‌های شیپور
+└── requirements.txt
+```
 
 ---
 
-## ✅ اصلاحات انجام‌شده
+## 🔐 حل خودکار کپچای شیپور
 
-### 1. دکمه لغو/بازگشت ✅
-- `QTimer.singleShot()` برای تأخیر
-- Force close بعد از 500ms
-
-### 2. صفحه کد بار دوم ✅
-- `page_state` بعد از کلیک دوباره detect می‌شود
-
-### 3. تشخیص ورود کد از سایت ✅
-- `asyncio.wait()` با دو task (UI + site)
-
-### 4. مقاومت در برابر قطع اینترنت ✅
-- URL های ایرانی (divar.ir, aparat.com, varzesh3.com)
-
-### 5. حذف کامل Session ✅
-- هم DB و هم فایل JSON حذف می‌شوند
-
-### 6. capture_storage_state ✅
-- متد اضافه شد
-
-### 7. Token Auto-Refresh ✅
-- دیوار: sAccessToken + sRefreshToken
-- شیپور: access_token + refresh_token
-
-### 8. status=VALID بعد از Login ✅
-- چک تغییرات قبل از ذخیره
-- فقط در صورت تغییر ذخیره می‌شود
-
-### 9. مرورگر باز بعد از Login ✅
-- `wait_for_event("close")` تا کاربر ببندد
-
-### 10. ذخیره بهینه Session ✅
-- فقط اگر تغییر کرده ذخیره می‌شود
-- capture_storage_state یک بار (نه دو بار)
+برنامه با **EasyOCR** کد امنیتی شیپور را تشخیص می‌دهد:
+- **دو روش**: Raw (سریع) + Advanced (پیش‌پردازش قوی)
+- **۶ تلاش** خودکار با کلیک روی «تغییر کد امنیتی»
+- نمایش **روش حل** در لاگ (Raw / Advanced / یکسان)
 
 ---
 
-## 🎯 نتیجه نهایی
+## ⌨️ مدیریت پاپ‌آپ ویندوز
 
-| قابلیت | وضعیت |
-|--------|-------|
-| Login دیوار | ✅ کامل |
-| Login شیپور | ✅ کامل |
-| Session Management | ✅ کامل |
-| Token Auto-Refresh | ✅ کامل |
-| تب اتوماسیون | ✅ کامل |
-| Internet Resilience | ✅ کامل |
+برای جلوگیری از دیالوگ `"Open Pick an app?"` در ویندوز:
+- Escape فیزیکی از طریق **Win32 API** (`keybd_event`)
+- Escape از طریق **Playwright keyboard**
+- Escape از طریق **DOM KeyboardEvent**
+- **قبل و بعد** از کلیک روی دکمه تماس
+- **قبل و بعد** از ارسال پیام چت
+- **بعد** از حل کپچا
 
-**موفق باشید! 🎉**
+---
+
+## 📊 خروجی اکسل
+
+شماره‌ها به صورت خودکار در فایل‌های اکسل پوشه‌بندی شده ذخیره می‌شوند:
+
+```
+data/extracted_phones/
+  └── 0917_ بوشهر_ دسته کالای دیجیتال/
+      └── شماره_های_0917.xlsx
+```
+
+---
+
+## 🧪 تست‌ها
+
+```bash
+python -m pytest
+```
