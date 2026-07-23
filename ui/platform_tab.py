@@ -41,6 +41,7 @@ if str(PROJECT_ROOT) not in sys.path:
 
 from core.browser_manager import BrowserManager
 from core.session_manager import SessionManager
+from core.fingerprint_manager import FingerprintManager
 from core.session_models import SessionRecord, SessionStatus
 from playwright.async_api import Error as PlaywrightError
 
@@ -159,7 +160,9 @@ class SessionCheckWorker(QRunnable):
                 self.signals.status_changed.emit(
                     f"در حال بررسی Session شماره {record.phone}..."
                 )
-                bm = BrowserManager(session_record=record)
+                fp_mgr = FingerprintManager()
+                fp = fp_mgr.get(record.phone, record.platform)
+                bm = BrowserManager(session_record=record, fingerprint=fp)
                 self._browser_manager = bm
                 async with bm:
                     try:
@@ -313,7 +316,9 @@ class LoginWorker(QRunnable):
         try:
             async def _run():
                 session_manager = SessionManager(platform=self._platform_key)
-                browser_manager = BrowserManager()
+                fp_mgr = FingerprintManager()
+                fp = fp_mgr.get(self.phone, self._platform_key)
+                browser_manager = BrowserManager(fingerprint=fp)
                 self._browser_manager = browser_manager
 
                 async with browser_manager:

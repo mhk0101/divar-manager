@@ -42,6 +42,7 @@ from modules.sheypoor import LoginManager as SheypoorLoginManager
 from ui.platform_tab import PlatformTab
 from ui.logs_tab import LogsTab
 from ui.automation_tab import AutomationTab
+from ui.schedule_tab import ScheduleTab
 from ui import icons
 from ui.theme import (
     apply_theme,
@@ -62,6 +63,7 @@ NAV_ITEMS = [
     ("sheypoor",   "megaphone", "شیپور",      "شیپور",       "مدیریت ورود و Session حساب شیپور"),
     ("automation", "robot",     "اتوماسیون",  "اتوماسیون",   "انتخاب شهر و دسته‌بندی و باز کردن دیوار"),
     ("logs",       "logs",      "لاگ‌ها",      "لاگ‌های سیستم", "تمام رویدادها و خطاهای برنامه"),
+    ("schedules",  "clock",     "زمانبندی‌ها", "زمانبندی‌های فعال", "نمایش و پایش تمام زمانبندی‌های خودکار"),
 ]
 
 
@@ -229,6 +231,11 @@ class MainWindow(QMainWindow):
         self.logs_tab = LogsTab()
         self.stack.addWidget(self.logs_tab)
 
+        self.schedule_tab = ScheduleTab()
+        self.stack.addWidget(self.schedule_tab)
+
+        self.automation_tab.schedules_changed.connect(self.schedule_tab.update_schedules)
+
         layout.addWidget(self.stack, stretch=1)
 
         return content
@@ -369,6 +376,7 @@ class MainWindow(QMainWindow):
             self.sheypoor_tab.restyle()
             self.automation_tab.restyle()
             self.logs_tab.restyle()
+            self.schedule_tab.restyle()
         except Exception:
             pass
         try:

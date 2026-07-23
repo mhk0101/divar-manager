@@ -96,7 +96,10 @@ class LoginWorker(QRunnable):
 
             async def _run():
                 session_manager = SessionManager(platform="divar")
-                browser_manager = BrowserManager()
+                from core.fingerprint_manager import FingerprintManager
+                fp_mgr = FingerprintManager()
+                fp = fp_mgr.get(self.phone, "divar")
+                browser_manager = BrowserManager(fingerprint=fp)
 
                 async with browser_manager:
                     login_manager = LoginManager(

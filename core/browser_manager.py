@@ -13,7 +13,7 @@ import asyncio
 import logging
 from pathlib import Path
 from types import TracebackType
-from typing import Optional
+from typing import Dict, Optional
 
 from playwright.async_api import (
     Browser,
@@ -35,6 +35,7 @@ from config.settings import (
     USER_AGENT,
 )
 from core.session_models import SessionRecord
+from core.fingerprint_manager import FingerprintManager
 
 logger = logging.getLogger("divar.browser")
 
@@ -47,10 +48,12 @@ class BrowserManager:
         storage_state_path: Optional[Path] = None,
         session_record: Optional[SessionRecord] = None,
         headless: Optional[bool] = None,
+        fingerprint: Optional[Dict] = None,
     ) -> None:
         self._storage_state_path = storage_state_path
         self._session_record = session_record
         self._headless = HEADLESS if headless is None else headless
+        self._fingerprint = fingerprint  # fingerprint اختصاصی هر شماره
 
         self._playwright: Optional[Playwright] = None
         self._browser: Optional[Browser] = None
@@ -81,11 +84,35 @@ class BrowserManager:
             args=launch_args,
         )
 
+        # ⬇️ استفاده از fingerprint اختصاصی اگر موجود باشد، در غیر این صورت پیش‌فرض
+        ua = USER_AGENT
+        viewport = {"width": 1280, "height": 800}
+        locale = "fa-IR"
+        extra_headers = {}
+
+        if self._fingerprint:
+            ua = self._fingerprint.get("user_agent", USER_AGENT)
+            viewport = self._fingerprint.get("viewport", {"width": 1280, "height": 800})
+            locale = self._fingerprint.get("accept_language", "fa-IR")
+            fp_platform = self._fingerprint.get("os_platform", "Win32")
+            color_scheme = self._fingerprint.get("color_scheme", "light")
+            dsf = self._fingerprint.get("device_scale_factor", 1.0)
+            extra_headers = {
+                "Accept-Language": self._fingerprint.get("accept_language", "fa-IR,fa;q=0.9,en;q=0.8"),
+                "sec-ch-ua-platform": f'"{fp_platform}"',
+            }
+
+            logger.info(
+                "🎭 Fingerprint اختصاصی: UA=%s... Viewport=%s OS=%s",
+                ua[:60], viewport, fp_platform,
+            )
+
         context_kwargs: dict = {
-            "user_agent": USER_AGENT,
-            "viewport": {"width": 1280, "height": 800},
+            "user_agent": ua,
+            "viewport": viewport,
             "locale": "fa-IR",
             "timezone_id": "Asia/Tehran",
+            "extra_http_headers": extra_headers,
             "ignore_https_errors": False,
         }
 
