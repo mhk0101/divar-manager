@@ -1,11 +1,16 @@
 @echo off
-cd /d "%~dp0"
+setlocal EnableExtensions
+cd /d "%~dp0" || exit /b 1
 
-call .venv\Scripts\activate.bat
+if not exist ".venv\Scripts\python.exe" (
+    echo Virtual environment was not found. Running one-click setup...
+    call "%~dp0setup_and_run.bat"
+    exit /b %ERRORLEVEL%
+)
 
-.venv\Scripts\python.exe ui\main.py
+".venv\Scripts\python.exe" "ui\main.py"
 
 echo.
 echo ---------------------------------------
-echo برنامه بسته شد.
+echo Application closed.
 pause

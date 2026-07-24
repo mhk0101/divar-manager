@@ -244,6 +244,13 @@ class AutomationBrowserWorker(QRunnable):
         return True
 
     def request_close(self):
+        # مهم: با درخواست کاربر، Worker باید فوراً غیرفعال شود تا حلقه پردازش
+        # بعد از بسته شدن مرورگر سراغ آگهی‌های بعدی نرود.
+        self._is_active = False
+        try:
+            self.signals.status_changed.emit("⏹️ درخواست توقف عملیات دریافت شد؛ در حال بستن مرورگر و توقف ادامه پردازش...")
+        except Exception:
+            pass
         if self._loop is not None and self._browser_manager is not None:
             import asyncio
             try:
@@ -297,6 +304,14 @@ class AutomationBrowserWorker(QRunnable):
 
                 progress_task = asyncio.create_task(_emit_progress())
 
+                def _ensure_active():
+                    try:
+                        page_closed = bm.page.is_closed()
+                    except Exception:
+                        page_closed = True
+                    if (not self._is_active) or page_closed:
+                        raise RuntimeError("__USER_STOPPED__")
+
                 async with bm:
                     try:
                         from core.token_refresher import TokenRefresher
@@ -322,6 +337,7 @@ class AutomationBrowserWorker(QRunnable):
                         await bm.page.wait_for_load_state("networkidle", timeout=10_000)
                     except Exception:
                         pass
+                    _ensure_active()
 
                     # ✨ ۱. استخراج آگهی‌های جدید (با وقفه ۳ ثانیه‌ای بین اسکرول‌ها)
                     self.signals.status_changed.emit(
@@ -332,6 +348,7 @@ class AutomationBrowserWorker(QRunnable):
                         max_pages=self.max_pages,
                         progress_callback=lambda msg: self.signals.status_changed.emit(f"[استخراج] {msg}"),
                     )
+                    _ensure_active()
 
                     _extracted_count[0] = len(extracted_ads)
                     # ارسال فوری نتایج اولیه به جدول UI
@@ -357,6 +374,7 @@ class AutomationBrowserWorker(QRunnable):
                                 f"💬🔗 همگام‌سازی فعال: استخراج شماره تماس و ارسال چت هم‌زمان برای {len(target_ads)} آگهی {plat_name}..."
                             )
                             for idx, ad in enumerate(target_ads, 1):
+                                _ensure_active()
                                 token = ad.get("token")
                                 ad_url = ad.get("url")
 
@@ -373,6 +391,7 @@ class AutomationBrowserWorker(QRunnable):
                                         progress_callback=lambda msg: self.signals.status_changed.emit(f"[همگام {idx}/{len(target_ads)}] {msg}"),
                                     )
 
+                                _ensure_active()
                                 ad["phone_number"] = p_num if p_num else "ناموجود/مخفی"
                                 ad["has_chat"] = bool(has_chat)
 
@@ -400,6 +419,7 @@ class AutomationBrowserWorker(QRunnable):
                                 # بروزرسانی فوری جدول/فایل بعد از استخراج شماره، حتی اگر چت ارسال نشود.
                                 self.signals.ads_extracted.emit(list(extracted_ads))
                                 save_extracted_ads(extracted_ads, self.platform, self.phone)
+                                _ensure_active()
 
                                 # ب) ارسال پیام در چت همان آگهی
                                 # اگر از داخل صفحه خود آگهی تشخیص دادیم چت فعال نیست، دیگر بی‌دلیل وارد /chat نشو.
@@ -440,6 +460,7 @@ class AutomationBrowserWorker(QRunnable):
                             )
 
                             for idx, ad in enumerate(target_phone_ads, 1):
+                                _ensure_active()
                                 token = ad.get("token")
                                 ad_url = ad.get("url")
 
@@ -455,6 +476,7 @@ class AutomationBrowserWorker(QRunnable):
                                         progress_callback=lambda msg: self.signals.status_changed.emit(f"[شماره تماس {idx}/{len(target_phone_ads)}] {msg}"),
                                     )
 
+                                _ensure_active()
                                 ad["phone_number"] = p_num if p_num else "ناموجود/مخفی"
 
                                 if p_num and p_num.startswith("09") and len(p_num) == 11:
@@ -486,6 +508,7 @@ class AutomationBrowserWorker(QRunnable):
                                     f"💬 شروع ارسال پیام چت به {len(target_ads)} آگهی جدید {plat_name} (سقف تنظیمی: {self.max_chats} چت)..."
                                 )
                                 for idx, ad in enumerate(target_ads, 1):
+                                    _ensure_active()
                                     token = ad.get("token")
 
                                     self.signals.status_changed.emit(
@@ -508,6 +531,8 @@ class AutomationBrowserWorker(QRunnable):
 
                                     self.signals.ads_extracted.emit(list(extracted_ads))
                                     save_extracted_ads(extracted_ads, self.platform, self.phone)
+
+                    _ensure_active()
 
                     details = f"شهرها: {', '.join(self.cities_names)}\nدسته‌بندی: {self.category_name}\n" if self.cities_names else ""
                     self.signals.status_changed.emit(
@@ -579,7 +604,15 @@ class AutomationBrowserWorker(QRunnable):
             loop.run_until_complete(_run())
 
         except Exception as e:
-            self.signals.error_occurred.emit(f"خطا: {e}")
+            msg = str(e)
+            if "__USER_STOPPED__" in msg or "__BROWSER_CLOSED__" in msg or "Target page, context or browser has been closed" in msg:
+                self.signals.status_changed.emit("⏹️ عملیات اتوماسیون توسط کاربر متوقف شد؛ ادامه پردازش آگهی‌ها لغو گردید.")
+                try:
+                    self.signals.finished.emit(self.url)
+                except Exception:
+                    pass
+            else:
+                self.signals.error_occurred.emit(f"خطا: {e}")
         finally:
             self._is_active = False
             loop.close()

@@ -1,20 +1,103 @@
-# فایل‌های داده و Session
-data/
-data/sessions/*.json
+# ============================================================
+# Divar & Sheypoor Manager - Git Ignore
+# فایل‌های کد و دیتای عمومی شهر/دسته‌بندی باید Push شوند؛
+# فایل‌های Session/DB/خروجی/شماره/کوکی نباید Push شوند.
+# ============================================================
 
-# Virtual environment
+# -------------------------
+# Python cache / build
+# -------------------------
+__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+build/
+dist/
+*.egg-info/
+
+# -------------------------
+# Virtual environments
+# -------------------------
 .venv/
 venv/
-__pycache__/
-*.pyc
-*.pyo
-.pytest_cache/
+env/
 
-# Editor
+# -------------------------
+# IDE / OS
+# -------------------------
 .vscode/
 .idea/
 *.swp
+.DS_Store
+Thumbs.db
 
-# Logs
+# -------------------------
+# Logs / temp
+# -------------------------
 *.log
+logs/
 *.run.bat
+*.tmp
+
+# -------------------------
+# Sensitive runtime data
+# -------------------------
+# خود پوشه data لازم است، اما فقط فایل‌های عمومی زیر باید Push شوند:
+# data/cities.json
+# data/categories.json
+# data/sheypoor_cities.json
+# data/sheypoor_categories.json
+
+data/*
+!data/.gitkeep
+!data/cities.json
+!data/categories.json
+!data/sheypoor_cities.json
+!data/sheypoor_categories.json
+
+# دیتابیس، Session، تنظیمات شخصی، خروجی‌ها و fingerprintها
+data/db/
+data/sessions/
+data/settings/
+data/temp/
+data/extracted_ads/
+data/extracted_phones/
+data/fingerprints.json
+
+# Auth/session/cookie files anywhere
+*_session.json
+*.cookies.json
+*.storage.json
+*.db
+*.sqlite
+*.sqlite3
+
+# Extracted user outputs
+*.xlsx
+*.xls
+
+# اگر CSV مستند/نمونه دارید جداگانه add کنید؛ خروجی‌های واقعی Push نشوند
+*.csv
+
+# -------------------------
+# Local personal config
+# -------------------------
+config/phone_numbers.json
+
+# -------------------------
+# Backups / old fix files
+# -------------------------
+backups/
+_fix_backup_*/
+*.bak
+*.bak2
+*.bak_*
+*_backup.py
+ui/platform_tab_backup.py
+
+# -------------------------
+# Generated zip deliverables
+# -------------------------
+*.zip

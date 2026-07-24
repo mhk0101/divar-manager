@@ -1,0 +1,583 @@
+{
+  "count": 96,
+  "main_count": 10,
+  "sub_count": 86,
+  "categories": [
+    {
+      "name": "املاک",
+      "slug": "real-estate",
+      "category": "اصلی",
+      "type": "main"
+    },
+    {
+      "name": "فروش مسکونی",
+      "slug": "buy-residential",
+      "category": "املاک",
+      "type": "sub"
+    },
+    {
+      "name": "اجاره مسکونی",
+      "slug": "rent-residential",
+      "category": "املاک",
+      "type": "sub"
+    },
+    {
+      "name": "فروش آپارتمان",
+      "slug": "apartment-sell",
+      "category": "املاک",
+      "type": "sub"
+    },
+    {
+      "name": "اجاره آپارتمان",
+      "slug": "apartment-rent",
+      "category": "املاک",
+      "type": "sub"
+    },
+    {
+      "name": "فروش خانه و ویلا",
+      "slug": "house-villa-sell",
+      "category": "املاک",
+      "type": "sub"
+    },
+    {
+      "name": "اجاره خانه و ویلا",
+      "slug": "house-villa-rent",
+      "category": "املاک",
+      "type": "sub"
+    },
+    {
+      "name": "فروش زمین و کلنگی",
+      "slug": "buy-old-house",
+      "category": "املاک",
+      "type": "sub"
+    },
+    {
+      "name": "اجاره اداری و تجاری",
+      "slug": "rent-commercial-property",
+      "category": "املاک",
+      "type": "sub"
+    },
+    {
+      "name": "فروش اداری و تجاری",
+      "slug": "buy-commercial-property",
+      "category": "املاک",
+      "type": "sub"
+    },
+    {
+      "name": "اجاره کوتاه مدت",
+      "slug": "temporary-rent",
+      "category": "املاک",
+      "type": "sub"
+    },
+    {
+      "name": "پروژه‌های ساخت و ساز",
+      "slug": "real-estate-services",
+      "category": "املاک",
+      "type": "sub"
+    },
+    {
+      "name": "وسایل نقلیه",
+      "slug": "vehicles",
+      "category": "اصلی",
+      "type": "main"
+    },
+    {
+      "name": "خودرو",
+      "slug": "auto",
+      "category": "وسایل نقلیه",
+      "type": "sub"
+    },
+    {
+      "name": "سواری",
+      "slug": "car",
+      "category": "وسایل نقلیه",
+      "type": "sub"
+    },
+    {
+      "name": "کلاسیک",
+      "slug": "classic-car",
+      "category": "وسایل نقلیه",
+      "type": "sub"
+    },
+    {
+      "name": "اجاره‌ای",
+      "slug": "rental-car",
+      "category": "وسایل نقلیه",
+      "type": "sub"
+    },
+    {
+      "name": "سنگین",
+      "slug": "heavy-car",
+      "category": "وسایل نقلیه",
+      "type": "sub"
+    },
+    {
+      "name": "موتورسیکلت",
+      "slug": "motorcycles",
+      "category": "وسایل نقلیه",
+      "type": "sub"
+    },
+    {
+      "name": "قطعات یدکی و لوازم جانبی",
+      "slug": "car-parts",
+      "category": "وسایل نقلیه",
+      "type": "sub"
+    },
+    {
+      "name": "قایق و لوازم دریایی",
+      "slug": "boats",
+      "category": "وسایل نقلیه",
+      "type": "sub"
+    },
+    {
+      "name": "کالای دیجیتال",
+      "slug": "electronic-devices",
+      "category": "اصلی",
+      "type": "main"
+    },
+    {
+      "name": "موبایل و تبلت",
+      "slug": "mobile-tablet",
+      "category": "کالای دیجیتال",
+      "type": "sub"
+    },
+    {
+      "name": "گوشی موبایل",
+      "slug": "mobile-phones",
+      "category": "کالای دیجیتال",
+      "type": "sub"
+    },
+    {
+      "name": "تبلت",
+      "slug": "tablet",
+      "category": "کالای دیجیتال",
+      "type": "sub"
+    },
+    {
+      "name": "لوازم جانبی موبایل و تبلت",
+      "slug": "mobile-tablet-accessories",
+      "category": "کالای دیجیتال",
+      "type": "sub"
+    },
+    {
+      "name": "رایانه",
+      "slug": "computers",
+      "category": "کالای دیجیتال",
+      "type": "sub"
+    },
+    {
+      "name": "لپ‌تاپ",
+      "slug": "laptop-notebook-macbook",
+      "category": "کالای دیجیتال",
+      "type": "sub"
+    },
+    {
+      "name": "کامپیوتر و قطعات",
+      "slug": "desktop-computer",
+      "category": "کالای دیجیتال",
+      "type": "sub"
+    },
+    {
+      "name": "کنسول و بازی",
+      "slug": "game-consoles",
+      "category": "کالای دیجیتال",
+      "type": "sub"
+    },
+    {
+      "name": "صوتی و تصویری",
+      "slug": "audio-video",
+      "category": "کالای دیجیتال",
+      "type": "sub"
+    },
+    {
+      "name": "دوربین",
+      "slug": "camera",
+      "category": "کالای دیجیتال",
+      "type": "sub"
+    },
+    {
+      "name": "تلفن رومیزی",
+      "slug": "telephone",
+      "category": "کالای دیجیتال",
+      "type": "sub"
+    },
+    {
+      "name": "خانه و آشپزخانه",
+      "slug": "home-kitchen",
+      "category": "اصلی",
+      "type": "main"
+    },
+    {
+      "name": "لوازم خانگی برقی",
+      "slug": "home-appliances",
+      "category": "خانه و آشپزخانه",
+      "type": "sub"
+    },
+    {
+      "name": "یخچال و فریزر",
+      "slug": "refrigerator-freezer",
+      "category": "خانه و آشپزخانه",
+      "type": "sub"
+    },
+    {
+      "name": "ماشین لباسشویی و خشک‌کن",
+      "slug": "washing-machines",
+      "category": "خانه و آشپزخانه",
+      "type": "sub"
+    },
+    {
+      "name": "ماشین ظرفشویی",
+      "slug": "dishwasher",
+      "category": "خانه و آشپزخانه",
+      "type": "sub"
+    },
+    {
+      "name": "جاروبرقی",
+      "slug": "vacuum-cleaner",
+      "category": "خانه و آشپزخانه",
+      "type": "sub"
+    },
+    {
+      "name": "لوازم آشپزخانه",
+      "slug": "kitchen-appliances",
+      "category": "خانه و آشپزخانه",
+      "type": "sub"
+    },
+    {
+      "name": "مبلمان و صندلی",
+      "slug": "furniture",
+      "category": "خانه و آشپزخانه",
+      "type": "sub"
+    },
+    {
+      "name": "میز و صندلی",
+      "slug": "tables-chairs",
+      "category": "خانه و آشپزخانه",
+      "type": "sub"
+    },
+    {
+      "name": "فرش و گلیم",
+      "slug": "carpet",
+      "category": "خانه و آشپزخانه",
+      "type": "sub"
+    },
+    {
+      "name": "دکوراسیون",
+      "slug": "decoration",
+      "category": "خانه و آشپزخانه",
+      "type": "sub"
+    },
+    {
+      "name": "خواب و حمام",
+      "slug": "bedroom",
+      "category": "خانه و آشپزخانه",
+      "type": "sub"
+    },
+    {
+      "name": "خدمات",
+      "slug": "services",
+      "category": "اصلی",
+      "type": "main"
+    },
+    {
+      "name": "موتور و ماشین",
+      "slug": "car-services",
+      "category": "خدمات",
+      "type": "sub"
+    },
+    {
+      "name": "نظافت",
+      "slug": "cleaning",
+      "category": "خدمات",
+      "type": "sub"
+    },
+    {
+      "name": "پذیرایی/مراسم",
+      "slug": "catering-services",
+      "category": "خدمات",
+      "type": "sub"
+    },
+    {
+      "name": "رایانه و موبایل",
+      "slug": "computer-mobile-services",
+      "category": "خدمات",
+      "type": "sub"
+    },
+    {
+      "name": "مالی/حسابداری/بیمه",
+      "slug": "financial-services",
+      "category": "خدمات",
+      "type": "sub"
+    },
+    {
+      "name": "حمل و نقل",
+      "slug": "transport-services",
+      "category": "خدمات",
+      "type": "sub"
+    },
+    {
+      "name": "پیشه و مهارت",
+      "slug": "skill-services",
+      "category": "خدمات",
+      "type": "sub"
+    },
+    {
+      "name": "آرایشگری و زیبایی",
+      "slug": "beauty-services",
+      "category": "خدمات",
+      "type": "sub"
+    },
+    {
+      "name": "سرگرمی",
+      "slug": "entertainment-services",
+      "category": "خدمات",
+      "type": "sub"
+    },
+    {
+      "name": "آموزشی",
+      "slug": "educational-services",
+      "category": "خدمات",
+      "type": "sub"
+    },
+    {
+      "name": "وسایل شخصی",
+      "slug": "personal-goods",
+      "category": "اصلی",
+      "type": "main"
+    },
+    {
+      "name": "کیف، کفش و لباس",
+      "slug": "clothing",
+      "category": "وسایل شخصی",
+      "type": "sub"
+    },
+    {
+      "name": "زیورآلات و اکسسوری",
+      "slug": "jewelry",
+      "category": "وسایل شخصی",
+      "type": "sub"
+    },
+    {
+      "name": "ساعت",
+      "slug": "watches",
+      "category": "وسایل شخصی",
+      "type": "sub"
+    },
+    {
+      "name": "عینک",
+      "slug": "glasses",
+      "category": "وسایل شخصی",
+      "type": "sub"
+    },
+    {
+      "name": "لوازم آرایشی، بهداشتی و درمانی",
+      "slug": "health-beauty",
+      "category": "وسایل شخصی",
+      "type": "sub"
+    },
+    {
+      "name": "کفش و لباس بچه",
+      "slug": "baby-and-toys",
+      "category": "وسایل شخصی",
+      "type": "sub"
+    },
+    {
+      "name": "سرگرمی و فراغت",
+      "slug": "entertainment",
+      "category": "اصلی",
+      "type": "main"
+    },
+    {
+      "name": "بلیط",
+      "slug": "ticket",
+      "category": "سرگرمی و فراغت",
+      "type": "sub"
+    },
+    {
+      "name": "تور و چارتر",
+      "slug": "tourism",
+      "category": "سرگرمی و فراغت",
+      "type": "sub"
+    },
+    {
+      "name": "کتاب و مجله",
+      "slug": "book-student-literature",
+      "category": "سرگرمی و فراغت",
+      "type": "sub"
+    },
+    {
+      "name": "دوچرخه، اسکیت و اسکوتر",
+      "slug": "bike-skate-scooter",
+      "category": "سرگرمی و فراغت",
+      "type": "sub"
+    },
+    {
+      "name": "حیوانات",
+      "slug": "animals",
+      "category": "سرگرمی و فراغت",
+      "type": "sub"
+    },
+    {
+      "name": "کلکسیون و سرگرمی",
+      "slug": "hobby-collectibles",
+      "category": "سرگرمی و فراغت",
+      "type": "sub"
+    },
+    {
+      "name": "آلات موسیقی",
+      "slug": "musical-instruments",
+      "category": "سرگرمی و فراغت",
+      "type": "sub"
+    },
+    {
+      "name": "ورزش و تناسب اندام",
+      "slug": "sport-leisure",
+      "category": "سرگرمی و فراغت",
+      "type": "sub"
+    },
+    {
+      "name": "اجتماعی",
+      "slug": "social-services",
+      "category": "اصلی",
+      "type": "main"
+    },
+    {
+      "name": "رویداد",
+      "slug": "event",
+      "category": "اجتماعی",
+      "type": "sub"
+    },
+    {
+      "name": "داوطلبانه",
+      "slug": "voluntary",
+      "category": "اجتماعی",
+      "type": "sub"
+    },
+    {
+      "name": "گمشده‌ها",
+      "slug": "lost-found",
+      "category": "اجتماعی",
+      "type": "sub"
+    },
+    {
+      "name": "تجهیزات و صنعتی",
+      "slug": "businesses",
+      "category": "اصلی",
+      "type": "main"
+    },
+    {
+      "name": "ماشین‌آلات صنعتی",
+      "slug": "industrial-machinery",
+      "category": "تجهیزات و صنعتی",
+      "type": "sub"
+    },
+    {
+      "name": "ابزار و یراق",
+      "slug": "tools",
+      "category": "تجهیزات و صنعتی",
+      "type": "sub"
+    },
+    {
+      "name": "عمده فروشی",
+      "slug": "wholesale",
+      "category": "تجهیزات و صنعتی",
+      "type": "sub"
+    },
+    {
+      "name": "اداری و تجاری",
+      "slug": "business-equipment",
+      "category": "تجهیزات و صنعتی",
+      "type": "sub"
+    },
+    {
+      "name": "پزشکی",
+      "slug": "medical-equipment",
+      "category": "تجهیزات و صنعتی",
+      "type": "sub"
+    },
+    {
+      "name": "کشاورزی و دامداری",
+      "slug": "farm-animals",
+      "category": "تجهیزات و صنعتی",
+      "type": "sub"
+    },
+    {
+      "name": "استخدام و کاریابی",
+      "slug": "jobs",
+      "category": "اصلی",
+      "type": "main"
+    },
+    {
+      "name": "اداری و مدیریت",
+      "slug": "administrative-jobs",
+      "category": "استخدام و کاریابی",
+      "type": "sub"
+    },
+    {
+      "name": "سرایداری و نظافت",
+      "slug": "janitorial-jobs",
+      "category": "استخدام و کاریابی",
+      "type": "sub"
+    },
+    {
+      "name": "معماری، عمران و ساختمانی",
+      "slug": "architect-jobs",
+      "category": "استخدام و کاریابی",
+      "type": "sub"
+    },
+    {
+      "name": "خدمات فروشگاه و رستوران",
+      "slug": "service-jobs",
+      "category": "استخدام و کاریابی",
+      "type": "sub"
+    },
+    {
+      "name": "رایانه و فناوری اطلاعات",
+      "slug": "it-computer-jobs",
+      "category": "استخدام و کاریابی",
+      "type": "sub"
+    },
+    {
+      "name": "مالی و حسابداری و حقوقی",
+      "slug": "finance-legal-jobs",
+      "category": "استخدام و کاریابی",
+      "type": "sub"
+    },
+    {
+      "name": "بازاریابی و فروش",
+      "slug": "marketing-jobs",
+      "category": "استخدام و کاریابی",
+      "type": "sub"
+    },
+    {
+      "name": "صنعتی و فنی و مهندسی",
+      "slug": "technical-jobs",
+      "category": "استخدام و کاریابی",
+      "type": "sub"
+    },
+    {
+      "name": "آموزشی",
+      "slug": "teaching-jobs",
+      "category": "استخدام و کاریابی",
+      "type": "sub"
+    },
+    {
+      "name": "حمل و نقل",
+      "slug": "transport-delivery-jobs",
+      "category": "استخدام و کاریابی",
+      "type": "sub"
+    },
+    {
+      "name": "درمانی و زیبایی و بهداشتی",
+      "slug": "healthcare-jobs",
+      "category": "استخدام و کاریابی",
+      "type": "sub"
+    },
+    {
+      "name": "هنری و رسانه",
+      "slug": "art-media-jobs",
+      "category": "استخدام و کاریابی",
+      "type": "sub"
+    }
+  ]
+}

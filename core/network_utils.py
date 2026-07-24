@@ -132,6 +132,23 @@ async def wait_for_internet(
                 progress_callback(msg)
 
 
+def is_target_closed_error(exc: Exception) -> bool:
+    """تشخیص بسته شدن عمدی/دستی صفحه، context یا مرورگر.
+
+    این خطا نباید به عنوان قطع اینترنت retry شود؛ یعنی کاربر مرورگر را بسته
+    یا عملیات عملاً قابل ادامه با همان page نیست.
+    """
+    text = str(exc).lower()
+    needles = [
+        "target page, context or browser has been closed",
+        "target closed",
+        "browser has been closed",
+        "context has been closed",
+        "page has been closed",
+    ]
+    return any(n in text for n in needles)
+
+
 def _looks_like_network_error(exc: Exception) -> bool:
     text = str(exc).lower()
     needles = [
@@ -173,8 +190,15 @@ async def safe_page_goto(
             return await page.goto(url, wait_until=wait_until, timeout=timeout)
         except Exception as exc:
             last_error = exc
-            if not _looks_like_network_error(exc) and attempt >= 2:
+
+            # اگر کاربر مرورگر/صفحه را بسته باشد، retry اینترنتی اشتباه است.
+            if is_target_closed_error(exc):
                 raise
+
+            # خطاهای غیرشبکه‌ای هم نباید چند بار تکرار شوند.
+            if not _looks_like_network_error(exc):
+                raise
+
             if progress_callback:
                 progress_callback(
                     f"⚠️ مشکل شبکه/لود هنگام باز کردن {label} (تلاش {attempt}/{max_attempts}): {exc}\n"

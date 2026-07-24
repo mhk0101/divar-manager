@@ -25,7 +25,7 @@ from typing import Callable, Dict, List, Optional, Set
 from playwright.async_api import Page
 
 from modules.captcha_solver import solve_sheypoor_captcha
-from core.network_utils import safe_page_goto, wait_for_internet
+from core.network_utils import safe_page_goto, wait_for_internet, is_target_closed_error
 
 logger = logging.getLogger("divar.ad_extractor")
 
@@ -862,6 +862,8 @@ class AdExtractor:
                 progress_callback(f"📱 شماره تماس معتبر استخراج شد: {phone_number}")
 
         except Exception as e:
+            if is_target_closed_error(e):
+                raise RuntimeError("__BROWSER_CLOSED__") from e
             logger.debug("Failed to extract phone number for token %s: %s", token, e)
             phone_number = "خطا در استخراج"
 
@@ -1005,6 +1007,8 @@ class AdExtractor:
             await self.page.wait_for_timeout(int(delay_sec * 1000))
 
         except Exception as e:
+            if is_target_closed_error(e):
+                raise RuntimeError("__BROWSER_CLOSED__") from e
             logger.debug("Failed to extract Sheypoor phone for %s: %s", url, e)
             phone_number = "خطا در استخراج"
 
@@ -1159,6 +1163,8 @@ class AdExtractor:
             return True
 
         except Exception as e:
+            if is_target_closed_error(e):
+                raise RuntimeError("__BROWSER_CLOSED__") from e
             logger.error("[divar_chat] Exception sending chat to %s: %s", token, e)
             if progress_callback:
                 progress_callback(f"❌ خطا در ارسال پیام چت برای {token}: {e}")
@@ -1247,6 +1253,8 @@ class AdExtractor:
                 return False
 
         except Exception as e:
+            if is_target_closed_error(e):
+                raise RuntimeError("__BROWSER_CLOSED__") from e
             logger.error("[sheypoor_chat] Exception sending chat to %s: %s", listing_id, e)
             if progress_callback:
                 progress_callback(f"❌ خطا در ارسال چت شیپور: {e}")

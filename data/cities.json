@@ -1,0 +1,4604 @@
+{
+  "count": 292,
+  "provinces_count": 31,
+  "cities": [
+    {
+      "id": 24,
+      "name": "آبادان",
+      "slug": "abadan",
+      "province_id": 902,
+      "province_name": "خوزستان",
+      "province_slug": "khuzestan-province",
+      "display_name": "آبادان (خوزستان)",
+      "districts_count": 0
+    },
+    {
+      "id": 851,
+      "name": "آباده",
+      "slug": "abadeh",
+      "province_id": 898,
+      "province_name": "فارس",
+      "province_slug": "fars-province",
+      "display_name": "آباده (فارس)",
+      "districts_count": 0
+    },
+    {
+      "id": 775,
+      "name": "آبدانان",
+      "slug": "abdanan",
+      "province_id": 888,
+      "province_name": "ایلام",
+      "province_slug": "ilam-province",
+      "display_name": "آبدانان (ایلام)",
+      "districts_count": 0
+    },
+    {
+      "id": 1709,
+      "name": "آبسرد",
+      "slug": "absard",
+      "province_id": 904,
+      "province_name": "تهران",
+      "province_slug": "tehran-province",
+      "display_name": "آبسرد (تهران)",
+      "districts_count": 0
+    },
+    {
+      "id": 1715,
+      "name": "آبعلی",
+      "slug": "abali",
+      "province_id": 904,
+      "province_name": "تهران",
+      "province_slug": "tehran-province",
+      "display_name": "آبعلی (تهران)",
+      "districts_count": 0
+    },
+    {
+      "id": 869,
+      "name": "آبیک",
+      "slug": "abyek",
+      "province_id": 878,
+      "province_name": "قزوین",
+      "province_slug": "qazvin-province",
+      "display_name": "آبیک (قزوین)",
+      "districts_count": 0
+    },
+    {
+      "id": 1737,
+      "name": "آران و بیدگل",
+      "slug": "aran-va-bidgol",
+      "province_id": 890,
+      "province_name": "اصفهان",
+      "province_slug": "isfahan-province",
+      "display_name": "آران و بیدگل (اصفهان)",
+      "districts_count": 0
+    },
+    {
+      "id": 1691,
+      "name": "آزادشهر",
+      "slug": "azadshahr-golestan",
+      "province_id": 897,
+      "province_name": "گلستان",
+      "province_slug": "golestan-province",
+      "display_name": "آزادشهر (گلستان)",
+      "districts_count": 0
+    },
+    {
+      "id": 1722,
+      "name": "آسارا",
+      "slug": "asara",
+      "province_id": 895,
+      "province_name": "البرز",
+      "province_slug": "alborz-province",
+      "display_name": "آسارا (البرز)",
+      "districts_count": 0
+    },
+    {
+      "id": 824,
+      "name": "آستارا",
+      "slug": "astara",
+      "province_id": 889,
+      "province_name": "گیلان",
+      "province_slug": "gilan-province",
+      "display_name": "آستارا (گیلان)",
+      "districts_count": 0
+    },
+    {
+      "id": 825,
+      "name": "آستانه اشرفیه",
+      "slug": "astaneh-ashrafiyeh",
+      "province_id": 889,
+      "province_name": "گیلان",
+      "province_slug": "gilan-province",
+      "display_name": "آستانه اشرفیه (گیلان)",
+      "districts_count": 0
+    },
+    {
+      "id": 793,
+      "name": "آشخانه",
+      "slug": "ashkhaneh",
+      "province_id": 896,
+      "province_name": "خراسان شمالی",
+      "province_slug": "khorasan-north-province",
+      "display_name": "آشخانه (خراسان شمالی)",
+      "districts_count": 0
+    },
+    {
+      "id": 748,
+      "name": "آق قلا",
+      "slug": "aq-qala",
+      "province_id": 897,
+      "province_name": "گلستان",
+      "province_slug": "golestan-province",
+      "display_name": "آق قلا (گلستان)",
+      "districts_count": 0
+    },
+    {
+      "id": 663,
+      "name": "آمل",
+      "slug": "amol",
+      "province_id": 893,
+      "province_name": "مازندران",
+      "province_slug": "mazandaran-province",
+      "display_name": "آمل (مازندران)",
+      "districts_count": 0
+    },
+    {
+      "id": 1723,
+      "name": "ابریشم",
+      "slug": "abrisham-isfahan",
+      "province_id": 890,
+      "province_name": "اصفهان",
+      "province_slug": "isfahan-province",
+      "display_name": "ابریشم (اصفهان)",
+      "districts_count": 0
+    },
+    {
+      "id": 802,
+      "name": "ابهر",
+      "slug": "abhar",
+      "province_id": 879,
+      "province_name": "زنجان",
+      "province_slug": "zanjan-province",
+      "display_name": "ابهر (زنجان)",
+      "districts_count": 0
+    },
+    {
+      "id": 15,
+      "name": "اراک",
+      "slug": "arak",
+      "province_id": 901,
+      "province_name": "مرکزی",
+      "province_slug": "markazi-province",
+      "display_name": "اراک (مرکزی)",
+      "districts_count": 0
+    },
+    {
+      "id": 1714,
+      "name": "ارجمند",
+      "slug": "arjmand",
+      "province_id": 904,
+      "province_name": "تهران",
+      "province_slug": "tehran-province",
+      "display_name": "ارجمند (تهران)",
+      "districts_count": 0
+    },
+    {
+      "id": 17,
+      "name": "اردبیل",
+      "slug": "ardabil",
+      "province_id": 906,
+      "province_name": "اردبیل",
+      "province_slug": "ardabil-province",
+      "display_name": "اردبیل (اردبیل)",
+      "districts_count": 0
+    },
+    {
+      "id": 846,
+      "name": "اردکان",
+      "slug": "ardakan",
+      "province_id": 886,
+      "province_name": "یزد",
+      "province_slug": "yazd-province",
+      "display_name": "اردکان (یزد)",
+      "districts_count": 0
+    },
+    {
+      "id": 10,
+      "name": "ارومیه",
+      "slug": "urmia",
+      "province_id": 881,
+      "province_name": "آذربایجان غربی",
+      "province_slug": "azerbaijan-west-province",
+      "display_name": "ارومیه (آذربایجان غربی)",
+      "districts_count": 0
+    },
+    {
+      "id": 870,
+      "name": "ازنا",
+      "slug": "azna",
+      "province_id": 884,
+      "province_name": "لرستان",
+      "province_slug": "lorestan-province",
+      "display_name": "ازنا (لرستان)",
+      "districts_count": 0
+    },
+    {
+      "id": 1812,
+      "name": "اسالم",
+      "slug": "asalem",
+      "province_id": 889,
+      "province_name": "گیلان",
+      "province_slug": "gilan-province",
+      "display_name": "اسالم (گیلان)",
+      "districts_count": 0
+    },
+    {
+      "id": 842,
+      "name": "اسدآباد",
+      "slug": "asadabad",
+      "province_id": 899,
+      "province_name": "همدان",
+      "province_slug": "hamadan-province",
+      "display_name": "اسدآباد (همدان)",
+      "districts_count": 0
+    },
+    {
+      "id": 794,
+      "name": "اسفراین",
+      "slug": "esfarāyen",
+      "province_id": 896,
+      "province_name": "خراسان شمالی",
+      "province_slug": "khorasan-north-province",
+      "display_name": "اسفراین (خراسان شمالی)",
+      "districts_count": 0
+    },
+    {
+      "id": 29,
+      "name": "اسلام‌شهر",
+      "slug": "eslamshahr",
+      "province_id": 904,
+      "province_name": "تهران",
+      "province_slug": "tehran-province",
+      "display_name": "اسلام‌شهر (تهران)",
+      "districts_count": 0
+    },
+    {
+      "id": 819,
+      "name": "اسلام‌‌آباد غرب",
+      "slug": "eslamabad-gharb",
+      "province_id": 905,
+      "province_name": "کرمانشاه",
+      "province_slug": "kermanshah-province",
+      "display_name": "اسلام‌‌آباد غرب (کرمانشاه)",
+      "districts_count": 0
+    },
+    {
+      "id": 1721,
+      "name": "اشتهارد",
+      "slug": "eshtehard",
+      "province_id": 895,
+      "province_name": "البرز",
+      "province_slug": "alborz-province",
+      "display_name": "اشتهارد (البرز)",
+      "districts_count": 0
+    },
+    {
+      "id": 859,
+      "name": "اشنویه",
+      "slug": "oshnavieh",
+      "province_id": 881,
+      "province_name": "آذربایجان غربی",
+      "province_slug": "azerbaijan-west-province",
+      "display_name": "اشنویه (آذربایجان غربی)",
+      "districts_count": 0
+    },
+    {
+      "id": 4,
+      "name": "اصفهان",
+      "slug": "isfahan",
+      "province_id": 890,
+      "province_name": "اصفهان",
+      "province_slug": "isfahan-province",
+      "display_name": "اصفهان (اصفهان)",
+      "districts_count": 0
+    },
+    {
+      "id": 1795,
+      "name": "اقبالیه",
+      "slug": "eqbaliyeh",
+      "province_id": 878,
+      "province_name": "قزوین",
+      "province_slug": "qazvin-province",
+      "display_name": "اقبالیه (قزوین)",
+      "districts_count": 0
+    },
+    {
+      "id": 1728,
+      "name": "اقلید",
+      "slug": "eqlid",
+      "province_id": 898,
+      "province_name": "فارس",
+      "province_slug": "fars-province",
+      "display_name": "اقلید (فارس)",
+      "districts_count": 0
+    },
+    {
+      "id": 1816,
+      "name": "الشتر",
+      "slug": "aleshtar",
+      "province_id": 884,
+      "province_name": "لرستان",
+      "province_slug": "lorestan-province",
+      "display_name": "الشتر (لرستان)",
+      "districts_count": 0
+    },
+    {
+      "id": 872,
+      "name": "الوند",
+      "slug": "alvand",
+      "province_id": 878,
+      "province_name": "قزوین",
+      "province_slug": "qazvin-province",
+      "display_name": "الوند (قزوین)",
+      "districts_count": 0
+    },
+    {
+      "id": 830,
+      "name": "الیگودرز",
+      "slug": "aligudarz",
+      "province_id": 884,
+      "province_name": "لرستان",
+      "province_slug": "lorestan-province",
+      "display_name": "الیگودرز (لرستان)",
+      "districts_count": 0
+    },
+    {
+      "id": 1688,
+      "name": "املش",
+      "slug": "amlash",
+      "province_id": 889,
+      "province_name": "گیلان",
+      "province_slug": "gilan-province",
+      "display_name": "املش (گیلان)",
+      "districts_count": 0
+    },
+    {
+      "id": 1779,
+      "name": "امیدیه",
+      "slug": "omidiyeh",
+      "province_id": 902,
+      "province_name": "خوزستان",
+      "province_slug": "khuzestan-province",
+      "display_name": "امیدیه (خوزستان)",
+      "districts_count": 0
+    },
+    {
+      "id": 1703,
+      "name": "امیرکلا",
+      "slug": "amirkala",
+      "province_id": 893,
+      "province_name": "مازندران",
+      "province_slug": "mazandaran-province",
+      "display_name": "امیرکلا (مازندران)",
+      "districts_count": 0
+    },
+    {
+      "id": 1764,
+      "name": "اندیشه",
+      "slug": "andisheh-new-town",
+      "province_id": 904,
+      "province_name": "تهران",
+      "province_slug": "tehran-province",
+      "display_name": "اندیشه (تهران)",
+      "districts_count": 0
+    },
+    {
+      "id": 796,
+      "name": "اندیمشک",
+      "slug": "andimeshk",
+      "province_id": 902,
+      "province_name": "خوزستان",
+      "province_slug": "khuzestan-province",
+      "display_name": "اندیمشک (خوزستان)",
+      "districts_count": 0
+    },
+    {
+      "id": 7,
+      "name": "اهواز",
+      "slug": "ahvaz",
+      "province_id": 902,
+      "province_name": "خوزستان",
+      "province_slug": "khuzestan-province",
+      "display_name": "اهواز (خوزستان)",
+      "districts_count": 0
+    },
+    {
+      "id": 797,
+      "name": "ایذه",
+      "slug": "izeh",
+      "province_id": 902,
+      "province_name": "خوزستان",
+      "province_slug": "khuzestan-province",
+      "display_name": "ایذه (خوزستان)",
+      "districts_count": 0
+    },
+    {
+      "id": 807,
+      "name": "ایرانشهر",
+      "slug": "iranshahr",
+      "province_id": 883,
+      "province_name": "سیستان و بلوچستان",
+      "province_slug": "sistan-and-baluchestan-province",
+      "display_name": "ایرانشهر (سیستان و بلوچستان)",
+      "districts_count": 0
+    },
+    {
+      "id": 1701,
+      "name": "ایزدشهر",
+      "slug": "izadshahr",
+      "province_id": 893,
+      "province_name": "مازندران",
+      "province_slug": "mazandaran-province",
+      "display_name": "ایزدشهر (مازندران)",
+      "districts_count": 0
+    },
+    {
+      "id": 32,
+      "name": "ایلام",
+      "slug": "ilam",
+      "province_id": 888,
+      "province_name": "ایلام",
+      "province_slug": "ilam-province",
+      "display_name": "ایلام (ایلام)",
+      "districts_count": 0
+    },
+    {
+      "id": 776,
+      "name": "ایوان",
+      "slug": "eyvan",
+      "province_id": 888,
+      "province_name": "ایلام",
+      "province_slug": "ilam-province",
+      "display_name": "ایوان (ایلام)",
+      "districts_count": 0
+    },
+    {
+      "id": 664,
+      "name": "بابل",
+      "slug": "babol",
+      "province_id": 893,
+      "province_name": "مازندران",
+      "province_slug": "mazandaran-province",
+      "display_name": "بابل (مازندران)",
+      "districts_count": 0
+    },
+    {
+      "id": 710,
+      "name": "بابلسر",
+      "slug": "babolsar",
+      "province_id": 893,
+      "province_name": "مازندران",
+      "province_slug": "mazandaran-province",
+      "display_name": "بابلسر (مازندران)",
+      "districts_count": 0
+    },
+    {
+      "id": 1804,
+      "name": "بافت",
+      "slug": "baft",
+      "province_id": 877,
+      "province_name": "کرمان",
+      "province_slug": "kerman-province",
+      "display_name": "بافت (کرمان)",
+      "districts_count": 0
+    },
+    {
+      "id": 1829,
+      "name": "بافق",
+      "slug": "bafq",
+      "province_id": 886,
+      "province_name": "یزد",
+      "province_slug": "yazd-province",
+      "display_name": "بافق (یزد)",
+      "districts_count": 0
+    },
+    {
+      "id": 1707,
+      "name": "باقرشهر",
+      "slug": "baghershahr",
+      "province_id": 904,
+      "province_name": "تهران",
+      "province_slug": "tehran-province",
+      "display_name": "باقرشهر (تهران)",
+      "districts_count": 0
+    },
+    {
+      "id": 662,
+      "name": "بانه",
+      "slug": "baneh",
+      "province_id": 885,
+      "province_name": "کردستان",
+      "province_slug": "kurdistan-province",
+      "display_name": "بانه (کردستان)",
+      "districts_count": 0
+    },
+    {
+      "id": 39,
+      "name": "بجنورد",
+      "slug": "bojnurd",
+      "province_id": 896,
+      "province_name": "خراسان شمالی",
+      "province_slug": "khorasan-north-province",
+      "display_name": "بجنورد (خراسان شمالی)",
+      "districts_count": 0
+    },
+    {
+      "id": 778,
+      "name": "برازجان",
+      "slug": "borazjan",
+      "province_id": 900,
+      "province_name": "بوشهر",
+      "province_slug": "bushehr-province",
+      "display_name": "برازجان (بوشهر)",
+      "districts_count": 0
+    },
+    {
+      "id": 1735,
+      "name": "بردسکن",
+      "slug": "bardaskan",
+      "province_id": 880,
+      "province_name": "خراسان رضوی",
+      "province_slug": "khorasan-razavi-province",
+      "display_name": "بردسکن (خراسان رضوی)",
+      "districts_count": 0
+    },
+    {
+      "id": 1805,
+      "name": "بردسیر",
+      "slug": "bardsir",
+      "province_id": 877,
+      "province_name": "کرمان",
+      "province_slug": "kerman-province",
+      "display_name": "بردسیر (کرمان)",
+      "districts_count": 0
+    },
+    {
+      "id": 26,
+      "name": "بروجرد",
+      "slug": "borujerd",
+      "province_id": 884,
+      "province_name": "لرستان",
+      "province_slug": "lorestan-province",
+      "display_name": "بروجرد (لرستان)",
+      "districts_count": 0
+    },
+    {
+      "id": 785,
+      "name": "بروجن",
+      "slug": "boroujen",
+      "province_id": 903,
+      "province_name": "چهارمحال و بختیاری",
+      "province_slug": "chahar-mahaal-and-bakhtiari-province",
+      "display_name": "بروجن (چهارمحال و بختیاری)",
+      "districts_count": 0
+    },
+    {
+      "id": 1807,
+      "name": "بلوک",
+      "slug": "boluk",
+      "province_id": 877,
+      "province_name": "کرمان",
+      "province_slug": "kerman-province",
+      "display_name": "بلوک (کرمان)",
+      "districts_count": 0
+    },
+    {
+      "id": 815,
+      "name": "بم",
+      "slug": "bam",
+      "province_id": 877,
+      "province_name": "کرمان",
+      "province_slug": "kerman-province",
+      "display_name": "بم (کرمان)",
+      "districts_count": 0
+    },
+    {
+      "id": 798,
+      "name": "بندر امام خمینی",
+      "slug": "bandar-imam-khomeini",
+      "province_id": 902,
+      "province_name": "خوزستان",
+      "province_slug": "khuzestan-province",
+      "display_name": "بندر امام خمینی (خوزستان)",
+      "districts_count": 0
+    },
+    {
+      "id": 708,
+      "name": "بندر انزلی",
+      "slug": "bandar-anzali",
+      "province_id": 889,
+      "province_name": "گیلان",
+      "province_slug": "gilan-province",
+      "display_name": "بندر انزلی (گیلان)",
+      "districts_count": 0
+    },
+    {
+      "id": 751,
+      "name": "بندر ترکمن",
+      "slug": "bandar-torkaman",
+      "province_id": 897,
+      "province_name": "گلستان",
+      "province_slug": "golestan-province",
+      "display_name": "بندر ترکمن (گلستان)",
+      "districts_count": 0
+    },
+    {
+      "id": 1756,
+      "name": "بندر دیر",
+      "slug": "dayyer",
+      "province_id": 900,
+      "province_name": "بوشهر",
+      "province_slug": "bushehr-province",
+      "display_name": "بندر دیر (بوشهر)",
+      "districts_count": 0
+    },
+    {
+      "id": 37,
+      "name": "بندر ماهشهر",
+      "slug": "bandar-mahshahr",
+      "province_id": 902,
+      "province_name": "خوزستان",
+      "province_slug": "khuzestan-province",
+      "display_name": "بندر ماهشهر (خوزستان)",
+      "districts_count": 0
+    },
+    {
+      "id": 779,
+      "name": "بندر کنگان",
+      "slug": "bandar-kangan",
+      "province_id": 900,
+      "province_name": "بوشهر",
+      "province_slug": "bushehr-province",
+      "display_name": "بندر کنگان (بوشهر)",
+      "districts_count": 0
+    },
+    {
+      "id": 780,
+      "name": "بندر گناوه",
+      "slug": "bandar-ganaveh",
+      "province_id": 900,
+      "province_name": "بوشهر",
+      "province_slug": "bushehr-province",
+      "display_name": "بندر گناوه (بوشهر)",
+      "districts_count": 0
+    },
+    {
+      "id": 18,
+      "name": "بندرعباس",
+      "slug": "bandar-abbas",
+      "province_id": 894,
+      "province_name": "هرمزگان",
+      "province_slug": "hormozgan-province",
+      "display_name": "بندرعباس (هرمزگان)",
+      "districts_count": 0
+    },
+    {
+      "id": 1828,
+      "name": "بهار",
+      "slug": "bahar",
+      "province_id": 899,
+      "province_name": "همدان",
+      "province_slug": "hamadan-province",
+      "display_name": "بهار (همدان)",
+      "districts_count": 0
+    },
+    {
+      "id": 314,
+      "name": "بهبهان",
+      "slug": "behbahan",
+      "province_id": 902,
+      "province_name": "خوزستان",
+      "province_slug": "khuzestan-province",
+      "display_name": "بهبهان (خوزستان)",
+      "districts_count": 0
+    },
+    {
+      "id": 832,
+      "name": "بهشهر",
+      "slug": "behshahr",
+      "province_id": 893,
+      "province_name": "مازندران",
+      "province_slug": "mazandaran-province",
+      "display_name": "بهشهر (مازندران)",
+      "districts_count": 0
+    },
+    {
+      "id": 25,
+      "name": "بوشهر",
+      "slug": "bushehr",
+      "province_id": 900,
+      "province_name": "بوشهر",
+      "province_slug": "bushehr-province",
+      "display_name": "بوشهر (بوشهر)",
+      "districts_count": 0
+    },
+    {
+      "id": 1768,
+      "name": "بومهن",
+      "slug": "bumehen",
+      "province_id": 904,
+      "province_name": "تهران",
+      "province_slug": "tehran-province",
+      "display_name": "بومهن (تهران)",
+      "districts_count": 0
+    },
+    {
+      "id": 765,
+      "name": "بوکان",
+      "slug": "bukan",
+      "province_id": 881,
+      "province_name": "آذربایجان غربی",
+      "province_slug": "azerbaijan-west-province",
+      "display_name": "بوکان (آذربایجان غربی)",
+      "districts_count": 0
+    },
+    {
+      "id": 868,
+      "name": "بیجار",
+      "slug": "bijar",
+      "province_id": 885,
+      "province_name": "کردستان",
+      "province_slug": "kurdistan-province",
+      "display_name": "بیجار (کردستان)",
+      "districts_count": 0
+    },
+    {
+      "id": 34,
+      "name": "بیرجند",
+      "slug": "birjand",
+      "province_id": 876,
+      "province_name": "خراسان جنوبی",
+      "province_slug": "khorasan-south-province",
+      "display_name": "بیرجند (خراسان جنوبی)",
+      "districts_count": 0
+    },
+    {
+      "id": 1801,
+      "name": "بیستون",
+      "slug": "bisotun",
+      "province_id": 905,
+      "province_name": "کرمانشاه",
+      "province_slug": "kermanshah-province",
+      "display_name": "بیستون (کرمانشاه)",
+      "districts_count": 0
+    },
+    {
+      "id": 829,
+      "name": "تالش",
+      "slug": "talesh",
+      "province_id": 889,
+      "province_name": "گیلان",
+      "province_slug": "gilan-province",
+      "display_name": "تالش (گیلان)",
+      "districts_count": 0
+    },
+    {
+      "id": 811,
+      "name": "تاکستان",
+      "slug": "takestan",
+      "province_id": 878,
+      "province_name": "قزوین",
+      "province_slug": "qazvin-province",
+      "display_name": "تاکستان (قزوین)",
+      "districts_count": 0
+    },
+    {
+      "id": 1729,
+      "name": "تایباد",
+      "slug": "taybad",
+      "province_id": 880,
+      "province_name": "خراسان رضوی",
+      "province_slug": "khorasan-razavi-province",
+      "display_name": "تایباد (خراسان رضوی)",
+      "districts_count": 0
+    },
+    {
+      "id": 1822,
+      "name": "تخت",
+      "slug": "takht",
+      "province_id": 894,
+      "province_name": "هرمزگان",
+      "province_slug": "hormozgan-province",
+      "display_name": "تخت (هرمزگان)",
+      "districts_count": 0
+    },
+    {
+      "id": 791,
+      "name": "تربت جام",
+      "slug": "torbat-jam",
+      "province_id": 880,
+      "province_name": "خراسان رضوی",
+      "province_slug": "khorasan-razavi-province",
+      "display_name": "تربت جام (خراسان رضوی)",
+      "districts_count": 0
+    },
+    {
+      "id": 1776,
+      "name": "تربت‌حیدریه",
+      "slug": "torbat-heydariyeh",
+      "province_id": 880,
+      "province_name": "خراسان رضوی",
+      "province_slug": "khorasan-razavi-province",
+      "display_name": "تربت‌حیدریه (خراسان رضوی)",
+      "districts_count": 0
+    },
+    {
+      "id": 1831,
+      "name": "تفت",
+      "slug": "taft",
+      "province_id": 886,
+      "province_name": "یزد",
+      "province_slug": "yazd-province",
+      "display_name": "تفت (یزد)",
+      "districts_count": 0
+    },
+    {
+      "id": 833,
+      "name": "تنکابن",
+      "slug": "tonekabon",
+      "province_id": 893,
+      "province_name": "مازندران",
+      "province_slug": "mazandaran-province",
+      "display_name": "تنکابن (مازندران)",
+      "districts_count": 0
+    },
+    {
+      "id": 1739,
+      "name": "تنکمان",
+      "slug": "tankaman",
+      "province_id": 895,
+      "province_name": "البرز",
+      "province_slug": "alborz-province",
+      "display_name": "تنکمان (البرز)",
+      "districts_count": 0
+    },
+    {
+      "id": 1,
+      "name": "تهران",
+      "slug": "tehran",
+      "province_id": 904,
+      "province_name": "تهران",
+      "province_slug": "tehran-province",
+      "display_name": "تهران (تهران)",
+      "districts_count": 0
+    },
+    {
+      "id": 866,
+      "name": "تویسرکان",
+      "slug": "tuyserkan",
+      "province_id": 899,
+      "province_name": "همدان",
+      "province_slug": "hamadan-province",
+      "display_name": "تویسرکان (همدان)",
+      "districts_count": 0
+    },
+    {
+      "id": 1757,
+      "name": "جم",
+      "slug": "jam",
+      "province_id": 900,
+      "province_name": "بوشهر",
+      "province_slug": "bushehr-province",
+      "display_name": "جم (بوشهر)",
+      "districts_count": 0
+    },
+    {
+      "id": 808,
+      "name": "جهرم",
+      "slug": "jahrom",
+      "province_id": 898,
+      "province_name": "فارس",
+      "province_slug": "fars-province",
+      "display_name": "جهرم (فارس)",
+      "districts_count": 0
+    },
+    {
+      "id": 1718,
+      "name": "جوادآباد",
+      "slug": "javadabad",
+      "province_id": 904,
+      "province_name": "تهران",
+      "province_slug": "tehran-province",
+      "display_name": "جوادآباد (تهران)",
+      "districts_count": 0
+    },
+    {
+      "id": 820,
+      "name": "جوانرود",
+      "slug": "javanrud",
+      "province_id": 905,
+      "province_name": "کرمانشاه",
+      "province_slug": "kermanshah-province",
+      "display_name": "جوانرود (کرمانشاه)",
+      "districts_count": 0
+    },
+    {
+      "id": 834,
+      "name": "جویبار",
+      "slug": "juybar",
+      "province_id": 893,
+      "province_name": "مازندران",
+      "province_slug": "mazandaran-province",
+      "display_name": "جویبار (مازندران)",
+      "districts_count": 0
+    },
+    {
+      "id": 816,
+      "name": "جیرفت",
+      "slug": "jiroft",
+      "province_id": 877,
+      "province_name": "کرمان",
+      "province_slug": "kerman-province",
+      "display_name": "جیرفت (کرمان)",
+      "districts_count": 0
+    },
+    {
+      "id": 871,
+      "name": "حمیدیا",
+      "slug": "hamidia",
+      "province_id": 886,
+      "province_name": "یزد",
+      "province_slug": "yazd-province",
+      "display_name": "حمیدیا (یزد)",
+      "districts_count": 0
+    },
+    {
+      "id": 1784,
+      "name": "حمیدیه",
+      "slug": "hamidiyeh",
+      "province_id": 902,
+      "province_name": "خوزستان",
+      "province_slug": "khuzestan-province",
+      "display_name": "حمیدیه (خوزستان)",
+      "districts_count": 0
+    },
+    {
+      "id": 1785,
+      "name": "خاش",
+      "slug": "khash",
+      "province_id": 883,
+      "province_name": "سیستان و بلوچستان",
+      "province_slug": "sistan-and-baluchestan-province",
+      "display_name": "خاش (سیستان و بلوچستان)",
+      "districts_count": 0
+    },
+    {
+      "id": 803,
+      "name": "خرمدره",
+      "slug": "khorramdarreh",
+      "province_id": 879,
+      "province_name": "زنجان",
+      "province_slug": "zanjan-province",
+      "display_name": "خرمدره (زنجان)",
+      "districts_count": 0
+    },
+    {
+      "id": 799,
+      "name": "خرمشهر",
+      "slug": "khorramshahr",
+      "province_id": 902,
+      "province_name": "خوزستان",
+      "province_slug": "khuzestan-province",
+      "display_name": "خرمشهر (خوزستان)",
+      "districts_count": 0
+    },
+    {
+      "id": 27,
+      "name": "خرم‌آباد",
+      "slug": "khorramabad",
+      "province_id": 884,
+      "province_name": "لرستان",
+      "province_slug": "lorestan-province",
+      "display_name": "خرم‌آباد (لرستان)",
+      "districts_count": 0
+    },
+    {
+      "id": 1689,
+      "name": "خشکبیجار",
+      "slug": "khoshkbijar",
+      "province_id": 889,
+      "province_name": "گیلان",
+      "province_slug": "gilan-province",
+      "display_name": "خشکبیجار (گیلان)",
+      "districts_count": 0
+    },
+    {
+      "id": 772,
+      "name": "خلخال",
+      "slug": "khalkhal",
+      "province_id": 906,
+      "province_name": "اردبیل",
+      "province_slug": "ardabil-province",
+      "display_name": "خلخال (اردبیل)",
+      "districts_count": 0
+    },
+    {
+      "id": 1809,
+      "name": "خمام",
+      "slug": "khomam",
+      "province_id": 889,
+      "province_name": "گیلان",
+      "province_slug": "gilan-province",
+      "display_name": "خمام (گیلان)",
+      "districts_count": 0
+    },
+    {
+      "id": 839,
+      "name": "خمین",
+      "slug": "khomein",
+      "province_id": 901,
+      "province_name": "مرکزی",
+      "province_slug": "markazi-province",
+      "display_name": "خمین (مرکزی)",
+      "districts_count": 0
+    },
+    {
+      "id": 1747,
+      "name": "خمینی‌شهر",
+      "slug": "khomeyni-shahr",
+      "province_id": 890,
+      "province_name": "اصفهان",
+      "province_slug": "isfahan-province",
+      "display_name": "خمینی‌شهر (اصفهان)",
+      "districts_count": 0
+    },
+    {
+      "id": 1736,
+      "name": "خواف",
+      "slug": "khaf",
+      "province_id": 880,
+      "province_name": "خراسان رضوی",
+      "province_slug": "khorasan-razavi-province",
+      "display_name": "خواف (خراسان رضوی)",
+      "districts_count": 0
+    },
+    {
+      "id": 1727,
+      "name": "خوانسار",
+      "slug": "khansar",
+      "province_id": 890,
+      "province_name": "اصفهان",
+      "province_slug": "isfahan-province",
+      "display_name": "خوانسار (اصفهان)",
+      "districts_count": 0
+    },
+    {
+      "id": 1750,
+      "name": "خور",
+      "slug": "khour",
+      "province_id": 890,
+      "province_name": "اصفهان",
+      "province_slug": "isfahan-province",
+      "display_name": "خور (اصفهان)",
+      "districts_count": 0
+    },
+    {
+      "id": 1793,
+      "name": "خور",
+      "slug": "khoour",
+      "province_id": 898,
+      "province_name": "فارس",
+      "province_slug": "fars-province",
+      "display_name": "خور (فارس)",
+      "districts_count": 0
+    },
+    {
+      "id": 767,
+      "name": "خوی",
+      "slug": "khoy",
+      "province_id": 881,
+      "province_name": "آذربایجان غربی",
+      "province_slug": "azerbaijan-west-province",
+      "display_name": "خوی (آذربایجان غربی)",
+      "districts_count": 0
+    },
+    {
+      "id": 809,
+      "name": "داراب",
+      "slug": "darab",
+      "province_id": 898,
+      "province_name": "فارس",
+      "province_slug": "fars-province",
+      "display_name": "داراب (فارس)",
+      "districts_count": 0
+    },
+    {
+      "id": 1724,
+      "name": "داران",
+      "slug": "daran",
+      "province_id": 890,
+      "province_name": "اصفهان",
+      "province_slug": "isfahan-province",
+      "display_name": "داران (اصفهان)",
+      "districts_count": 0
+    },
+    {
+      "id": 805,
+      "name": "دامغان",
+      "slug": "damghan",
+      "province_id": 882,
+      "province_name": "سمنان",
+      "province_slug": "semnan-province",
+      "display_name": "دامغان (سمنان)",
+      "districts_count": 0
+    },
+    {
+      "id": 1820,
+      "name": "درگهان",
+      "slug": "dargahan",
+      "province_id": 894,
+      "province_name": "هرمزگان",
+      "province_slug": "hormozgan-province",
+      "display_name": "درگهان (هرمزگان)",
+      "districts_count": 0
+    },
+    {
+      "id": 23,
+      "name": "دزفول",
+      "slug": "dezful",
+      "province_id": 902,
+      "province_name": "خوزستان",
+      "province_slug": "khuzestan-province",
+      "display_name": "دزفول (خوزستان)",
+      "districts_count": 0
+    },
+    {
+      "id": 1824,
+      "name": "دلیجان",
+      "slug": "delijan",
+      "province_id": 901,
+      "province_name": "مرکزی",
+      "province_slug": "markazi-province",
+      "display_name": "دلیجان (مرکزی)",
+      "districts_count": 0
+    },
+    {
+      "id": 783,
+      "name": "دماوند",
+      "slug": "damavand",
+      "province_id": 904,
+      "province_name": "تهران",
+      "province_slug": "tehran-province",
+      "display_name": "دماوند (تهران)",
+      "districts_count": 0
+    },
+    {
+      "id": 822,
+      "name": "دهدشت",
+      "slug": "dehdasht",
+      "province_id": 887,
+      "province_name": "کهگیلویه و بویراحمد",
+      "province_slug": "kohgiluyeh-and-boyer-ahmad-province",
+      "display_name": "دهدشت (کهگیلویه و بویراحمد)",
+      "districts_count": 0
+    },
+    {
+      "id": 777,
+      "name": "دهلران",
+      "slug": "dehloran",
+      "province_id": 888,
+      "province_name": "ایلام",
+      "province_slug": "ilam-province",
+      "display_name": "دهلران (ایلام)",
+      "districts_count": 0
+    },
+    {
+      "id": 1798,
+      "name": "دهگلان",
+      "slug": "dehgolan",
+      "province_id": 885,
+      "province_name": "کردستان",
+      "province_slug": "kurdistan-province",
+      "display_name": "دهگلان (کردستان)",
+      "districts_count": 0
+    },
+    {
+      "id": 752,
+      "name": "دورود",
+      "slug": "dorud",
+      "province_id": 884,
+      "province_name": "لرستان",
+      "province_slug": "lorestan-province",
+      "display_name": "دورود (لرستان)",
+      "districts_count": 0
+    },
+    {
+      "id": 874,
+      "name": "دوگنبدان",
+      "slug": "dogonbadan",
+      "province_id": 887,
+      "province_name": "کهگیلویه و بویراحمد",
+      "province_slug": "kohgiluyeh-and-boyer-ahmad-province",
+      "display_name": "دوگنبدان (کهگیلویه و بویراحمد)",
+      "districts_count": 0
+    },
+    {
+      "id": 1814,
+      "name": "دیلمان",
+      "slug": "deylaman",
+      "province_id": 889,
+      "province_name": "گیلان",
+      "province_slug": "gilan-province",
+      "display_name": "دیلمان (گیلان)",
+      "districts_count": 0
+    },
+    {
+      "id": 745,
+      "name": "رامسر",
+      "slug": "ramsar",
+      "province_id": 893,
+      "province_name": "مازندران",
+      "province_slug": "mazandaran-province",
+      "display_name": "رامسر (مازندران)",
+      "districts_count": 0
+    },
+    {
+      "id": 1781,
+      "name": "رامشیر",
+      "slug": "ramshir",
+      "province_id": 902,
+      "province_name": "خوزستان",
+      "province_slug": "khuzestan-province",
+      "display_name": "رامشیر (خوزستان)",
+      "districts_count": 0
+    },
+    {
+      "id": 800,
+      "name": "رامهرمز",
+      "slug": "ramhormoz",
+      "province_id": 902,
+      "province_name": "خوزستان",
+      "province_slug": "khuzestan-province",
+      "display_name": "رامهرمز (خوزستان)",
+      "districts_count": 0
+    },
+    {
+      "id": 1765,
+      "name": "رباط‌کریم",
+      "slug": "robat-karim",
+      "province_id": 904,
+      "province_name": "تهران",
+      "province_slug": "tehran-province",
+      "display_name": "رباط‌کریم (تهران)",
+      "districts_count": 0
+    },
+    {
+      "id": 12,
+      "name": "رشت",
+      "slug": "rasht",
+      "province_id": 889,
+      "province_name": "گیلان",
+      "province_slug": "gilan-province",
+      "display_name": "رشت (گیلان)",
+      "districts_count": 0
+    },
+    {
+      "id": 1684,
+      "name": "رضوانشهر",
+      "slug": "rezvanshahr",
+      "province_id": 889,
+      "province_name": "گیلان",
+      "province_slug": "gilan-province",
+      "display_name": "رضوانشهر (گیلان)",
+      "districts_count": 0
+    },
+    {
+      "id": 817,
+      "name": "رفسنجان",
+      "slug": "rafsanjan",
+      "province_id": 877,
+      "province_name": "کرمان",
+      "province_slug": "kerman-province",
+      "display_name": "رفسنجان (کرمان)",
+      "districts_count": 0
+    },
+    {
+      "id": 1810,
+      "name": "رودبار",
+      "slug": "rudbar",
+      "province_id": 889,
+      "province_name": "گیلان",
+      "province_slug": "gilan-province",
+      "display_name": "رودبار (گیلان)",
+      "districts_count": 0
+    },
+    {
+      "id": 826,
+      "name": "رودسر",
+      "slug": "rudsar",
+      "province_id": 889,
+      "province_name": "گیلان",
+      "province_slug": "gilan-province",
+      "display_name": "رودسر (گیلان)",
+      "districts_count": 0
+    },
+    {
+      "id": 1769,
+      "name": "رودهن",
+      "slug": "rudehen",
+      "province_id": 904,
+      "province_name": "تهران",
+      "province_slug": "tehran-province",
+      "display_name": "رودهن (تهران)",
+      "districts_count": 0
+    },
+    {
+      "id": 1698,
+      "name": "رویان",
+      "slug": "royan",
+      "province_id": 893,
+      "province_name": "مازندران",
+      "province_slug": "mazandaran-province",
+      "display_name": "رویان (مازندران)",
+      "districts_count": 0
+    },
+    {
+      "id": 1763,
+      "name": "ری",
+      "slug": "shahr-e-rey",
+      "province_id": 904,
+      "province_name": "تهران",
+      "province_slug": "tehran-province",
+      "display_name": "ری (تهران)",
+      "districts_count": 0
+    },
+    {
+      "id": 706,
+      "name": "زابل",
+      "slug": "zabol",
+      "province_id": 883,
+      "province_name": "سیستان و بلوچستان",
+      "province_slug": "sistan-and-baluchestan-province",
+      "display_name": "زابل (سیستان و بلوچستان)",
+      "districts_count": 0
+    },
+    {
+      "id": 11,
+      "name": "زاهدان",
+      "slug": "zahedan",
+      "province_id": 883,
+      "province_name": "سیستان و بلوچستان",
+      "province_slug": "sistan-and-baluchestan-province",
+      "display_name": "زاهدان (سیستان و بلوچستان)",
+      "districts_count": 0
+    },
+    {
+      "id": 1791,
+      "name": "زرقان",
+      "slug": "zarghan",
+      "province_id": 898,
+      "province_name": "فارس",
+      "province_slug": "fars-province",
+      "display_name": "زرقان (فارس)",
+      "districts_count": 0
+    },
+    {
+      "id": 867,
+      "name": "زرند",
+      "slug": "zarand",
+      "province_id": 877,
+      "province_name": "کرمان",
+      "province_slug": "kerman-province",
+      "display_name": "زرند (کرمان)",
+      "districts_count": 0
+    },
+    {
+      "id": 20,
+      "name": "زنجان",
+      "slug": "zanjan",
+      "province_id": 879,
+      "province_name": "زنجان",
+      "province_slug": "zanjan-province",
+      "display_name": "زنجان (زنجان)",
+      "districts_count": 0
+    },
+    {
+      "id": 1787,
+      "name": "زهک",
+      "slug": "zahak",
+      "province_id": 883,
+      "province_name": "سیستان و بلوچستان",
+      "province_slug": "sistan-and-baluchestan-province",
+      "display_name": "زهک (سیستان و بلوچستان)",
+      "districts_count": 0
+    },
+    {
+      "id": 1683,
+      "name": "زیباکنار",
+      "slug": "zibakenar",
+      "province_id": 889,
+      "province_name": "گیلان",
+      "province_slug": "gilan-province",
+      "display_name": "زیباکنار (گیلان)",
+      "districts_count": 0
+    },
+    {
+      "id": 22,
+      "name": "ساری",
+      "slug": "sari",
+      "province_id": 893,
+      "province_name": "مازندران",
+      "province_slug": "mazandaran-province",
+      "display_name": "ساری (مازندران)",
+      "districts_count": 0
+    },
+    {
+      "id": 1833,
+      "name": "سامان",
+      "slug": "saman",
+      "province_id": 903,
+      "province_name": "چهارمحال و بختیاری",
+      "province_slug": "chahar-mahaal-and-bakhtiari-province",
+      "display_name": "سامان (چهارمحال و بختیاری)",
+      "districts_count": 0
+    },
+    {
+      "id": 671,
+      "name": "ساوه",
+      "slug": "saveh",
+      "province_id": 901,
+      "province_name": "مرکزی",
+      "province_slug": "markazi-province",
+      "display_name": "ساوه (مرکزی)",
+      "districts_count": 0
+    },
+    {
+      "id": 316,
+      "name": "سبزوار",
+      "slug": "sabzevar",
+      "province_id": 880,
+      "province_name": "خراسان رضوی",
+      "province_slug": "khorasan-razavi-province",
+      "display_name": "سبزوار (خراسان رضوی)",
+      "districts_count": 0
+    },
+    {
+      "id": 865,
+      "name": "سراوان-سیستان و بلوچستان",
+      "slug": "saravan",
+      "province_id": 883,
+      "province_name": "سیستان و بلوچستان",
+      "province_slug": "sistan-and-baluchestan-province",
+      "display_name": "سراوان-سیستان و بلوچستان (سیستان و بلوچستان)",
+      "districts_count": 0
+    },
+    {
+      "id": 1700,
+      "name": "سرخرود",
+      "slug": "sorkhrood",
+      "province_id": 893,
+      "province_name": "مازندران",
+      "province_slug": "mazandaran-province",
+      "display_name": "سرخرود (مازندران)",
+      "districts_count": 0
+    },
+    {
+      "id": 857,
+      "name": "سردشت",
+      "slug": "sardasht",
+      "province_id": 881,
+      "province_name": "آذربایجان غربی",
+      "province_slug": "azerbaijan-west-province",
+      "display_name": "سردشت (آذربایجان غربی)",
+      "districts_count": 0
+    },
+    {
+      "id": 1741,
+      "name": "سرعین",
+      "slug": "sarein",
+      "province_id": 906,
+      "province_name": "اردبیل",
+      "province_slug": "ardabil-province",
+      "display_name": "سرعین (اردبیل)",
+      "districts_count": 0
+    },
+    {
+      "id": 854,
+      "name": "سرپل ذهاب",
+      "slug": "sarpol-zahab",
+      "province_id": 905,
+      "province_name": "کرمانشاه",
+      "province_slug": "kermanshah-province",
+      "display_name": "سرپل ذهاب (کرمانشاه)",
+      "districts_count": 0
+    },
+    {
+      "id": 812,
+      "name": "سقز",
+      "slug": "saqqez",
+      "province_id": 885,
+      "province_name": "کردستان",
+      "province_slug": "kurdistan-province",
+      "display_name": "سقز (کردستان)",
+      "districts_count": 0
+    },
+    {
+      "id": 768,
+      "name": "سلماس",
+      "slug": "salmas",
+      "province_id": 881,
+      "province_name": "آذربایجان غربی",
+      "province_slug": "azerbaijan-west-province",
+      "display_name": "سلماس (آذربایجان غربی)",
+      "districts_count": 0
+    },
+    {
+      "id": 1699,
+      "name": "سلمان‌شهر",
+      "slug": "salman-shahr",
+      "province_id": 893,
+      "province_name": "مازندران",
+      "province_slug": "mazandaran-province",
+      "display_name": "سلمان‌شهر (مازندران)",
+      "districts_count": 0
+    },
+    {
+      "id": 35,
+      "name": "سمنان",
+      "slug": "semnan",
+      "province_id": 882,
+      "province_name": "سمنان",
+      "province_slug": "semnan-province",
+      "display_name": "سمنان (سمنان)",
+      "districts_count": 0
+    },
+    {
+      "id": 1725,
+      "name": "سمیرم",
+      "slug": "semirom",
+      "province_id": 890,
+      "province_name": "اصفهان",
+      "province_slug": "isfahan-province",
+      "display_name": "سمیرم (اصفهان)",
+      "districts_count": 0
+    },
+    {
+      "id": 855,
+      "name": "سنقر",
+      "slug": "sonqor",
+      "province_id": 905,
+      "province_name": "کرمانشاه",
+      "province_slug": "kermanshah-province",
+      "display_name": "سنقر (کرمانشاه)",
+      "districts_count": 0
+    },
+    {
+      "id": 28,
+      "name": "سنندج",
+      "slug": "sanandaj",
+      "province_id": 885,
+      "province_name": "کردستان",
+      "province_slug": "kurdistan-province",
+      "display_name": "سنندج (کردستان)",
+      "districts_count": 0
+    },
+    {
+      "id": 1811,
+      "name": "سنگر",
+      "slug": "sangar",
+      "province_id": 889,
+      "province_name": "گیلان",
+      "province_slug": "gilan-province",
+      "display_name": "سنگر (گیلان)",
+      "districts_count": 0
+    },
+    {
+      "id": 756,
+      "name": "سوسنگرد",
+      "slug": "susangerd",
+      "province_id": 902,
+      "province_name": "خوزستان",
+      "province_slug": "khuzestan-province",
+      "display_name": "سوسنگرد (خوزستان)",
+      "districts_count": 0
+    },
+    {
+      "id": 861,
+      "name": "سیاهکل",
+      "slug": "siahkal",
+      "province_id": 889,
+      "province_name": "گیلان",
+      "province_slug": "gilan-province",
+      "display_name": "سیاهکل (گیلان)",
+      "districts_count": 0
+    },
+    {
+      "id": 818,
+      "name": "سیرجان",
+      "slug": "sirjan",
+      "province_id": 877,
+      "province_name": "کرمان",
+      "province_slug": "kerman-province",
+      "display_name": "سیرجان (کرمان)",
+      "districts_count": 0
+    },
+    {
+      "id": 1808,
+      "name": "سی‌سخت",
+      "slug": "sisakht",
+      "province_id": 887,
+      "province_name": "کهگیلویه و بویراحمد",
+      "province_slug": "kohgiluyeh-and-boyer-ahmad-province",
+      "display_name": "سی‌سخت (کهگیلویه و بویراحمد)",
+      "districts_count": 0
+    },
+    {
+      "id": 1780,
+      "name": "شادگان",
+      "slug": "shadeghan",
+      "province_id": 902,
+      "province_name": "خوزستان",
+      "province_slug": "khuzestan-province",
+      "display_name": "شادگان (خوزستان)",
+      "districts_count": 0
+    },
+    {
+      "id": 1825,
+      "name": "شازند",
+      "slug": "shazand",
+      "province_id": 901,
+      "province_name": "مرکزی",
+      "province_slug": "markazi-province",
+      "display_name": "شازند (مرکزی)",
+      "districts_count": 0
+    },
+    {
+      "id": 1796,
+      "name": "شال",
+      "slug": "shal",
+      "province_id": 878,
+      "province_name": "قزوین",
+      "province_slug": "qazvin-province",
+      "display_name": "شال (قزوین)",
+      "districts_count": 0
+    },
+    {
+      "id": 1775,
+      "name": "شاندیز",
+      "slug": "shandiz",
+      "province_id": 880,
+      "province_name": "خراسان رضوی",
+      "province_slug": "khorasan-razavi-province",
+      "display_name": "شاندیز (خراسان رضوی)",
+      "districts_count": 0
+    },
+    {
+      "id": 1713,
+      "name": "شاهدشهر",
+      "slug": "shahedshahr",
+      "province_id": 904,
+      "province_name": "تهران",
+      "province_slug": "tehran-province",
+      "display_name": "شاهدشهر (تهران)",
+      "districts_count": 0
+    },
+    {
+      "id": 707,
+      "name": "شاهرود",
+      "slug": "shahroud",
+      "province_id": 882,
+      "province_name": "سمنان",
+      "province_slug": "semnan-province",
+      "display_name": "شاهرود (سمنان)",
+      "districts_count": 0
+    },
+    {
+      "id": 858,
+      "name": "شاهین دژ",
+      "slug": "shahin-dej",
+      "province_id": 881,
+      "province_name": "آذربایجان غربی",
+      "province_slug": "azerbaijan-west-province",
+      "display_name": "شاهین دژ (آذربایجان غربی)",
+      "districts_count": 0
+    },
+    {
+      "id": 1744,
+      "name": "شاهین‌شهر",
+      "slug": "shahin-shahr",
+      "province_id": 890,
+      "province_name": "اصفهان",
+      "province_slug": "isfahan-province",
+      "display_name": "شاهین‌شهر (اصفهان)",
+      "districts_count": 0
+    },
+    {
+      "id": 1813,
+      "name": "شفت",
+      "slug": "shaft",
+      "province_id": 889,
+      "province_name": "گیلان",
+      "province_slug": "gilan-province",
+      "display_name": "شفت (گیلان)",
+      "districts_count": 0
+    },
+    {
+      "id": 1717,
+      "name": "شمشک",
+      "slug": "shemshak",
+      "province_id": 904,
+      "province_name": "تهران",
+      "province_slug": "tehran-province",
+      "display_name": "شمشک (تهران)",
+      "districts_count": 0
+    },
+    {
+      "id": 36,
+      "name": "شهرکرد",
+      "slug": "shahrekord",
+      "province_id": 903,
+      "province_name": "چهارمحال و بختیاری",
+      "province_slug": "chahar-mahaal-and-bakhtiari-province",
+      "display_name": "شهرکرد (چهارمحال و بختیاری)",
+      "districts_count": 0
+    },
+    {
+      "id": 1759,
+      "name": "شهریار",
+      "slug": "shahriar",
+      "province_id": 904,
+      "province_name": "تهران",
+      "province_slug": "tehran-province",
+      "display_name": "شهریار (تهران)",
+      "districts_count": 0
+    },
+    {
+      "id": 754,
+      "name": "شوش",
+      "slug": "shush",
+      "province_id": 902,
+      "province_name": "خوزستان",
+      "province_slug": "khuzestan-province",
+      "display_name": "شوش (خوزستان)",
+      "districts_count": 0
+    },
+    {
+      "id": 602,
+      "name": "شوشتر",
+      "slug": "shooshtar",
+      "province_id": 902,
+      "province_name": "خوزستان",
+      "province_slug": "khuzestan-province",
+      "display_name": "شوشتر (خوزستان)",
+      "districts_count": 0
+    },
+    {
+      "id": 6,
+      "name": "شیراز",
+      "slug": "shiraz",
+      "province_id": 898,
+      "province_name": "فارس",
+      "province_slug": "fars-province",
+      "display_name": "شیراز (فارس)",
+      "districts_count": 0
+    },
+    {
+      "id": 1712,
+      "name": "صباشهر",
+      "slug": "sabashahr",
+      "province_id": 904,
+      "province_name": "تهران",
+      "province_slug": "tehran-province",
+      "display_name": "صباشهر (تهران)",
+      "districts_count": 0
+    },
+    {
+      "id": 1800,
+      "name": "صحنه",
+      "slug": "sahneh",
+      "province_id": 905,
+      "province_name": "کرمانشاه",
+      "province_slug": "kermanshah-province",
+      "display_name": "صحنه (کرمانشاه)",
+      "districts_count": 0
+    },
+    {
+      "id": 810,
+      "name": "صدرا-فارس",
+      "slug": "sadra",
+      "province_id": 898,
+      "province_name": "فارس",
+      "province_slug": "fars-province",
+      "display_name": "صدرا-فارس (فارس)",
+      "districts_count": 0
+    },
+    {
+      "id": 1710,
+      "name": "صفادشت",
+      "slug": "safadasht-industrial-city",
+      "province_id": 904,
+      "province_name": "تهران",
+      "province_slug": "tehran-province",
+      "display_name": "صفادشت (تهران)",
+      "districts_count": 0
+    },
+    {
+      "id": 827,
+      "name": "صومعه‌سرا",
+      "slug": "someh-sara",
+      "province_id": 889,
+      "province_name": "گیلان",
+      "province_slug": "gilan-province",
+      "display_name": "صومعه‌سرا (گیلان)",
+      "districts_count": 0
+    },
+    {
+      "id": 850,
+      "name": "طالقان",
+      "slug": "taleqan",
+      "province_id": 895,
+      "province_name": "البرز",
+      "province_slug": "alborz-province",
+      "display_name": "طالقان (البرز)",
+      "districts_count": 0
+    },
+    {
+      "id": 788,
+      "name": "طبس",
+      "slug": "tabas",
+      "province_id": 876,
+      "province_name": "خراسان جنوبی",
+      "province_slug": "khorasan-south-province",
+      "display_name": "طبس (خراسان جنوبی)",
+      "districts_count": 0
+    },
+    {
+      "id": 1774,
+      "name": "طرقبه",
+      "slug": "torghabeh",
+      "province_id": 880,
+      "province_name": "خراسان رضوی",
+      "province_slug": "khorasan-razavi-province",
+      "display_name": "طرقبه (خراسان رضوی)",
+      "districts_count": 0
+    },
+    {
+      "id": 1697,
+      "name": "عباس‌آباد",
+      "slug": "abbasabad-mazandaran",
+      "province_id": 893,
+      "province_name": "مازندران",
+      "province_slug": "mazandaran-province",
+      "display_name": "عباس‌آباد (مازندران)",
+      "districts_count": 0
+    },
+    {
+      "id": 823,
+      "name": "علی‌آباد کتول",
+      "slug": "aliabad-katul",
+      "province_id": 897,
+      "province_name": "گلستان",
+      "province_slug": "golestan-province",
+      "display_name": "علی‌آباد کتول (گلستان)",
+      "districts_count": 0
+    },
+    {
+      "id": 1819,
+      "name": "فرح آباد",
+      "slug": "farahabad",
+      "province_id": 893,
+      "province_name": "مازندران",
+      "province_slug": "mazandaran-province",
+      "display_name": "فرح آباد (مازندران)",
+      "districts_count": 0
+    },
+    {
+      "id": 786,
+      "name": "فرخ‌شهر",
+      "slug": "farrokhshahr",
+      "province_id": 903,
+      "province_name": "چهارمحال و بختیاری",
+      "province_slug": "chahar-mahaal-and-bakhtiari-province",
+      "display_name": "فرخ‌شهر (چهارمحال و بختیاری)",
+      "districts_count": 0
+    },
+    {
+      "id": 789,
+      "name": "فردوس",
+      "slug": "ferdows",
+      "province_id": 876,
+      "province_name": "خراسان جنوبی",
+      "province_slug": "khorasan-south-province",
+      "display_name": "فردوس (خراسان جنوبی)",
+      "districts_count": 0
+    },
+    {
+      "id": 1716,
+      "name": "فردوسیه",
+      "slug": "ferdosiye",
+      "province_id": 904,
+      "province_name": "تهران",
+      "province_slug": "tehran-province",
+      "display_name": "فردوسیه (تهران)",
+      "districts_count": 0
+    },
+    {
+      "id": 1751,
+      "name": "فردیس",
+      "slug": "fardis",
+      "province_id": 895,
+      "province_name": "البرز",
+      "province_slug": "alborz-province",
+      "display_name": "فردیس (البرز)",
+      "districts_count": 0
+    },
+    {
+      "id": 836,
+      "name": "فریدون‌کنار",
+      "slug": "fereydunkenar",
+      "province_id": 893,
+      "province_name": "مازندران",
+      "province_slug": "mazandaran-province",
+      "display_name": "فریدون‌کنار (مازندران)",
+      "districts_count": 0
+    },
+    {
+      "id": 1789,
+      "name": "فسا",
+      "slug": "fasa",
+      "province_id": 898,
+      "province_name": "فارس",
+      "province_slug": "fars-province",
+      "display_name": "فسا (فارس)",
+      "districts_count": 0
+    },
+    {
+      "id": 1772,
+      "name": "فشم",
+      "slug": "fasham",
+      "province_id": 904,
+      "province_name": "تهران",
+      "province_slug": "tehran-province",
+      "display_name": "فشم (تهران)",
+      "districts_count": 0
+    },
+    {
+      "id": 849,
+      "name": "فلاورجان",
+      "slug": "falavarjan",
+      "province_id": 890,
+      "province_name": "اصفهان",
+      "province_slug": "isfahan-province",
+      "display_name": "فلاورجان (اصفهان)",
+      "districts_count": 0
+    },
+    {
+      "id": 1745,
+      "name": "فولادشهر",
+      "slug": "foolad-shahr",
+      "province_id": 890,
+      "province_name": "اصفهان",
+      "province_slug": "isfahan-province",
+      "display_name": "فولادشهر (اصفهان)",
+      "districts_count": 0
+    },
+    {
+      "id": 860,
+      "name": "فومن",
+      "slug": "fuman",
+      "province_id": 889,
+      "province_name": "گیلان",
+      "province_slug": "gilan-province",
+      "display_name": "فومن (گیلان)",
+      "districts_count": 0
+    },
+    {
+      "id": 1734,
+      "name": "فیروزآباد",
+      "slug": "firuzabad",
+      "province_id": 898,
+      "province_name": "فارس",
+      "province_slug": "fars-province",
+      "display_name": "فیروزآباد (فارس)",
+      "districts_count": 0
+    },
+    {
+      "id": 1770,
+      "name": "فیروزکوه",
+      "slug": "firuzkooh",
+      "province_id": 904,
+      "province_name": "تهران",
+      "province_slug": "tehran-province",
+      "display_name": "فیروزکوه (تهران)",
+      "districts_count": 0
+    },
+    {
+      "id": 665,
+      "name": "قائم‌شهر",
+      "slug": "qaemshahr",
+      "province_id": 893,
+      "province_name": "مازندران",
+      "province_slug": "mazandaran-province",
+      "display_name": "قائم‌شهر (مازندران)",
+      "districts_count": 0
+    },
+    {
+      "id": 1733,
+      "name": "قاسم‌آباد (خواف)",
+      "slug": "qasemabad-khaf",
+      "province_id": 880,
+      "province_name": "خراسان رضوی",
+      "province_slug": "khorasan-razavi-province",
+      "display_name": "قاسم‌آباد (خواف) (خراسان رضوی)",
+      "districts_count": 0
+    },
+    {
+      "id": 1758,
+      "name": "قدس",
+      "slug": "qods",
+      "province_id": 904,
+      "province_name": "تهران",
+      "province_slug": "tehran-province",
+      "display_name": "قدس (تهران)",
+      "districts_count": 0
+    },
+    {
+      "id": 813,
+      "name": "قروه",
+      "slug": "qorveh",
+      "province_id": 885,
+      "province_name": "کردستان",
+      "province_slug": "kurdistan-province",
+      "display_name": "قروه (کردستان)",
+      "districts_count": 0
+    },
+    {
+      "id": 1761,
+      "name": "قرچک",
+      "slug": "qarchak",
+      "province_id": 904,
+      "province_name": "تهران",
+      "province_slug": "tehran-province",
+      "display_name": "قرچک (تهران)",
+      "districts_count": 0
+    },
+    {
+      "id": 19,
+      "name": "قزوین",
+      "slug": "qazvin",
+      "province_id": 878,
+      "province_name": "قزوین",
+      "province_slug": "qazvin-province",
+      "display_name": "قزوین (قزوین)",
+      "districts_count": 0
+    },
+    {
+      "id": 660,
+      "name": "قشم",
+      "slug": "qeshm",
+      "province_id": 894,
+      "province_name": "هرمزگان",
+      "province_slug": "hormozgan-province",
+      "display_name": "قشم (هرمزگان)",
+      "districts_count": 0
+    },
+    {
+      "id": 1746,
+      "name": "قمصر",
+      "slug": "ghamsar",
+      "province_id": 890,
+      "province_name": "اصفهان",
+      "province_slug": "isfahan-province",
+      "display_name": "قمصر (اصفهان)",
+      "districts_count": 0
+    },
+    {
+      "id": 1777,
+      "name": "قوچان",
+      "slug": "quchan",
+      "province_id": 880,
+      "province_name": "خراسان رضوی",
+      "province_slug": "khorasan-razavi-province",
+      "display_name": "قوچان (خراسان رضوی)",
+      "districts_count": 0
+    },
+    {
+      "id": 1730,
+      "name": "لار",
+      "slug": "lar",
+      "province_id": 898,
+      "province_name": "فارس",
+      "province_slug": "fars-province",
+      "display_name": "لار (فارس)",
+      "districts_count": 0
+    },
+    {
+      "id": 1731,
+      "name": "لامرد",
+      "slug": "lamerd",
+      "province_id": 898,
+      "province_name": "فارس",
+      "province_slug": "fars-province",
+      "display_name": "لامرد (فارس)",
+      "districts_count": 0
+    },
+    {
+      "id": 746,
+      "name": "لاهیجان",
+      "slug": "lahijan",
+      "province_id": 889,
+      "province_name": "گیلان",
+      "province_slug": "gilan-province",
+      "display_name": "لاهیجان (گیلان)",
+      "districts_count": 0
+    },
+    {
+      "id": 1690,
+      "name": "لشت نشا",
+      "slug": "lashtenesha",
+      "province_id": 889,
+      "province_name": "گیلان",
+      "province_slug": "gilan-province",
+      "display_name": "لشت نشا (گیلان)",
+      "districts_count": 0
+    },
+    {
+      "id": 1749,
+      "name": "لنجان",
+      "slug": "lenjan",
+      "province_id": 890,
+      "province_name": "اصفهان",
+      "province_slug": "isfahan-province",
+      "display_name": "لنجان (اصفهان)",
+      "districts_count": 0
+    },
+    {
+      "id": 828,
+      "name": "لنگرود",
+      "slug": "langarud",
+      "province_id": 889,
+      "province_name": "گیلان",
+      "province_slug": "gilan-province",
+      "display_name": "لنگرود (گیلان)",
+      "districts_count": 0
+    },
+    {
+      "id": 1771,
+      "name": "لواسان",
+      "slug": "lavasan",
+      "province_id": 904,
+      "province_name": "تهران",
+      "province_slug": "tehran-province",
+      "display_name": "لواسان (تهران)",
+      "districts_count": 0
+    },
+    {
+      "id": 862,
+      "name": "ماسال",
+      "slug": "masal",
+      "province_id": 889,
+      "province_name": "گیلان",
+      "province_slug": "gilan-province",
+      "display_name": "ماسال (گیلان)",
+      "districts_count": 0
+    },
+    {
+      "id": 1753,
+      "name": "ماهدشت",
+      "slug": "mahdasht",
+      "province_id": 895,
+      "province_name": "البرز",
+      "province_slug": "alborz-province",
+      "display_name": "ماهدشت (البرز)",
+      "districts_count": 0
+    },
+    {
+      "id": 856,
+      "name": "ماکو",
+      "slug": "maku",
+      "province_id": 881,
+      "province_name": "آذربایجان غربی",
+      "province_slug": "azerbaijan-west-province",
+      "display_name": "ماکو (آذربایجان غربی)",
+      "districts_count": 0
+    },
+    {
+      "id": 1748,
+      "name": "مبارکه",
+      "slug": "mobarakeh",
+      "province_id": 890,
+      "province_name": "اصفهان",
+      "province_slug": "isfahan-province",
+      "display_name": "مبارکه (اصفهان)",
+      "districts_count": 0
+    },
+    {
+      "id": 840,
+      "name": "محلات",
+      "slug": "mahalat",
+      "province_id": 901,
+      "province_name": "مرکزی",
+      "province_slug": "markazi-province",
+      "display_name": "محلات (مرکزی)",
+      "districts_count": 0
+    },
+    {
+      "id": 1752,
+      "name": "محمدشهر",
+      "slug": "mohammad-shahr",
+      "province_id": 895,
+      "province_name": "البرز",
+      "province_slug": "alborz-province",
+      "display_name": "محمدشهر (البرز)",
+      "districts_count": 0
+    },
+    {
+      "id": 837,
+      "name": "محمودآباد",
+      "slug": "mahmudabad",
+      "province_id": 893,
+      "province_name": "مازندران",
+      "province_slug": "mazandaran-province",
+      "display_name": "محمودآباد (مازندران)",
+      "districts_count": 0
+    },
+    {
+      "id": 1788,
+      "name": "مرودشت",
+      "slug": "marvdasht",
+      "province_id": 898,
+      "province_name": "فارس",
+      "province_slug": "fars-province",
+      "display_name": "مرودشت (فارس)",
+      "districts_count": 0
+    },
+    {
+      "id": 317,
+      "name": "مسجد سلیمان",
+      "slug": "masjed-soleyman",
+      "province_id": 902,
+      "province_name": "خوزستان",
+      "province_slug": "khuzestan-province",
+      "display_name": "مسجد سلیمان (خوزستان)",
+      "districts_count": 0
+    },
+    {
+      "id": 3,
+      "name": "مشهد",
+      "slug": "mashhad",
+      "province_id": 880,
+      "province_name": "خراسان رضوی",
+      "province_slug": "khorasan-razavi-province",
+      "display_name": "مشهد (خراسان رضوی)",
+      "districts_count": 0
+    },
+    {
+      "id": 773,
+      "name": "مشکین‌شهر",
+      "slug": "meshgin-shahr",
+      "province_id": 906,
+      "province_name": "اردبیل",
+      "province_slug": "ardabil-province",
+      "display_name": "مشکین‌شهر (اردبیل)",
+      "districts_count": 0
+    },
+    {
+      "id": 843,
+      "name": "ملایر",
+      "slug": "malayer",
+      "province_id": 899,
+      "province_name": "همدان",
+      "province_slug": "hamadan-province",
+      "display_name": "ملایر (همدان)",
+      "districts_count": 0
+    },
+    {
+      "id": 1778,
+      "name": "ملک‌آباد",
+      "slug": "molkabad",
+      "province_id": 880,
+      "province_name": "خراسان رضوی",
+      "province_slug": "khorasan-razavi-province",
+      "display_name": "ملک‌آباد (خراسان رضوی)",
+      "districts_count": 0
+    },
+    {
+      "id": 769,
+      "name": "مهاباد",
+      "slug": "mahabad",
+      "province_id": 881,
+      "province_name": "آذربایجان غربی",
+      "province_slug": "azerbaijan-west-province",
+      "display_name": "مهاباد (آذربایجان غربی)",
+      "districts_count": 0
+    },
+    {
+      "id": 1792,
+      "name": "مهر",
+      "slug": "mohr",
+      "province_id": 898,
+      "province_name": "فارس",
+      "province_slug": "fars-province",
+      "display_name": "مهر (فارس)",
+      "districts_count": 0
+    },
+    {
+      "id": 1830,
+      "name": "مهریز",
+      "slug": "mehriz",
+      "province_id": 886,
+      "province_name": "یزد",
+      "province_slug": "yazd-province",
+      "display_name": "مهریز (یزد)",
+      "districts_count": 0
+    },
+    {
+      "id": 792,
+      "name": "میاندوآب",
+      "slug": "miandoab",
+      "province_id": 881,
+      "province_name": "آذربایجان غربی",
+      "province_slug": "azerbaijan-west-province",
+      "display_name": "میاندوآب (آذربایجان غربی)",
+      "districts_count": 0
+    },
+    {
+      "id": 845,
+      "name": "میبد",
+      "slug": "meybod",
+      "province_id": 886,
+      "province_name": "یزد",
+      "province_slug": "yazd-province",
+      "display_name": "میبد (یزد)",
+      "districts_count": 0
+    },
+    {
+      "id": 841,
+      "name": "میناب",
+      "slug": "minab",
+      "province_id": 894,
+      "province_name": "هرمزگان",
+      "province_slug": "hormozgan-province",
+      "display_name": "میناب (هرمزگان)",
+      "districts_count": 0
+    },
+    {
+      "id": 784,
+      "name": "نسیم‌شهر",
+      "slug": "nasimshahr",
+      "province_id": 904,
+      "province_name": "تهران",
+      "province_slug": "tehran-province",
+      "display_name": "نسیم‌شهر (تهران)",
+      "districts_count": 0
+    },
+    {
+      "id": 1818,
+      "name": "نشتارود",
+      "slug": "nashtarud",
+      "province_id": 893,
+      "province_name": "مازندران",
+      "province_slug": "mazandaran-province",
+      "display_name": "نشتارود (مازندران)",
+      "districts_count": 0
+    },
+    {
+      "id": 774,
+      "name": "نظرآباد",
+      "slug": "nazarabad",
+      "province_id": 895,
+      "province_name": "البرز",
+      "province_slug": "alborz-province",
+      "display_name": "نظرآباد (البرز)",
+      "districts_count": 0
+    },
+    {
+      "id": 844,
+      "name": "نهاوند",
+      "slug": "nahavand",
+      "province_id": 899,
+      "province_name": "همدان",
+      "province_slug": "hamadan-province",
+      "display_name": "نهاوند (همدان)",
+      "districts_count": 0
+    },
+    {
+      "id": 744,
+      "name": "نور",
+      "slug": "nur",
+      "province_id": 893,
+      "province_name": "مازندران",
+      "province_slug": "mazandaran-province",
+      "display_name": "نور (مازندران)",
+      "districts_count": 0
+    },
+    {
+      "id": 1794,
+      "name": "نورآباد ممسنی",
+      "slug": "norabad",
+      "province_id": 898,
+      "province_name": "فارس",
+      "province_slug": "fars-province",
+      "display_name": "نورآباد ممسنی (فارس)",
+      "districts_count": 0
+    },
+    {
+      "id": 838,
+      "name": "نکا",
+      "slug": "neka",
+      "province_id": 893,
+      "province_name": "مازندران",
+      "province_slug": "mazandaran-province",
+      "display_name": "نکا (مازندران)",
+      "districts_count": 0
+    },
+    {
+      "id": 1711,
+      "name": "وحیدیه",
+      "slug": "vahidieh",
+      "province_id": 904,
+      "province_name": "تهران",
+      "province_slug": "tehran-province",
+      "display_name": "وحیدیه (تهران)",
+      "districts_count": 0
+    },
+    {
+      "id": 771,
+      "name": "پارس‌آباد",
+      "slug": "parsabad",
+      "province_id": 906,
+      "province_name": "اردبیل",
+      "province_slug": "ardabil-province",
+      "display_name": "پارس‌آباد (اردبیل)",
+      "districts_count": 0
+    },
+    {
+      "id": 1760,
+      "name": "پاکدشت",
+      "slug": "pakdasht",
+      "province_id": 904,
+      "province_name": "تهران",
+      "province_slug": "tehran-province",
+      "display_name": "پاکدشت (تهران)",
+      "districts_count": 0
+    },
+    {
+      "id": 1767,
+      "name": "پردیس",
+      "slug": "pardis",
+      "province_id": 904,
+      "province_name": "تهران",
+      "province_slug": "tehran-province",
+      "display_name": "پردیس (تهران)",
+      "districts_count": 0
+    },
+    {
+      "id": 1766,
+      "name": "پرند",
+      "slug": "parand",
+      "province_id": 904,
+      "province_name": "تهران",
+      "province_slug": "tehran-province",
+      "display_name": "پرند (تهران)",
+      "districts_count": 0
+    },
+    {
+      "id": 1702,
+      "name": "پل سفید",
+      "slug": "polsefid",
+      "province_id": 893,
+      "province_name": "مازندران",
+      "province_slug": "mazandaran-province",
+      "display_name": "پل سفید (مازندران)",
+      "districts_count": 0
+    },
+    {
+      "id": 1817,
+      "name": "پلدختر",
+      "slug": "pol-dokhtar",
+      "province_id": 884,
+      "province_name": "لرستان",
+      "province_slug": "lorestan-province",
+      "display_name": "پلدختر (لرستان)",
+      "districts_count": 0
+    },
+    {
+      "id": 766,
+      "name": "پیرانشهر",
+      "slug": "piranshahr",
+      "province_id": 881,
+      "province_name": "آذربایجان غربی",
+      "province_slug": "azerbaijan-west-province",
+      "display_name": "پیرانشهر (آذربایجان غربی)",
+      "districts_count": 0
+    },
+    {
+      "id": 781,
+      "name": "پیشوا",
+      "slug": "pishva",
+      "province_id": 904,
+      "province_name": "تهران",
+      "province_slug": "tehran-province",
+      "display_name": "پیشوا (تهران)",
+      "districts_count": 0
+    },
+    {
+      "id": 747,
+      "name": "چابهار",
+      "slug": "chabahar",
+      "province_id": 883,
+      "province_name": "سیستان و بلوچستان",
+      "province_slug": "sistan-and-baluchestan-province",
+      "display_name": "چابهار (سیستان و بلوچستان)",
+      "districts_count": 0
+    },
+    {
+      "id": 864,
+      "name": "چابکسر",
+      "slug": "chaboksar",
+      "province_id": 889,
+      "province_name": "گیلان",
+      "province_slug": "gilan-province",
+      "display_name": "چابکسر (گیلان)",
+      "districts_count": 0
+    },
+    {
+      "id": 1686,
+      "name": "چاف و چمخاله",
+      "slug": "chaf-chamkhale",
+      "province_id": 889,
+      "province_name": "گیلان",
+      "province_slug": "gilan-province",
+      "display_name": "چاف و چمخاله (گیلان)",
+      "districts_count": 0
+    },
+    {
+      "id": 835,
+      "name": "چالوس",
+      "slug": "chalus",
+      "province_id": 893,
+      "province_name": "مازندران",
+      "province_slug": "mazandaran-province",
+      "display_name": "چالوس (مازندران)",
+      "districts_count": 0
+    },
+    {
+      "id": 1782,
+      "name": "چمران",
+      "slug": "chamran-town",
+      "province_id": 902,
+      "province_name": "خوزستان",
+      "province_slug": "khuzestan-province",
+      "display_name": "چمران (خوزستان)",
+      "districts_count": 0
+    },
+    {
+      "id": 1694,
+      "name": "چمستان",
+      "slug": "chamestan",
+      "province_id": 893,
+      "province_name": "مازندران",
+      "province_slug": "mazandaran-province",
+      "display_name": "چمستان (مازندران)",
+      "districts_count": 0
+    },
+    {
+      "id": 1732,
+      "name": "چناران",
+      "slug": "chenaran",
+      "province_id": 880,
+      "province_name": "خراسان رضوی",
+      "province_slug": "khorasan-razavi-province",
+      "display_name": "چناران (خراسان رضوی)",
+      "districts_count": 0
+    },
+    {
+      "id": 1740,
+      "name": "چهارباغ",
+      "slug": "charbagh-alborz",
+      "province_id": 895,
+      "province_name": "البرز",
+      "province_slug": "alborz-province",
+      "display_name": "چهارباغ (البرز)",
+      "districts_count": 0
+    },
+    {
+      "id": 782,
+      "name": "چهاردانگه",
+      "slug": "chahar-dangeh",
+      "province_id": 904,
+      "province_name": "تهران",
+      "province_slug": "tehran-province",
+      "display_name": "چهاردانگه (تهران)",
+      "districts_count": 0
+    },
+    {
+      "id": 1790,
+      "name": "کازرون",
+      "slug": "kazeroon",
+      "province_id": 898,
+      "province_name": "فارس",
+      "province_slug": "fars-province",
+      "display_name": "کازرون (فارس)",
+      "districts_count": 0
+    },
+    {
+      "id": 30,
+      "name": "کاشان",
+      "slug": "kashan",
+      "province_id": 890,
+      "province_name": "اصفهان",
+      "province_slug": "isfahan-province",
+      "display_name": "کاشان (اصفهان)",
+      "districts_count": 0
+    },
+    {
+      "id": 1797,
+      "name": "کامیاران",
+      "slug": "kamyaran",
+      "province_id": 885,
+      "province_name": "کردستان",
+      "province_slug": "kurdistan-province",
+      "display_name": "کامیاران (کردستان)",
+      "districts_count": 0
+    },
+    {
+      "id": 1827,
+      "name": "کبودراهنگ",
+      "slug": "kabudrahang",
+      "province_id": 899,
+      "province_name": "همدان",
+      "province_slug": "hamadan-province",
+      "display_name": "کبودراهنگ (همدان)",
+      "districts_count": 0
+    },
+    {
+      "id": 2,
+      "name": "کرج",
+      "slug": "karaj",
+      "province_id": 895,
+      "province_name": "البرز",
+      "province_slug": "alborz-province",
+      "display_name": "کرج (البرز)",
+      "districts_count": 0
+    },
+    {
+      "id": 750,
+      "name": "کردکوی",
+      "slug": "kordkuy",
+      "province_id": 897,
+      "province_name": "گلستان",
+      "province_slug": "golestan-province",
+      "display_name": "کردکوی (گلستان)",
+      "districts_count": 0
+    },
+    {
+      "id": 13,
+      "name": "کرمان",
+      "slug": "kerman",
+      "province_id": 877,
+      "province_name": "کرمان",
+      "province_slug": "kerman-province",
+      "display_name": "کرمان (کرمان)",
+      "districts_count": 0
+    },
+    {
+      "id": 9,
+      "name": "کرمانشاه",
+      "slug": "kermanshah",
+      "province_id": 905,
+      "province_name": "کرمانشاه",
+      "province_slug": "kermanshah-province",
+      "display_name": "کرمانشاه (کرمانشاه)",
+      "districts_count": 0
+    },
+    {
+      "id": 1695,
+      "name": "کلارآباد",
+      "slug": "kelarabad",
+      "province_id": 893,
+      "province_name": "مازندران",
+      "province_slug": "mazandaran-province",
+      "display_name": "کلارآباد (مازندران)",
+      "districts_count": 0
+    },
+    {
+      "id": 1696,
+      "name": "کلاردشت",
+      "slug": "kelarestan",
+      "province_id": 893,
+      "province_name": "مازندران",
+      "province_slug": "mazandaran-province",
+      "display_name": "کلاردشت (مازندران)",
+      "districts_count": 0
+    },
+    {
+      "id": 1692,
+      "name": "کلاله",
+      "slug": "kalale",
+      "province_id": 897,
+      "province_name": "گلستان",
+      "province_slug": "golestan-province",
+      "display_name": "کلاله (گلستان)",
+      "districts_count": 0
+    },
+    {
+      "id": 863,
+      "name": "کلاچای",
+      "slug": "kelachay",
+      "province_id": 889,
+      "province_name": "گیلان",
+      "province_slug": "gilan-province",
+      "display_name": "کلاچای (گیلان)",
+      "districts_count": 0
+    },
+    {
+      "id": 821,
+      "name": "کنگاور",
+      "slug": "kangavar",
+      "province_id": 905,
+      "province_name": "کرمانشاه",
+      "province_slug": "kermanshah-province",
+      "display_name": "کنگاور (کرمانشاه)",
+      "districts_count": 0
+    },
+    {
+      "id": 1708,
+      "name": "کهریزک",
+      "slug": "kahrizak",
+      "province_id": 904,
+      "province_name": "تهران",
+      "province_slug": "tehran-province",
+      "display_name": "کهریزک (تهران)",
+      "districts_count": 0
+    },
+    {
+      "id": 1803,
+      "name": "کهنوج",
+      "slug": "kahnooj",
+      "province_id": 877,
+      "province_name": "کرمان",
+      "province_slug": "kerman-province",
+      "display_name": "کهنوج (کرمان)",
+      "districts_count": 0
+    },
+    {
+      "id": 831,
+      "name": "کوهدشت",
+      "slug": "kuhdasht",
+      "province_id": 884,
+      "province_name": "لرستان",
+      "province_slug": "lorestan-province",
+      "display_name": "کوهدشت (لرستان)",
+      "districts_count": 0
+    },
+    {
+      "id": 1738,
+      "name": "کوهسار",
+      "slug": "koohsar",
+      "province_id": 895,
+      "province_name": "البرز",
+      "province_slug": "alborz-province",
+      "display_name": "کوهسار (البرز)",
+      "districts_count": 0
+    },
+    {
+      "id": 1687,
+      "name": "کیاشهر",
+      "slug": "kiashahr",
+      "province_id": 889,
+      "province_name": "گیلان",
+      "province_slug": "gilan-province",
+      "display_name": "کیاشهر (گیلان)",
+      "districts_count": 0
+    },
+    {
+      "id": 33,
+      "name": "کیش",
+      "slug": "kish",
+      "province_id": 894,
+      "province_name": "هرمزگان",
+      "province_slug": "hormozgan-province",
+      "display_name": "کیش (هرمزگان)",
+      "districts_count": 0
+    },
+    {
+      "id": 1719,
+      "name": "کیلان",
+      "slug": "kilan",
+      "province_id": 904,
+      "province_name": "تهران",
+      "province_slug": "tehran-province",
+      "display_name": "کیلان (تهران)",
+      "districts_count": 0
+    },
+    {
+      "id": 1832,
+      "name": "گالیکش",
+      "slug": "galikesh",
+      "province_id": 897,
+      "province_name": "گلستان",
+      "province_slug": "golestan-province",
+      "display_name": "گالیکش (گلستان)",
+      "districts_count": 0
+    },
+    {
+      "id": 1720,
+      "name": "گرمدره",
+      "slug": "garmdareh",
+      "province_id": 895,
+      "province_name": "البرز",
+      "province_slug": "alborz-province",
+      "display_name": "گرمدره (البرز)",
+      "districts_count": 0
+    },
+    {
+      "id": 1743,
+      "name": "گرمی",
+      "slug": "germi",
+      "province_id": 906,
+      "province_name": "اردبیل",
+      "province_slug": "ardabil-province",
+      "display_name": "گرمی (اردبیل)",
+      "districts_count": 0
+    },
+    {
+      "id": 21,
+      "name": "گرگان",
+      "slug": "gorgan",
+      "province_id": 897,
+      "province_name": "گلستان",
+      "province_slug": "golestan-province",
+      "display_name": "گرگان (گلستان)",
+      "districts_count": 0
+    },
+    {
+      "id": 1773,
+      "name": "گلبهار",
+      "slug": "golbahar",
+      "province_id": 880,
+      "province_name": "خراسان رضوی",
+      "province_slug": "khorasan-razavi-province",
+      "display_name": "گلبهار (خراسان رضوی)",
+      "districts_count": 0
+    },
+    {
+      "id": 1706,
+      "name": "گلستان",
+      "slug": "golestan-baharestan",
+      "province_id": 904,
+      "province_name": "تهران",
+      "province_slug": "tehran-province",
+      "display_name": "گلستان (تهران)",
+      "districts_count": 0
+    },
+    {
+      "id": 848,
+      "name": "گلپایگان",
+      "slug": "golpayegan",
+      "province_id": 890,
+      "province_name": "اصفهان",
+      "province_slug": "isfahan-province",
+      "display_name": "گلپایگان (اصفهان)",
+      "districts_count": 0
+    },
+    {
+      "id": 749,
+      "name": "گمیشان",
+      "slug": "gomishan",
+      "province_id": 897,
+      "province_name": "گلستان",
+      "province_slug": "golestan-province",
+      "display_name": "گمیشان (گلستان)",
+      "districts_count": 0
+    },
+    {
+      "id": 847,
+      "name": "گناباد",
+      "slug": "gonabad",
+      "province_id": 880,
+      "province_name": "خراسان رضوی",
+      "province_slug": "khorasan-razavi-province",
+      "display_name": "گناباد (خراسان رضوی)",
+      "districts_count": 0
+    },
+    {
+      "id": 743,
+      "name": "گنبد کاووس",
+      "slug": "gonbad-kavus",
+      "province_id": 897,
+      "province_name": "گلستان",
+      "province_slug": "golestan-province",
+      "display_name": "گنبد کاووس (گلستان)",
+      "districts_count": 0
+    },
+    {
+      "id": 1802,
+      "name": "گهواره",
+      "slug": "gahvareh",
+      "province_id": 905,
+      "province_name": "کرمانشاه",
+      "province_slug": "kermanshah-province",
+      "display_name": "گهواره (کرمانشاه)",
+      "districts_count": 0
+    }
+  ],
+  "tree": [
+    {
+      "id": 891,
+      "name": "آذربایجان شرقی",
+      "slug": "azarbaijan-east-province",
+      "cities": []
+    },
+    {
+      "id": 881,
+      "name": "آذربایجان غربی",
+      "slug": "azerbaijan-west-province",
+      "cities": [
+        {
+          "id": 10,
+          "name": "ارومیه",
+          "slug": "urmia"
+        },
+        {
+          "id": 859,
+          "name": "اشنویه",
+          "slug": "oshnavieh"
+        },
+        {
+          "id": 765,
+          "name": "بوکان",
+          "slug": "bukan"
+        },
+        {
+          "id": 766,
+          "name": "پیرانشهر",
+          "slug": "piranshahr"
+        },
+        {
+          "id": 767,
+          "name": "خوی",
+          "slug": "khoy"
+        },
+        {
+          "id": 857,
+          "name": "سردشت",
+          "slug": "sardasht"
+        },
+        {
+          "id": 768,
+          "name": "سلماس",
+          "slug": "salmas"
+        },
+        {
+          "id": 858,
+          "name": "شاهین دژ",
+          "slug": "shahin-dej"
+        },
+        {
+          "id": 856,
+          "name": "ماکو",
+          "slug": "maku"
+        },
+        {
+          "id": 769,
+          "name": "مهاباد",
+          "slug": "mahabad"
+        },
+        {
+          "id": 792,
+          "name": "میاندوآب",
+          "slug": "miandoab"
+        }
+      ]
+    },
+    {
+      "id": 906,
+      "name": "اردبیل",
+      "slug": "ardabil-province",
+      "cities": [
+        {
+          "id": 17,
+          "name": "اردبیل",
+          "slug": "ardabil"
+        },
+        {
+          "id": 771,
+          "name": "پارس‌آباد",
+          "slug": "parsabad"
+        },
+        {
+          "id": 772,
+          "name": "خلخال",
+          "slug": "khalkhal"
+        },
+        {
+          "id": 1741,
+          "name": "سرعین",
+          "slug": "sarein"
+        },
+        {
+          "id": 1743,
+          "name": "گرمی",
+          "slug": "germi"
+        },
+        {
+          "id": 773,
+          "name": "مشکین‌شهر",
+          "slug": "meshgin-shahr"
+        }
+      ]
+    },
+    {
+      "id": 890,
+      "name": "اصفهان",
+      "slug": "isfahan-province",
+      "cities": [
+        {
+          "id": 1737,
+          "name": "آران و بیدگل",
+          "slug": "aran-va-bidgol"
+        },
+        {
+          "id": 1723,
+          "name": "ابریشم",
+          "slug": "abrisham-isfahan"
+        },
+        {
+          "id": 4,
+          "name": "اصفهان",
+          "slug": "isfahan"
+        },
+        {
+          "id": 1747,
+          "name": "خمینی‌شهر",
+          "slug": "khomeyni-shahr"
+        },
+        {
+          "id": 1727,
+          "name": "خوانسار",
+          "slug": "khansar"
+        },
+        {
+          "id": 1750,
+          "name": "خور",
+          "slug": "khour"
+        },
+        {
+          "id": 1724,
+          "name": "داران",
+          "slug": "daran"
+        },
+        {
+          "id": 1725,
+          "name": "سمیرم",
+          "slug": "semirom"
+        },
+        {
+          "id": 1744,
+          "name": "شاهین‌شهر",
+          "slug": "shahin-shahr"
+        },
+        {
+          "id": 849,
+          "name": "فلاورجان",
+          "slug": "falavarjan"
+        },
+        {
+          "id": 1745,
+          "name": "فولادشهر",
+          "slug": "foolad-shahr"
+        },
+        {
+          "id": 1746,
+          "name": "قمصر",
+          "slug": "ghamsar"
+        },
+        {
+          "id": 30,
+          "name": "کاشان",
+          "slug": "kashan"
+        },
+        {
+          "id": 848,
+          "name": "گلپایگان",
+          "slug": "golpayegan"
+        },
+        {
+          "id": 1749,
+          "name": "لنجان",
+          "slug": "lenjan"
+        },
+        {
+          "id": 1748,
+          "name": "مبارکه",
+          "slug": "mobarakeh"
+        }
+      ]
+    },
+    {
+      "id": 895,
+      "name": "البرز",
+      "slug": "alborz-province",
+      "cities": [
+        {
+          "id": 1722,
+          "name": "آسارا",
+          "slug": "asara"
+        },
+        {
+          "id": 1721,
+          "name": "اشتهارد",
+          "slug": "eshtehard"
+        },
+        {
+          "id": 1739,
+          "name": "تنکمان",
+          "slug": "tankaman"
+        },
+        {
+          "id": 1740,
+          "name": "چهارباغ",
+          "slug": "charbagh-alborz"
+        },
+        {
+          "id": 850,
+          "name": "طالقان",
+          "slug": "taleqan"
+        },
+        {
+          "id": 1751,
+          "name": "فردیس",
+          "slug": "fardis"
+        },
+        {
+          "id": 2,
+          "name": "کرج",
+          "slug": "karaj"
+        },
+        {
+          "id": 1738,
+          "name": "کوهسار",
+          "slug": "koohsar"
+        },
+        {
+          "id": 1720,
+          "name": "گرمدره",
+          "slug": "garmdareh"
+        },
+        {
+          "id": 1753,
+          "name": "ماهدشت",
+          "slug": "mahdasht"
+        },
+        {
+          "id": 1752,
+          "name": "محمدشهر",
+          "slug": "mohammad-shahr"
+        },
+        {
+          "id": 774,
+          "name": "نظرآباد",
+          "slug": "nazarabad"
+        }
+      ]
+    },
+    {
+      "id": 888,
+      "name": "ایلام",
+      "slug": "ilam-province",
+      "cities": [
+        {
+          "id": 775,
+          "name": "آبدانان",
+          "slug": "abdanan"
+        },
+        {
+          "id": 32,
+          "name": "ایلام",
+          "slug": "ilam"
+        },
+        {
+          "id": 776,
+          "name": "ایوان",
+          "slug": "eyvan"
+        },
+        {
+          "id": 777,
+          "name": "دهلران",
+          "slug": "dehloran"
+        }
+      ]
+    },
+    {
+      "id": 900,
+      "name": "بوشهر",
+      "slug": "bushehr-province",
+      "cities": [
+        {
+          "id": 778,
+          "name": "برازجان",
+          "slug": "borazjan"
+        },
+        {
+          "id": 1756,
+          "name": "بندر دیر",
+          "slug": "dayyer"
+        },
+        {
+          "id": 779,
+          "name": "بندر کنگان",
+          "slug": "bandar-kangan"
+        },
+        {
+          "id": 780,
+          "name": "بندر گناوه",
+          "slug": "bandar-ganaveh"
+        },
+        {
+          "id": 25,
+          "name": "بوشهر",
+          "slug": "bushehr"
+        },
+        {
+          "id": 1757,
+          "name": "جم",
+          "slug": "jam"
+        }
+      ]
+    },
+    {
+      "id": 904,
+      "name": "تهران",
+      "slug": "tehran-province",
+      "cities": [
+        {
+          "id": 1709,
+          "name": "آبسرد",
+          "slug": "absard"
+        },
+        {
+          "id": 1715,
+          "name": "آبعلی",
+          "slug": "abali"
+        },
+        {
+          "id": 1714,
+          "name": "ارجمند",
+          "slug": "arjmand"
+        },
+        {
+          "id": 29,
+          "name": "اسلام‌شهر",
+          "slug": "eslamshahr"
+        },
+        {
+          "id": 1764,
+          "name": "اندیشه",
+          "slug": "andisheh-new-town"
+        },
+        {
+          "id": 1707,
+          "name": "باقرشهر",
+          "slug": "baghershahr"
+        },
+        {
+          "id": 1768,
+          "name": "بومهن",
+          "slug": "bumehen"
+        },
+        {
+          "id": 1760,
+          "name": "پاکدشت",
+          "slug": "pakdasht"
+        },
+        {
+          "id": 1767,
+          "name": "پردیس",
+          "slug": "pardis"
+        },
+        {
+          "id": 1766,
+          "name": "پرند",
+          "slug": "parand"
+        },
+        {
+          "id": 781,
+          "name": "پیشوا",
+          "slug": "pishva"
+        },
+        {
+          "id": 1,
+          "name": "تهران",
+          "slug": "tehran"
+        },
+        {
+          "id": 1718,
+          "name": "جوادآباد",
+          "slug": "javadabad"
+        },
+        {
+          "id": 782,
+          "name": "چهاردانگه",
+          "slug": "chahar-dangeh"
+        },
+        {
+          "id": 783,
+          "name": "دماوند",
+          "slug": "damavand"
+        },
+        {
+          "id": 1765,
+          "name": "رباط‌کریم",
+          "slug": "robat-karim"
+        },
+        {
+          "id": 1769,
+          "name": "رودهن",
+          "slug": "rudehen"
+        },
+        {
+          "id": 1763,
+          "name": "ری",
+          "slug": "shahr-e-rey"
+        },
+        {
+          "id": 1713,
+          "name": "شاهدشهر",
+          "slug": "shahedshahr"
+        },
+        {
+          "id": 1717,
+          "name": "شمشک",
+          "slug": "shemshak"
+        },
+        {
+          "id": 1759,
+          "name": "شهریار",
+          "slug": "shahriar"
+        },
+        {
+          "id": 1712,
+          "name": "صباشهر",
+          "slug": "sabashahr"
+        },
+        {
+          "id": 1710,
+          "name": "صفادشت",
+          "slug": "safadasht-industrial-city"
+        },
+        {
+          "id": 1716,
+          "name": "فردوسیه",
+          "slug": "ferdosiye"
+        },
+        {
+          "id": 1772,
+          "name": "فشم",
+          "slug": "fasham"
+        },
+        {
+          "id": 1770,
+          "name": "فیروزکوه",
+          "slug": "firuzkooh"
+        },
+        {
+          "id": 1758,
+          "name": "قدس",
+          "slug": "qods"
+        },
+        {
+          "id": 1761,
+          "name": "قرچک",
+          "slug": "qarchak"
+        },
+        {
+          "id": 1708,
+          "name": "کهریزک",
+          "slug": "kahrizak"
+        },
+        {
+          "id": 1719,
+          "name": "کیلان",
+          "slug": "kilan"
+        },
+        {
+          "id": 1706,
+          "name": "گلستان",
+          "slug": "golestan-baharestan"
+        },
+        {
+          "id": 1771,
+          "name": "لواسان",
+          "slug": "lavasan"
+        },
+        {
+          "id": 784,
+          "name": "نسیم‌شهر",
+          "slug": "nasimshahr"
+        },
+        {
+          "id": 1711,
+          "name": "وحیدیه",
+          "slug": "vahidieh"
+        }
+      ]
+    },
+    {
+      "id": 903,
+      "name": "چهارمحال و بختیاری",
+      "slug": "chahar-mahaal-and-bakhtiari-province",
+      "cities": [
+        {
+          "id": 785,
+          "name": "بروجن",
+          "slug": "boroujen"
+        },
+        {
+          "id": 1833,
+          "name": "سامان",
+          "slug": "saman"
+        },
+        {
+          "id": 36,
+          "name": "شهرکرد",
+          "slug": "shahrekord"
+        },
+        {
+          "id": 786,
+          "name": "فرخ‌شهر",
+          "slug": "farrokhshahr"
+        }
+      ]
+    },
+    {
+      "id": 876,
+      "name": "خراسان جنوبی",
+      "slug": "khorasan-south-province",
+      "cities": [
+        {
+          "id": 34,
+          "name": "بیرجند",
+          "slug": "birjand"
+        },
+        {
+          "id": 788,
+          "name": "طبس",
+          "slug": "tabas"
+        },
+        {
+          "id": 789,
+          "name": "فردوس",
+          "slug": "ferdows"
+        }
+      ]
+    },
+    {
+      "id": 880,
+      "name": "خراسان رضوی",
+      "slug": "khorasan-razavi-province",
+      "cities": [
+        {
+          "id": 1735,
+          "name": "بردسکن",
+          "slug": "bardaskan"
+        },
+        {
+          "id": 1729,
+          "name": "تایباد",
+          "slug": "taybad"
+        },
+        {
+          "id": 791,
+          "name": "تربت جام",
+          "slug": "torbat-jam"
+        },
+        {
+          "id": 1776,
+          "name": "تربت‌حیدریه",
+          "slug": "torbat-heydariyeh"
+        },
+        {
+          "id": 1732,
+          "name": "چناران",
+          "slug": "chenaran"
+        },
+        {
+          "id": 1736,
+          "name": "خواف",
+          "slug": "khaf"
+        },
+        {
+          "id": 316,
+          "name": "سبزوار",
+          "slug": "sabzevar"
+        },
+        {
+          "id": 1775,
+          "name": "شاندیز",
+          "slug": "shandiz"
+        },
+        {
+          "id": 1774,
+          "name": "طرقبه",
+          "slug": "torghabeh"
+        },
+        {
+          "id": 1733,
+          "name": "قاسم‌آباد (خواف)",
+          "slug": "qasemabad-khaf"
+        },
+        {
+          "id": 1777,
+          "name": "قوچان",
+          "slug": "quchan"
+        },
+        {
+          "id": 1773,
+          "name": "گلبهار",
+          "slug": "golbahar"
+        },
+        {
+          "id": 847,
+          "name": "گناباد",
+          "slug": "gonabad"
+        },
+        {
+          "id": 3,
+          "name": "مشهد",
+          "slug": "mashhad"
+        },
+        {
+          "id": 1778,
+          "name": "ملک‌آباد",
+          "slug": "molkabad"
+        }
+      ]
+    },
+    {
+      "id": 896,
+      "name": "خراسان شمالی",
+      "slug": "khorasan-north-province",
+      "cities": [
+        {
+          "id": 793,
+          "name": "آشخانه",
+          "slug": "ashkhaneh"
+        },
+        {
+          "id": 794,
+          "name": "اسفراین",
+          "slug": "esfarāyen"
+        },
+        {
+          "id": 39,
+          "name": "بجنورد",
+          "slug": "bojnurd"
+        }
+      ]
+    },
+    {
+      "id": 902,
+      "name": "خوزستان",
+      "slug": "khuzestan-province",
+      "cities": [
+        {
+          "id": 24,
+          "name": "آبادان",
+          "slug": "abadan"
+        },
+        {
+          "id": 1779,
+          "name": "امیدیه",
+          "slug": "omidiyeh"
+        },
+        {
+          "id": 796,
+          "name": "اندیمشک",
+          "slug": "andimeshk"
+        },
+        {
+          "id": 7,
+          "name": "اهواز",
+          "slug": "ahvaz"
+        },
+        {
+          "id": 797,
+          "name": "ایذه",
+          "slug": "izeh"
+        },
+        {
+          "id": 798,
+          "name": "بندر امام خمینی",
+          "slug": "bandar-imam-khomeini"
+        },
+        {
+          "id": 37,
+          "name": "بندر ماهشهر",
+          "slug": "bandar-mahshahr"
+        },
+        {
+          "id": 314,
+          "name": "بهبهان",
+          "slug": "behbahan"
+        },
+        {
+          "id": 1782,
+          "name": "چمران",
+          "slug": "chamran-town"
+        },
+        {
+          "id": 1784,
+          "name": "حمیدیه",
+          "slug": "hamidiyeh"
+        },
+        {
+          "id": 799,
+          "name": "خرمشهر",
+          "slug": "khorramshahr"
+        },
+        {
+          "id": 23,
+          "name": "دزفول",
+          "slug": "dezful"
+        },
+        {
+          "id": 1781,
+          "name": "رامشیر",
+          "slug": "ramshir"
+        },
+        {
+          "id": 800,
+          "name": "رامهرمز",
+          "slug": "ramhormoz"
+        },
+        {
+          "id": 756,
+          "name": "سوسنگرد",
+          "slug": "susangerd"
+        },
+        {
+          "id": 1780,
+          "name": "شادگان",
+          "slug": "shadeghan"
+        },
+        {
+          "id": 754,
+          "name": "شوش",
+          "slug": "shush"
+        },
+        {
+          "id": 602,
+          "name": "شوشتر",
+          "slug": "shooshtar"
+        },
+        {
+          "id": 317,
+          "name": "مسجد سلیمان",
+          "slug": "masjed-soleyman"
+        }
+      ]
+    },
+    {
+      "id": 879,
+      "name": "زنجان",
+      "slug": "zanjan-province",
+      "cities": [
+        {
+          "id": 802,
+          "name": "ابهر",
+          "slug": "abhar"
+        },
+        {
+          "id": 803,
+          "name": "خرمدره",
+          "slug": "khorramdarreh"
+        },
+        {
+          "id": 20,
+          "name": "زنجان",
+          "slug": "zanjan"
+        }
+      ]
+    },
+    {
+      "id": 882,
+      "name": "سمنان",
+      "slug": "semnan-province",
+      "cities": [
+        {
+          "id": 805,
+          "name": "دامغان",
+          "slug": "damghan"
+        },
+        {
+          "id": 35,
+          "name": "سمنان",
+          "slug": "semnan"
+        },
+        {
+          "id": 707,
+          "name": "شاهرود",
+          "slug": "shahroud"
+        }
+      ]
+    },
+    {
+      "id": 883,
+      "name": "سیستان و بلوچستان",
+      "slug": "sistan-and-baluchestan-province",
+      "cities": [
+        {
+          "id": 807,
+          "name": "ایرانشهر",
+          "slug": "iranshahr"
+        },
+        {
+          "id": 747,
+          "name": "چابهار",
+          "slug": "chabahar"
+        },
+        {
+          "id": 1785,
+          "name": "خاش",
+          "slug": "khash"
+        },
+        {
+          "id": 706,
+          "name": "زابل",
+          "slug": "zabol"
+        },
+        {
+          "id": 11,
+          "name": "زاهدان",
+          "slug": "zahedan"
+        },
+        {
+          "id": 1787,
+          "name": "زهک",
+          "slug": "zahak"
+        },
+        {
+          "id": 865,
+          "name": "سراوان-سیستان و بلوچستان",
+          "slug": "saravan"
+        }
+      ]
+    },
+    {
+      "id": 898,
+      "name": "فارس",
+      "slug": "fars-province",
+      "cities": [
+        {
+          "id": 851,
+          "name": "آباده",
+          "slug": "abadeh"
+        },
+        {
+          "id": 1728,
+          "name": "اقلید",
+          "slug": "eqlid"
+        },
+        {
+          "id": 808,
+          "name": "جهرم",
+          "slug": "jahrom"
+        },
+        {
+          "id": 1793,
+          "name": "خور",
+          "slug": "khoour"
+        },
+        {
+          "id": 809,
+          "name": "داراب",
+          "slug": "darab"
+        },
+        {
+          "id": 1791,
+          "name": "زرقان",
+          "slug": "zarghan"
+        },
+        {
+          "id": 6,
+          "name": "شیراز",
+          "slug": "shiraz"
+        },
+        {
+          "id": 810,
+          "name": "صدرا-فارس",
+          "slug": "sadra"
+        },
+        {
+          "id": 1789,
+          "name": "فسا",
+          "slug": "fasa"
+        },
+        {
+          "id": 1734,
+          "name": "فیروزآباد",
+          "slug": "firuzabad"
+        },
+        {
+          "id": 1790,
+          "name": "کازرون",
+          "slug": "kazeroon"
+        },
+        {
+          "id": 1730,
+          "name": "لار",
+          "slug": "lar"
+        },
+        {
+          "id": 1731,
+          "name": "لامرد",
+          "slug": "lamerd"
+        },
+        {
+          "id": 1788,
+          "name": "مرودشت",
+          "slug": "marvdasht"
+        },
+        {
+          "id": 1792,
+          "name": "مهر",
+          "slug": "mohr"
+        },
+        {
+          "id": 1794,
+          "name": "نورآباد ممسنی",
+          "slug": "norabad"
+        }
+      ]
+    },
+    {
+      "id": 878,
+      "name": "قزوین",
+      "slug": "qazvin-province",
+      "cities": [
+        {
+          "id": 869,
+          "name": "آبیک",
+          "slug": "abyek"
+        },
+        {
+          "id": 1795,
+          "name": "اقبالیه",
+          "slug": "eqbaliyeh"
+        },
+        {
+          "id": 872,
+          "name": "الوند",
+          "slug": "alvand"
+        },
+        {
+          "id": 811,
+          "name": "تاکستان",
+          "slug": "takestan"
+        },
+        {
+          "id": 1796,
+          "name": "شال",
+          "slug": "shal"
+        },
+        {
+          "id": 19,
+          "name": "قزوین",
+          "slug": "qazvin"
+        }
+      ]
+    },
+    {
+      "id": 892,
+      "name": "قم",
+      "slug": "qom-province",
+      "cities": []
+    },
+    {
+      "id": 885,
+      "name": "کردستان",
+      "slug": "kurdistan-province",
+      "cities": [
+        {
+          "id": 662,
+          "name": "بانه",
+          "slug": "baneh"
+        },
+        {
+          "id": 868,
+          "name": "بیجار",
+          "slug": "bijar"
+        },
+        {
+          "id": 1798,
+          "name": "دهگلان",
+          "slug": "dehgolan"
+        },
+        {
+          "id": 812,
+          "name": "سقز",
+          "slug": "saqqez"
+        },
+        {
+          "id": 28,
+          "name": "سنندج",
+          "slug": "sanandaj"
+        },
+        {
+          "id": 813,
+          "name": "قروه",
+          "slug": "qorveh"
+        },
+        {
+          "id": 1797,
+          "name": "کامیاران",
+          "slug": "kamyaran"
+        }
+      ]
+    },
+    {
+      "id": 877,
+      "name": "کرمان",
+      "slug": "kerman-province",
+      "cities": [
+        {
+          "id": 1804,
+          "name": "بافت",
+          "slug": "baft"
+        },
+        {
+          "id": 1805,
+          "name": "بردسیر",
+          "slug": "bardsir"
+        },
+        {
+          "id": 1807,
+          "name": "بلوک",
+          "slug": "boluk"
+        },
+        {
+          "id": 815,
+          "name": "بم",
+          "slug": "bam"
+        },
+        {
+          "id": 816,
+          "name": "جیرفت",
+          "slug": "jiroft"
+        },
+        {
+          "id": 817,
+          "name": "رفسنجان",
+          "slug": "rafsanjan"
+        },
+        {
+          "id": 867,
+          "name": "زرند",
+          "slug": "zarand"
+        },
+        {
+          "id": 818,
+          "name": "سیرجان",
+          "slug": "sirjan"
+        },
+        {
+          "id": 13,
+          "name": "کرمان",
+          "slug": "kerman"
+        },
+        {
+          "id": 1803,
+          "name": "کهنوج",
+          "slug": "kahnooj"
+        }
+      ]
+    },
+    {
+      "id": 905,
+      "name": "کرمانشاه",
+      "slug": "kermanshah-province",
+      "cities": [
+        {
+          "id": 819,
+          "name": "اسلام‌‌آباد غرب",
+          "slug": "eslamabad-gharb"
+        },
+        {
+          "id": 1801,
+          "name": "بیستون",
+          "slug": "bisotun"
+        },
+        {
+          "id": 820,
+          "name": "جوانرود",
+          "slug": "javanrud"
+        },
+        {
+          "id": 854,
+          "name": "سرپل ذهاب",
+          "slug": "sarpol-zahab"
+        },
+        {
+          "id": 855,
+          "name": "سنقر",
+          "slug": "sonqor"
+        },
+        {
+          "id": 1800,
+          "name": "صحنه",
+          "slug": "sahneh"
+        },
+        {
+          "id": 9,
+          "name": "کرمانشاه",
+          "slug": "kermanshah"
+        },
+        {
+          "id": 821,
+          "name": "کنگاور",
+          "slug": "kangavar"
+        },
+        {
+          "id": 1802,
+          "name": "گهواره",
+          "slug": "gahvareh"
+        }
+      ]
+    },
+    {
+      "id": 887,
+      "name": "کهگیلویه و بویراحمد",
+      "slug": "kohgiluyeh-and-boyer-ahmad-province",
+      "cities": [
+        {
+          "id": 874,
+          "name": "دوگنبدان",
+          "slug": "dogonbadan"
+        },
+        {
+          "id": 822,
+          "name": "دهدشت",
+          "slug": "dehdasht"
+        },
+        {
+          "id": 1808,
+          "name": "سی‌سخت",
+          "slug": "sisakht"
+        }
+      ]
+    },
+    {
+      "id": 897,
+      "name": "گلستان",
+      "slug": "golestan-province",
+      "cities": [
+        {
+          "id": 1691,
+          "name": "آزادشهر",
+          "slug": "azadshahr-golestan"
+        },
+        {
+          "id": 748,
+          "name": "آق قلا",
+          "slug": "aq-qala"
+        },
+        {
+          "id": 751,
+          "name": "بندر ترکمن",
+          "slug": "bandar-torkaman"
+        },
+        {
+          "id": 823,
+          "name": "علی‌آباد کتول",
+          "slug": "aliabad-katul"
+        },
+        {
+          "id": 750,
+          "name": "کردکوی",
+          "slug": "kordkuy"
+        },
+        {
+          "id": 1692,
+          "name": "کلاله",
+          "slug": "kalale"
+        },
+        {
+          "id": 1832,
+          "name": "گالیکش",
+          "slug": "galikesh"
+        },
+        {
+          "id": 21,
+          "name": "گرگان",
+          "slug": "gorgan"
+        },
+        {
+          "id": 749,
+          "name": "گمیشان",
+          "slug": "gomishan"
+        },
+        {
+          "id": 743,
+          "name": "گنبد کاووس",
+          "slug": "gonbad-kavus"
+        }
+      ]
+    },
+    {
+      "id": 889,
+      "name": "گیلان",
+      "slug": "gilan-province",
+      "cities": [
+        {
+          "id": 824,
+          "name": "آستارا",
+          "slug": "astara"
+        },
+        {
+          "id": 825,
+          "name": "آستانه اشرفیه",
+          "slug": "astaneh-ashrafiyeh"
+        },
+        {
+          "id": 1812,
+          "name": "اسالم",
+          "slug": "asalem"
+        },
+        {
+          "id": 1688,
+          "name": "املش",
+          "slug": "amlash"
+        },
+        {
+          "id": 708,
+          "name": "بندر انزلی",
+          "slug": "bandar-anzali"
+        },
+        {
+          "id": 829,
+          "name": "تالش",
+          "slug": "talesh"
+        },
+        {
+          "id": 864,
+          "name": "چابکسر",
+          "slug": "chaboksar"
+        },
+        {
+          "id": 1686,
+          "name": "چاف و چمخاله",
+          "slug": "chaf-chamkhale"
+        },
+        {
+          "id": 1689,
+          "name": "خشکبیجار",
+          "slug": "khoshkbijar"
+        },
+        {
+          "id": 1809,
+          "name": "خمام",
+          "slug": "khomam"
+        },
+        {
+          "id": 1814,
+          "name": "دیلمان",
+          "slug": "deylaman"
+        },
+        {
+          "id": 12,
+          "name": "رشت",
+          "slug": "rasht"
+        },
+        {
+          "id": 1684,
+          "name": "رضوانشهر",
+          "slug": "rezvanshahr"
+        },
+        {
+          "id": 1810,
+          "name": "رودبار",
+          "slug": "rudbar"
+        },
+        {
+          "id": 826,
+          "name": "رودسر",
+          "slug": "rudsar"
+        },
+        {
+          "id": 1683,
+          "name": "زیباکنار",
+          "slug": "zibakenar"
+        },
+        {
+          "id": 1811,
+          "name": "سنگر",
+          "slug": "sangar"
+        },
+        {
+          "id": 861,
+          "name": "سیاهکل",
+          "slug": "siahkal"
+        },
+        {
+          "id": 1813,
+          "name": "شفت",
+          "slug": "shaft"
+        },
+        {
+          "id": 827,
+          "name": "صومعه‌سرا",
+          "slug": "someh-sara"
+        },
+        {
+          "id": 860,
+          "name": "فومن",
+          "slug": "fuman"
+        },
+        {
+          "id": 863,
+          "name": "کلاچای",
+          "slug": "kelachay"
+        },
+        {
+          "id": 1687,
+          "name": "کیاشهر",
+          "slug": "kiashahr"
+        },
+        {
+          "id": 746,
+          "name": "لاهیجان",
+          "slug": "lahijan"
+        },
+        {
+          "id": 1690,
+          "name": "لشت نشا",
+          "slug": "lashtenesha"
+        },
+        {
+          "id": 828,
+          "name": "لنگرود",
+          "slug": "langarud"
+        },
+        {
+          "id": 862,
+          "name": "ماسال",
+          "slug": "masal"
+        }
+      ]
+    },
+    {
+      "id": 884,
+      "name": "لرستان",
+      "slug": "lorestan-province",
+      "cities": [
+        {
+          "id": 870,
+          "name": "ازنا",
+          "slug": "azna"
+        },
+        {
+          "id": 1816,
+          "name": "الشتر",
+          "slug": "aleshtar"
+        },
+        {
+          "id": 830,
+          "name": "الیگودرز",
+          "slug": "aligudarz"
+        },
+        {
+          "id": 26,
+          "name": "بروجرد",
+          "slug": "borujerd"
+        },
+        {
+          "id": 1817,
+          "name": "پلدختر",
+          "slug": "pol-dokhtar"
+        },
+        {
+          "id": 27,
+          "name": "خرم‌آباد",
+          "slug": "khorramabad"
+        },
+        {
+          "id": 752,
+          "name": "دورود",
+          "slug": "dorud"
+        },
+        {
+          "id": 831,
+          "name": "کوهدشت",
+          "slug": "kuhdasht"
+        }
+      ]
+    },
+    {
+      "id": 893,
+      "name": "مازندران",
+      "slug": "mazandaran-province",
+      "cities": [
+        {
+          "id": 663,
+          "name": "آمل",
+          "slug": "amol"
+        },
+        {
+          "id": 1703,
+          "name": "امیرکلا",
+          "slug": "amirkala"
+        },
+        {
+          "id": 1701,
+          "name": "ایزدشهر",
+          "slug": "izadshahr"
+        },
+        {
+          "id": 664,
+          "name": "بابل",
+          "slug": "babol"
+        },
+        {
+          "id": 710,
+          "name": "بابلسر",
+          "slug": "babolsar"
+        },
+        {
+          "id": 832,
+          "name": "بهشهر",
+          "slug": "behshahr"
+        },
+        {
+          "id": 1702,
+          "name": "پل سفید",
+          "slug": "polsefid"
+        },
+        {
+          "id": 833,
+          "name": "تنکابن",
+          "slug": "tonekabon"
+        },
+        {
+          "id": 834,
+          "name": "جویبار",
+          "slug": "juybar"
+        },
+        {
+          "id": 835,
+          "name": "چالوس",
+          "slug": "chalus"
+        },
+        {
+          "id": 1694,
+          "name": "چمستان",
+          "slug": "chamestan"
+        },
+        {
+          "id": 745,
+          "name": "رامسر",
+          "slug": "ramsar"
+        },
+        {
+          "id": 1698,
+          "name": "رویان",
+          "slug": "royan"
+        },
+        {
+          "id": 22,
+          "name": "ساری",
+          "slug": "sari"
+        },
+        {
+          "id": 1700,
+          "name": "سرخرود",
+          "slug": "sorkhrood"
+        },
+        {
+          "id": 1699,
+          "name": "سلمان‌شهر",
+          "slug": "salman-shahr"
+        },
+        {
+          "id": 1697,
+          "name": "عباس‌آباد",
+          "slug": "abbasabad-mazandaran"
+        },
+        {
+          "id": 1819,
+          "name": "فرح آباد",
+          "slug": "farahabad"
+        },
+        {
+          "id": 836,
+          "name": "فریدون‌کنار",
+          "slug": "fereydunkenar"
+        },
+        {
+          "id": 665,
+          "name": "قائم‌شهر",
+          "slug": "qaemshahr"
+        },
+        {
+          "id": 1695,
+          "name": "کلارآباد",
+          "slug": "kelarabad"
+        },
+        {
+          "id": 1696,
+          "name": "کلاردشت",
+          "slug": "kelarestan"
+        },
+        {
+          "id": 837,
+          "name": "محمودآباد",
+          "slug": "mahmudabad"
+        },
+        {
+          "id": 1818,
+          "name": "نشتارود",
+          "slug": "nashtarud"
+        },
+        {
+          "id": 838,
+          "name": "نکا",
+          "slug": "neka"
+        },
+        {
+          "id": 744,
+          "name": "نور",
+          "slug": "nur"
+        }
+      ]
+    },
+    {
+      "id": 901,
+      "name": "مرکزی",
+      "slug": "markazi-province",
+      "cities": [
+        {
+          "id": 15,
+          "name": "اراک",
+          "slug": "arak"
+        },
+        {
+          "id": 839,
+          "name": "خمین",
+          "slug": "khomein"
+        },
+        {
+          "id": 1824,
+          "name": "دلیجان",
+          "slug": "delijan"
+        },
+        {
+          "id": 671,
+          "name": "ساوه",
+          "slug": "saveh"
+        },
+        {
+          "id": 1825,
+          "name": "شازند",
+          "slug": "shazand"
+        },
+        {
+          "id": 840,
+          "name": "محلات",
+          "slug": "mahalat"
+        }
+      ]
+    },
+    {
+      "id": 894,
+      "name": "هرمزگان",
+      "slug": "hormozgan-province",
+      "cities": [
+        {
+          "id": 18,
+          "name": "بندرعباس",
+          "slug": "bandar-abbas"
+        },
+        {
+          "id": 1822,
+          "name": "تخت",
+          "slug": "takht"
+        },
+        {
+          "id": 1820,
+          "name": "درگهان",
+          "slug": "dargahan"
+        },
+        {
+          "id": 660,
+          "name": "قشم",
+          "slug": "qeshm"
+        },
+        {
+          "id": 33,
+          "name": "کیش",
+          "slug": "kish"
+        },
+        {
+          "id": 841,
+          "name": "میناب",
+          "slug": "minab"
+        }
+      ]
+    },
+    {
+      "id": 899,
+      "name": "همدان",
+      "slug": "hamadan-province",
+      "cities": [
+        {
+          "id": 842,
+          "name": "اسدآباد",
+          "slug": "asadabad"
+        },
+        {
+          "id": 1828,
+          "name": "بهار",
+          "slug": "bahar"
+        },
+        {
+          "id": 866,
+          "name": "تویسرکان",
+          "slug": "tuyserkan"
+        },
+        {
+          "id": 1827,
+          "name": "کبودراهنگ",
+          "slug": "kabudrahang"
+        },
+        {
+          "id": 843,
+          "name": "ملایر",
+          "slug": "malayer"
+        },
+        {
+          "id": 844,
+          "name": "نهاوند",
+          "slug": "nahavand"
+        }
+      ]
+    },
+    {
+      "id": 886,
+      "name": "یزد",
+      "slug": "yazd-province",
+      "cities": [
+        {
+          "id": 846,
+          "name": "اردکان",
+          "slug": "ardakan"
+        },
+        {
+          "id": 1829,
+          "name": "بافق",
+          "slug": "bafq"
+        },
+        {
+          "id": 1831,
+          "name": "تفت",
+          "slug": "taft"
+        },
+        {
+          "id": 871,
+          "name": "حمیدیا",
+          "slug": "hamidia"
+        },
+        {
+          "id": 1830,
+          "name": "مهریز",
+          "slug": "mehriz"
+        },
+        {
+          "id": 845,
+          "name": "میبد",
+          "slug": "meybod"
+        }
+      ]
+    }
+  ],
+  "source": "https://github.com/you3phi/divar-city"
+}
