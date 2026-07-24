@@ -10,7 +10,15 @@ echo ============================================================
 echo.
 
 set "PY="
-where py >nul 2>nul && set "PY=py -3"
+
+REM Prefer Python 3.11 or 3.10 because some heavy dependencies may not support the newest Python yet.
+where py >nul 2>nul
+if not errorlevel 1 (
+    py -3.11 --version >nul 2>nul && set "PY=py -3.11"
+    if not defined PY py -3.10 --version >nul 2>nul && set "PY=py -3.10"
+    if not defined PY py -3.12 --version >nul 2>nul && set "PY=py -3.12"
+)
+
 if not defined PY (
     where python >nul 2>nul && set "PY=python"
 )
@@ -27,6 +35,14 @@ echo [1/6] Checking Python...
 %PY% --version
 if errorlevel 1 (
     echo [ERROR] Python is not runnable.
+    pause
+    exit /b 1
+)
+
+%PY% -c "import sys; raise SystemExit(0 if (3,10) <= sys.version_info[:2] <= (3,12) else 1)" >nul 2>nul
+if errorlevel 1 (
+    echo [ERROR] Unsupported Python version.
+    echo Please use Python 3.10, 3.11 or 3.12. Python 3.13 may fail with some dependencies.
     pause
     exit /b 1
 )
