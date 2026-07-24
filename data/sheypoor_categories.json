@@ -1,583 +1,1270 @@
 {
-  "count": 96,
-  "main_count": 10,
-  "sub_count": 86,
+  "count": 126,
+  "main_count": 11,
+  "sub_count": 115,
+  "platform": "sheypoor",
+  "source": "https://www.sheypoor.com/api/v10.0.0/general/categories",
+  "note": "Only resources with type='category' and non-empty slug are included. Attributes/filters are excluded.",
   "categories": [
     {
-      "name": "املاک",
-      "slug": "real-estate",
-      "category": "اصلی",
-      "type": "main"
-    },
-    {
-      "name": "فروش مسکونی",
-      "slug": "buy-residential",
-      "category": "املاک",
-      "type": "sub"
-    },
-    {
-      "name": "اجاره مسکونی",
-      "slug": "rent-residential",
-      "category": "املاک",
-      "type": "sub"
-    },
-    {
-      "name": "فروش آپارتمان",
-      "slug": "apartment-sell",
-      "category": "املاک",
-      "type": "sub"
-    },
-    {
-      "name": "اجاره آپارتمان",
-      "slug": "apartment-rent",
-      "category": "املاک",
-      "type": "sub"
-    },
-    {
-      "name": "فروش خانه و ویلا",
-      "slug": "house-villa-sell",
-      "category": "املاک",
-      "type": "sub"
-    },
-    {
-      "name": "اجاره خانه و ویلا",
-      "slug": "house-villa-rent",
-      "category": "املاک",
-      "type": "sub"
-    },
-    {
-      "name": "فروش زمین و کلنگی",
-      "slug": "buy-old-house",
-      "category": "املاک",
-      "type": "sub"
-    },
-    {
-      "name": "اجاره اداری و تجاری",
-      "slug": "rent-commercial-property",
-      "category": "املاک",
-      "type": "sub"
-    },
-    {
-      "name": "فروش اداری و تجاری",
-      "slug": "buy-commercial-property",
-      "category": "املاک",
-      "type": "sub"
-    },
-    {
-      "name": "اجاره کوتاه مدت",
-      "slug": "temporary-rent",
-      "category": "املاک",
-      "type": "sub"
-    },
-    {
-      "name": "پروژه‌های ساخت و ساز",
-      "slug": "real-estate-services",
-      "category": "املاک",
-      "type": "sub"
-    },
-    {
-      "name": "وسایل نقلیه",
+      "id": "43626",
       "slug": "vehicles",
+      "name": "وسایل نقلیه",
       "category": "اصلی",
-      "type": "main"
+      "type": "main",
+      "parent_slug": null,
+      "depth": 0,
+      "platform": "sheypoor"
     },
     {
-      "name": "خودرو",
-      "slug": "auto",
-      "category": "وسایل نقلیه",
-      "type": "sub"
-    },
-    {
-      "name": "سواری",
-      "slug": "car",
-      "category": "وسایل نقلیه",
-      "type": "sub"
-    },
-    {
-      "name": "کلاسیک",
-      "slug": "classic-car",
-      "category": "وسایل نقلیه",
-      "type": "sub"
-    },
-    {
-      "name": "اجاره‌ای",
-      "slug": "rental-car",
-      "category": "وسایل نقلیه",
-      "type": "sub"
-    },
-    {
-      "name": "سنگین",
-      "slug": "heavy-car",
-      "category": "وسایل نقلیه",
-      "type": "sub"
-    },
-    {
-      "name": "موتورسیکلت",
-      "slug": "motorcycles",
-      "category": "وسایل نقلیه",
-      "type": "sub"
-    },
-    {
-      "name": "قطعات یدکی و لوازم جانبی",
-      "slug": "car-parts",
-      "category": "وسایل نقلیه",
-      "type": "sub"
-    },
-    {
-      "name": "قایق و لوازم دریایی",
-      "slug": "boats",
-      "category": "وسایل نقلیه",
-      "type": "sub"
-    },
-    {
-      "name": "کالای دیجیتال",
-      "slug": "electronic-devices",
+      "id": "43603",
+      "slug": "real-estate",
+      "name": "املاک",
       "category": "اصلی",
-      "type": "main"
+      "type": "main",
+      "parent_slug": null,
+      "depth": 0,
+      "platform": "sheypoor"
     },
     {
-      "name": "موبایل و تبلت",
-      "slug": "mobile-tablet",
-      "category": "کالای دیجیتال",
-      "type": "sub"
-    },
-    {
-      "name": "گوشی موبایل",
-      "slug": "mobile-phones",
-      "category": "کالای دیجیتال",
-      "type": "sub"
-    },
-    {
-      "name": "تبلت",
-      "slug": "tablet",
-      "category": "کالای دیجیتال",
-      "type": "sub"
-    },
-    {
-      "name": "لوازم جانبی موبایل و تبلت",
-      "slug": "mobile-tablet-accessories",
-      "category": "کالای دیجیتال",
-      "type": "sub"
-    },
-    {
-      "name": "رایانه",
-      "slug": "computers",
-      "category": "کالای دیجیتال",
-      "type": "sub"
-    },
-    {
-      "name": "لپ‌تاپ",
-      "slug": "laptop-notebook-macbook",
-      "category": "کالای دیجیتال",
-      "type": "sub"
-    },
-    {
-      "name": "کامپیوتر و قطعات",
-      "slug": "desktop-computer",
-      "category": "کالای دیجیتال",
-      "type": "sub"
-    },
-    {
-      "name": "کنسول و بازی",
-      "slug": "game-consoles",
-      "category": "کالای دیجیتال",
-      "type": "sub"
-    },
-    {
-      "name": "صوتی و تصویری",
-      "slug": "audio-video",
-      "category": "کالای دیجیتال",
-      "type": "sub"
-    },
-    {
-      "name": "دوربین",
-      "slug": "camera",
-      "category": "کالای دیجیتال",
-      "type": "sub"
-    },
-    {
-      "name": "تلفن رومیزی",
-      "slug": "telephone",
-      "category": "کالای دیجیتال",
-      "type": "sub"
-    },
-    {
-      "name": "خانه و آشپزخانه",
-      "slug": "home-kitchen",
-      "category": "اصلی",
-      "type": "main"
-    },
-    {
-      "name": "لوازم خانگی برقی",
-      "slug": "home-appliances",
-      "category": "خانه و آشپزخانه",
-      "type": "sub"
-    },
-    {
-      "name": "یخچال و فریزر",
-      "slug": "refrigerator-freezer",
-      "category": "خانه و آشپزخانه",
-      "type": "sub"
-    },
-    {
-      "name": "ماشین لباسشویی و خشک‌کن",
-      "slug": "washing-machines",
-      "category": "خانه و آشپزخانه",
-      "type": "sub"
-    },
-    {
-      "name": "ماشین ظرفشویی",
-      "slug": "dishwasher",
-      "category": "خانه و آشپزخانه",
-      "type": "sub"
-    },
-    {
-      "name": "جاروبرقی",
-      "slug": "vacuum-cleaner",
-      "category": "خانه و آشپزخانه",
-      "type": "sub"
-    },
-    {
-      "name": "لوازم آشپزخانه",
-      "slug": "kitchen-appliances",
-      "category": "خانه و آشپزخانه",
-      "type": "sub"
-    },
-    {
-      "name": "مبلمان و صندلی",
-      "slug": "furniture",
-      "category": "خانه و آشپزخانه",
-      "type": "sub"
-    },
-    {
-      "name": "میز و صندلی",
-      "slug": "tables-chairs",
-      "category": "خانه و آشپزخانه",
-      "type": "sub"
-    },
-    {
-      "name": "فرش و گلیم",
-      "slug": "carpet",
-      "category": "خانه و آشپزخانه",
-      "type": "sub"
-    },
-    {
-      "name": "دکوراسیون",
-      "slug": "decoration",
-      "category": "خانه و آشپزخانه",
-      "type": "sub"
-    },
-    {
-      "name": "خواب و حمام",
-      "slug": "bedroom",
-      "category": "خانه و آشپزخانه",
-      "type": "sub"
-    },
-    {
-      "name": "خدمات",
-      "slug": "services",
-      "category": "اصلی",
-      "type": "main"
-    },
-    {
-      "name": "موتور و ماشین",
-      "slug": "car-services",
-      "category": "خدمات",
-      "type": "sub"
-    },
-    {
-      "name": "نظافت",
-      "slug": "cleaning",
-      "category": "خدمات",
-      "type": "sub"
-    },
-    {
-      "name": "پذیرایی/مراسم",
-      "slug": "catering-services",
-      "category": "خدمات",
-      "type": "sub"
-    },
-    {
-      "name": "رایانه و موبایل",
-      "slug": "computer-mobile-services",
-      "category": "خدمات",
-      "type": "sub"
-    },
-    {
-      "name": "مالی/حسابداری/بیمه",
-      "slug": "financial-services",
-      "category": "خدمات",
-      "type": "sub"
-    },
-    {
-      "name": "حمل و نقل",
-      "slug": "transport-services",
-      "category": "خدمات",
-      "type": "sub"
-    },
-    {
-      "name": "پیشه و مهارت",
-      "slug": "skill-services",
-      "category": "خدمات",
-      "type": "sub"
-    },
-    {
-      "name": "آرایشگری و زیبایی",
-      "slug": "beauty-services",
-      "category": "خدمات",
-      "type": "sub"
-    },
-    {
-      "name": "سرگرمی",
-      "slug": "entertainment-services",
-      "category": "خدمات",
-      "type": "sub"
-    },
-    {
-      "name": "آموزشی",
-      "slug": "educational-services",
-      "category": "خدمات",
-      "type": "sub"
-    },
-    {
-      "name": "وسایل شخصی",
-      "slug": "personal-goods",
-      "category": "اصلی",
-      "type": "main"
-    },
-    {
-      "name": "کیف، کفش و لباس",
-      "slug": "clothing",
-      "category": "وسایل شخصی",
-      "type": "sub"
-    },
-    {
-      "name": "زیورآلات و اکسسوری",
-      "slug": "jewelry",
-      "category": "وسایل شخصی",
-      "type": "sub"
-    },
-    {
-      "name": "ساعت",
-      "slug": "watches",
-      "category": "وسایل شخصی",
-      "type": "sub"
-    },
-    {
-      "name": "عینک",
-      "slug": "glasses",
-      "category": "وسایل شخصی",
-      "type": "sub"
-    },
-    {
-      "name": "لوازم آرایشی، بهداشتی و درمانی",
-      "slug": "health-beauty",
-      "category": "وسایل شخصی",
-      "type": "sub"
-    },
-    {
-      "name": "کفش و لباس بچه",
-      "slug": "baby-and-toys",
-      "category": "وسایل شخصی",
-      "type": "sub"
-    },
-    {
-      "name": "سرگرمی و فراغت",
-      "slug": "entertainment",
-      "category": "اصلی",
-      "type": "main"
-    },
-    {
-      "name": "بلیط",
-      "slug": "ticket",
-      "category": "سرگرمی و فراغت",
-      "type": "sub"
-    },
-    {
-      "name": "تور و چارتر",
-      "slug": "tourism",
-      "category": "سرگرمی و فراغت",
-      "type": "sub"
-    },
-    {
-      "name": "کتاب و مجله",
-      "slug": "book-student-literature",
-      "category": "سرگرمی و فراغت",
-      "type": "sub"
-    },
-    {
-      "name": "دوچرخه، اسکیت و اسکوتر",
-      "slug": "bike-skate-scooter",
-      "category": "سرگرمی و فراغت",
-      "type": "sub"
-    },
-    {
-      "name": "حیوانات",
-      "slug": "animals",
-      "category": "سرگرمی و فراغت",
-      "type": "sub"
-    },
-    {
-      "name": "کلکسیون و سرگرمی",
-      "slug": "hobby-collectibles",
-      "category": "سرگرمی و فراغت",
-      "type": "sub"
-    },
-    {
-      "name": "آلات موسیقی",
-      "slug": "musical-instruments",
-      "category": "سرگرمی و فراغت",
-      "type": "sub"
-    },
-    {
-      "name": "ورزش و تناسب اندام",
-      "slug": "sport-leisure",
-      "category": "سرگرمی و فراغت",
-      "type": "sub"
-    },
-    {
-      "name": "اجتماعی",
-      "slug": "social-services",
-      "category": "اصلی",
-      "type": "main"
-    },
-    {
-      "name": "رویداد",
-      "slug": "event",
-      "category": "اجتماعی",
-      "type": "sub"
-    },
-    {
-      "name": "داوطلبانه",
-      "slug": "voluntary",
-      "category": "اجتماعی",
-      "type": "sub"
-    },
-    {
-      "name": "گمشده‌ها",
-      "slug": "lost-found",
-      "category": "اجتماعی",
-      "type": "sub"
-    },
-    {
-      "name": "تجهیزات و صنعتی",
-      "slug": "businesses",
-      "category": "اصلی",
-      "type": "main"
-    },
-    {
-      "name": "ماشین‌آلات صنعتی",
-      "slug": "industrial-machinery",
-      "category": "تجهیزات و صنعتی",
-      "type": "sub"
-    },
-    {
-      "name": "ابزار و یراق",
-      "slug": "tools",
-      "category": "تجهیزات و صنعتی",
-      "type": "sub"
-    },
-    {
-      "name": "عمده فروشی",
-      "slug": "wholesale",
-      "category": "تجهیزات و صنعتی",
-      "type": "sub"
-    },
-    {
-      "name": "اداری و تجاری",
-      "slug": "business-equipment",
-      "category": "تجهیزات و صنعتی",
-      "type": "sub"
-    },
-    {
-      "name": "پزشکی",
-      "slug": "medical-equipment",
-      "category": "تجهیزات و صنعتی",
-      "type": "sub"
-    },
-    {
-      "name": "کشاورزی و دامداری",
-      "slug": "farm-animals",
-      "category": "تجهیزات و صنعتی",
-      "type": "sub"
-    },
-    {
-      "name": "استخدام و کاریابی",
+      "id": "43618",
       "slug": "jobs",
+      "name": "استخدام",
       "category": "اصلی",
-      "type": "main"
+      "type": "main",
+      "parent_slug": null,
+      "depth": 0,
+      "platform": "sheypoor"
     },
     {
-      "name": "اداری و مدیریت",
-      "slug": "administrative-jobs",
-      "category": "استخدام و کاریابی",
-      "type": "sub"
+      "id": "43633",
+      "slug": "services",
+      "name": "خدمات و کسب و کار",
+      "category": "اصلی",
+      "type": "main",
+      "parent_slug": null,
+      "depth": 0,
+      "platform": "sheypoor"
     },
     {
-      "name": "سرایداری و نظافت",
-      "slug": "janitorial-jobs",
-      "category": "استخدام و کاریابی",
-      "type": "sub"
+      "id": "43608",
+      "slug": "home",
+      "name": "لوازم خانگی",
+      "category": "اصلی",
+      "type": "main",
+      "parent_slug": null,
+      "depth": 0,
+      "platform": "sheypoor"
     },
     {
-      "name": "معماری، عمران و ساختمانی",
-      "slug": "architect-jobs",
-      "category": "استخدام و کاریابی",
-      "type": "sub"
+      "id": "43619",
+      "slug": "sports-games-hobbies",
+      "name": "ورزش فرهنگ فراغت",
+      "category": "اصلی",
+      "type": "main",
+      "parent_slug": null,
+      "depth": 0,
+      "platform": "sheypoor"
     },
     {
-      "name": "خدمات فروشگاه و رستوران",
-      "slug": "service-jobs",
-      "category": "استخدام و کاریابی",
-      "type": "sub"
+      "id": "43596",
+      "slug": "electronics",
+      "name": "لوازم الکترونیکی",
+      "category": "اصلی",
+      "type": "main",
+      "parent_slug": null,
+      "depth": 0,
+      "platform": "sheypoor"
     },
     {
-      "name": "رایانه و فناوری اطلاعات",
-      "slug": "it-computer-jobs",
-      "category": "استخدام و کاریابی",
-      "type": "sub"
+      "id": "43631",
+      "slug": "industrial-commercial",
+      "name": "صنعتی، اداری و تجاری",
+      "category": "اصلی",
+      "type": "main",
+      "parent_slug": null,
+      "depth": 0,
+      "platform": "sheypoor"
     },
     {
-      "name": "مالی و حسابداری و حقوقی",
-      "slug": "finance-legal-jobs",
-      "category": "استخدام و کاریابی",
-      "type": "sub"
+      "id": "44096",
+      "slug": "mobile-tablet-accessories",
+      "name": "موبایل، تبلت و لوازم",
+      "category": "اصلی",
+      "type": "main",
+      "parent_slug": null,
+      "depth": 0,
+      "platform": "sheypoor"
     },
     {
-      "name": "بازاریابی و فروش",
-      "slug": "marketing-jobs",
-      "category": "استخدام و کاریابی",
-      "type": "sub"
+      "id": "43612",
+      "slug": "personal-stuff",
+      "name": "لوازم شخصی",
+      "category": "اصلی",
+      "type": "main",
+      "parent_slug": null,
+      "depth": 0,
+      "platform": "sheypoor"
     },
     {
-      "name": "صنعتی و فنی و مهندسی",
-      "slug": "technical-jobs",
-      "category": "استخدام و کاریابی",
-      "type": "sub"
+      "id": "53015",
+      "slug": "social",
+      "name": "اجتماعی",
+      "category": "اصلی",
+      "type": "main",
+      "parent_slug": null,
+      "depth": 0,
+      "platform": "sheypoor"
     },
     {
-      "name": "آموزشی",
-      "slug": "teaching-jobs",
-      "category": "استخدام و کاریابی",
-      "type": "sub"
+      "id": "53017",
+      "slug": "social/volunteering",
+      "name": "داوطلبانه",
+      "category": "اجتماعی",
+      "type": "sub",
+      "parent_slug": "social",
+      "depth": 1,
+      "platform": "sheypoor"
     },
     {
-      "name": "حمل و نقل",
-      "slug": "transport-delivery-jobs",
-      "category": "استخدام و کاریابی",
-      "type": "sub"
+      "id": "53016",
+      "slug": "social/event",
+      "name": "رویداد",
+      "category": "اجتماعی",
+      "type": "sub",
+      "parent_slug": "social",
+      "depth": 1,
+      "platform": "sheypoor"
     },
     {
-      "name": "درمانی و زیبایی و بهداشتی",
-      "slug": "healthcare-jobs",
-      "category": "استخدام و کاریابی",
-      "type": "sub"
+      "id": "53018",
+      "slug": "social/lost",
+      "name": "گم شده ها",
+      "category": "اجتماعی",
+      "type": "sub",
+      "parent_slug": "social",
+      "depth": 1,
+      "platform": "sheypoor"
     },
     {
-      "name": "هنری و رسانه",
-      "slug": "art-media-jobs",
-      "category": "استخدام و کاریابی",
-      "type": "sub"
+      "id": "44301",
+      "slug": "beautician",
+      "name": "آرایشی و زیبایی",
+      "category": "استخدام",
+      "type": "sub",
+      "parent_slug": "jobs",
+      "depth": 1,
+      "platform": "sheypoor"
+    },
+    {
+      "id": "44302",
+      "slug": "chef-cooking",
+      "name": "آشپز و نیروی خدماتی مرتبط",
+      "category": "استخدام",
+      "type": "sub",
+      "parent_slug": "jobs",
+      "depth": 1,
+      "platform": "sheypoor"
+    },
+    {
+      "id": "44303",
+      "slug": "storekeeper",
+      "name": "انباردار",
+      "category": "استخدام",
+      "type": "sub",
+      "parent_slug": "jobs",
+      "depth": 1,
+      "platform": "sheypoor"
+    },
+    {
+      "id": "44304",
+      "slug": "field-sales-promoter",
+      "name": "بازاریاب و ویزیتور",
+      "category": "استخدام",
+      "type": "sub",
+      "parent_slug": "jobs",
+      "depth": 1,
+      "platform": "sheypoor"
+    },
+    {
+      "id": "44305",
+      "slug": "it-software-development",
+      "name": "برنامه‌نویس و کارشناس شبکه",
+      "category": "استخدام",
+      "type": "sub",
+      "parent_slug": "jobs",
+      "depth": 1,
+      "platform": "sheypoor"
+    },
+    {
+      "id": "44309",
+      "slug": "typist-translator",
+      "name": "تایپیست و مترجم",
+      "category": "استخدام",
+      "type": "sub",
+      "parent_slug": "jobs",
+      "depth": 1,
+      "platform": "sheypoor"
+    },
+    {
+      "id": "44311",
+      "slug": "mechanic-repair",
+      "name": "تعمیرکار و مکانیک",
+      "category": "استخدام",
+      "type": "sub",
+      "parent_slug": "jobs",
+      "depth": 1,
+      "platform": "sheypoor"
+    },
+    {
+      "id": "44312",
+      "slug": "technician",
+      "name": "تکنسین فنی",
+      "category": "استخدام",
+      "type": "sub",
+      "parent_slug": "jobs",
+      "depth": 1,
+      "platform": "sheypoor"
+    },
+    {
+      "id": "44314",
+      "slug": "accounting-finance",
+      "name": "حسابدار و مدیر مالی",
+      "category": "استخدام",
+      "type": "sub",
+      "parent_slug": "jobs",
+      "depth": 1,
+      "platform": "sheypoor"
+    },
+    {
+      "id": "44315",
+      "slug": "tailor",
+      "name": "خیاط و مشاغل مرتبط",
+      "category": "استخدام",
+      "type": "sub",
+      "parent_slug": "jobs",
+      "depth": 1,
+      "platform": "sheypoor"
+    },
+    {
+      "id": "44317",
+      "slug": "driver",
+      "name": "راننده",
+      "category": "استخدام",
+      "type": "sub",
+      "parent_slug": "jobs",
+      "depth": 1,
+      "platform": "sheypoor"
+    },
+    {
+      "id": "44330",
+      "slug": "other-jobs",
+      "name": "سایر مشاغل",
+      "category": "استخدام",
+      "type": "sub",
+      "parent_slug": "jobs",
+      "depth": 1,
+      "platform": "sheypoor"
+    },
+    {
+      "id": "44318",
+      "slug": "graphic-websdesign",
+      "name": "طراح گرافیک",
+      "category": "استخدام",
+      "type": "sub",
+      "parent_slug": "jobs",
+      "depth": 1,
+      "platform": "sheypoor"
+    },
+    {
+      "id": "44319",
+      "slug": "sales-expert",
+      "name": "فروشنده و کارشناس فروش",
+      "category": "استخدام",
+      "type": "sub",
+      "parent_slug": "jobs",
+      "depth": 1,
+      "platform": "sheypoor"
+    },
+    {
+      "id": "44323",
+      "slug": "teacher-coach",
+      "name": "مدرس و مربی آموزش",
+      "category": "استخدام",
+      "type": "sub",
+      "parent_slug": "jobs",
+      "depth": 1,
+      "platform": "sheypoor"
+    },
+    {
+      "id": "44743",
+      "slug": "manager",
+      "name": "مدیر",
+      "category": "استخدام",
+      "type": "sub",
+      "parent_slug": "jobs",
+      "depth": 1,
+      "platform": "sheypoor"
+    },
+    {
+      "id": "44324",
+      "slug": "real-estate-agent",
+      "name": "مشاور املاک",
+      "category": "استخدام",
+      "type": "sub",
+      "parent_slug": "jobs",
+      "depth": 1,
+      "platform": "sheypoor"
+    },
+    {
+      "id": "44326",
+      "slug": "office-clerk-secretary",
+      "name": "منشی و کارمند اداری",
+      "category": "استخدام",
+      "type": "sub",
+      "parent_slug": "jobs",
+      "depth": 1,
+      "platform": "sheypoor"
+    },
+    {
+      "id": "44327",
+      "slug": "engineer",
+      "name": "مهندس",
+      "category": "استخدام",
+      "type": "sub",
+      "parent_slug": "jobs",
+      "depth": 1,
+      "platform": "sheypoor"
+    },
+    {
+      "id": "44328",
+      "slug": "janitorial-cleaning",
+      "name": "نظافتچی و سرایدار",
+      "category": "استخدام",
+      "type": "sub",
+      "parent_slug": "jobs",
+      "depth": 1,
+      "platform": "sheypoor"
+    },
+    {
+      "id": "44313",
+      "slug": "security-guard",
+      "name": "نگهبان و نیروی حراست",
+      "category": "استخدام",
+      "type": "sub",
+      "parent_slug": "jobs",
+      "depth": 1,
+      "platform": "sheypoor"
+    },
+    {
+      "id": "44329",
+      "slug": "lawyer-legal-expert",
+      "name": "وکیل و کارشناس حقوقی",
+      "category": "استخدام",
+      "type": "sub",
+      "parent_slug": "jobs",
+      "depth": 1,
+      "platform": "sheypoor"
+    },
+    {
+      "id": "44306",
+      "slug": "nurse",
+      "name": "پرستار",
+      "category": "استخدام",
+      "type": "sub",
+      "parent_slug": "jobs",
+      "depth": 1,
+      "platform": "sheypoor"
+    },
+    {
+      "id": "44307",
+      "slug": "doctor",
+      "name": "پزشک و کادر درمانی",
+      "category": "استخدام",
+      "type": "sub",
+      "parent_slug": "jobs",
+      "depth": 1,
+      "platform": "sheypoor"
+    },
+    {
+      "id": "44308",
+      "slug": "delivery-collections",
+      "name": "پیک و تحصیلدار",
+      "category": "استخدام",
+      "type": "sub",
+      "parent_slug": "jobs",
+      "depth": 1,
+      "platform": "sheypoor"
+    },
+    {
+      "id": "44310",
+      "slug": "marketing",
+      "name": "کارشناس تبلیغات و مارکتینگ",
+      "category": "استخدام",
+      "type": "sub",
+      "parent_slug": "jobs",
+      "depth": 1,
+      "platform": "sheypoor"
+    },
+    {
+      "id": "44321",
+      "slug": "worker",
+      "name": "کارگر ساده",
+      "category": "استخدام",
+      "type": "sub",
+      "parent_slug": "jobs",
+      "depth": 1,
+      "platform": "sheypoor"
+    },
+    {
+      "id": "44322",
+      "slug": "skiller-worker",
+      "name": "کارگر ماهر",
+      "category": "استخدام",
+      "type": "sub",
+      "parent_slug": "jobs",
+      "depth": 1,
+      "platform": "sheypoor"
+    },
+    {
+      "id": "44585",
+      "slug": "real-estate-short-term-rental",
+      "name": "اجاره کوتاه مدت ویلا، سوئیت",
+      "category": "املاک",
+      "type": "sub",
+      "parent_slug": "real-estate",
+      "depth": 1,
+      "platform": "sheypoor"
+    },
+    {
+      "id": "43605",
+      "slug": "commercial-properties-for-sale",
+      "name": "خرید و فروش اداری، تجاری و صنعتی",
+      "category": "املاک",
+      "type": "sub",
+      "parent_slug": "real-estate",
+      "depth": 1,
+      "platform": "sheypoor"
+    },
+    {
+      "id": "43604",
+      "slug": "houses-apartments-for-sale",
+      "name": "خرید و فروش خانه و آپارتمان",
+      "category": "املاک",
+      "type": "sub",
+      "parent_slug": "real-estate",
+      "depth": 1,
+      "platform": "sheypoor"
+    },
+    {
+      "id": "44586",
+      "slug": "villa-for-sale",
+      "name": "خرید و فروش ویلا",
+      "category": "املاک",
+      "type": "sub",
+      "parent_slug": "real-estate",
+      "depth": 1,
+      "platform": "sheypoor"
+    },
+    {
+      "id": "43607",
+      "slug": "commercial-properties-for-rent",
+      "name": "رهن و اجاره اداری، تجاری و صنعتی",
+      "category": "املاک",
+      "type": "sub",
+      "parent_slug": "real-estate",
+      "depth": 1,
+      "platform": "sheypoor"
+    },
+    {
+      "id": "43606",
+      "slug": "house-apartment-for-rent",
+      "name": "رهن و اجاره خانه و آپارتمان",
+      "category": "املاک",
+      "type": "sub",
+      "parent_slug": "real-estate",
+      "depth": 1,
+      "platform": "sheypoor"
+    },
+    {
+      "id": "44099",
+      "slug": "land",
+      "name": "زمین و باغ",
+      "category": "املاک",
+      "type": "sub",
+      "parent_slug": "real-estate",
+      "depth": 1,
+      "platform": "sheypoor"
+    },
+    {
+      "id": "44115",
+      "slug": "other-real-estate",
+      "name": "سایر املاک",
+      "category": "املاک",
+      "type": "sub",
+      "parent_slug": "real-estate",
+      "depth": 1,
+      "platform": "sheypoor"
+    },
+    {
+      "id": "45001",
+      "slug": "real-estate-services",
+      "name": "پیش فروش و مشارکت در ساخت",
+      "category": "املاک",
+      "type": "sub",
+      "parent_slug": "real-estate",
+      "depth": 1,
+      "platform": "sheypoor"
+    },
+    {
+      "id": "44116",
+      "slug": "hair-beauty-services",
+      "name": "آرایشگری و زیبایی",
+      "category": "خدمات و کسب و کار",
+      "type": "sub",
+      "parent_slug": "services",
+      "depth": 1,
+      "platform": "sheypoor"
+    },
+    {
+      "id": "43632",
+      "slug": "education-training",
+      "name": "آموزش",
+      "category": "خدمات و کسب و کار",
+      "type": "sub",
+      "parent_slug": "services",
+      "depth": 1,
+      "platform": "sheypoor"
+    },
+    {
+      "id": "44815",
+      "slug": "equipment-rental",
+      "name": "اجاره لوازم",
+      "category": "خدمات و کسب و کار",
+      "type": "sub",
+      "parent_slug": "services",
+      "depth": 1,
+      "platform": "sheypoor"
+    },
+    {
+      "id": "44105",
+      "slug": "moving-services-logistics",
+      "name": "اسباب کشی و حمل و نقل",
+      "category": "خدمات و کسب و کار",
+      "type": "sub",
+      "parent_slug": "services",
+      "depth": 1,
+      "platform": "sheypoor"
+    },
+    {
+      "id": "44250",
+      "slug": "internet-computer-mobile",
+      "name": "اینترنت ، رایانه و موبایل",
+      "category": "خدمات و کسب و کار",
+      "type": "sub",
+      "parent_slug": "services",
+      "depth": 1,
+      "platform": "sheypoor"
+    },
+    {
+      "id": "44811",
+      "slug": "gardening",
+      "name": "باغبانی و فضای سبز",
+      "category": "خدمات و کسب و کار",
+      "type": "sub",
+      "parent_slug": "services",
+      "depth": 1,
+      "platform": "sheypoor"
+    },
+    {
+      "id": "44106",
+      "slug": "translation-type",
+      "name": "ترجمه و تایپ",
+      "category": "خدمات و کسب و کار",
+      "type": "sub",
+      "parent_slug": "services",
+      "depth": 1,
+      "platform": "sheypoor"
+    },
+    {
+      "id": "44101",
+      "slug": "repairs",
+      "name": "تعمیرات",
+      "category": "خدمات و کسب و کار",
+      "type": "sub",
+      "parent_slug": "services",
+      "depth": 1,
+      "platform": "sheypoor"
+    },
+    {
+      "id": "43637",
+      "slug": "wholesale",
+      "name": "خرید و فروش عمده",
+      "category": "خدمات و کسب و کار",
+      "type": "sub",
+      "parent_slug": "services",
+      "depth": 1,
+      "platform": "sheypoor"
+    },
+    {
+      "id": "44813",
+      "slug": "auto-motorcycle",
+      "name": "خودرو و موتورسیکلت",
+      "category": "خدمات و کسب و کار",
+      "type": "sub",
+      "parent_slug": "services",
+      "depth": 1,
+      "platform": "sheypoor"
+    },
+    {
+      "id": "44814",
+      "slug": "social-events",
+      "name": "رویدادهای اجتماعی",
+      "category": "خدمات و کسب و کار",
+      "type": "sub",
+      "parent_slug": "services",
+      "depth": 1,
+      "platform": "sheypoor"
+    },
+    {
+      "id": "44107",
+      "slug": "construction-interior-design",
+      "name": "ساختمان و دکوراسیون داخلی",
+      "category": "خدمات و کسب و کار",
+      "type": "sub",
+      "parent_slug": "services",
+      "depth": 1,
+      "platform": "sheypoor"
+    },
+    {
+      "id": "44108",
+      "slug": "other-services",
+      "name": "سایر خدمات",
+      "category": "خدمات و کسب و کار",
+      "type": "sub",
+      "parent_slug": "services",
+      "depth": 1,
+      "platform": "sheypoor"
+    },
+    {
+      "id": "44104",
+      "slug": "health",
+      "name": "سلامت",
+      "category": "خدمات و کسب و کار",
+      "type": "sub",
+      "parent_slug": "services",
+      "depth": 1,
+      "platform": "sheypoor"
+    },
+    {
+      "id": "44255",
+      "slug": "financial-legal-insurance",
+      "name": "مالی، حقوقی و بیمه",
+      "category": "خدمات و کسب و کار",
+      "type": "sub",
+      "parent_slug": "services",
+      "depth": 1,
+      "platform": "sheypoor"
+    },
+    {
+      "id": "44100",
+      "slug": "event-catering",
+      "name": "مراسم و کترینگ",
+      "category": "خدمات و کسب و کار",
+      "type": "sub",
+      "parent_slug": "services",
+      "depth": 1,
+      "platform": "sheypoor"
+    },
+    {
+      "id": "44810",
+      "slug": "business-showcase",
+      "name": "معرفی و تبلیغات کسب و کار",
+      "category": "خدمات و کسب و کار",
+      "type": "sub",
+      "parent_slug": "services",
+      "depth": 1,
+      "platform": "sheypoor"
+    },
+    {
+      "id": "45367",
+      "slug": "food-drinks",
+      "name": "مواد غذایی",
+      "category": "خدمات و کسب و کار",
+      "type": "sub",
+      "parent_slug": "services",
+      "depth": 1,
+      "platform": "sheypoor"
+    },
+    {
+      "id": "44103",
+      "slug": "cleaning",
+      "name": "نظافت و خدمات منزل",
+      "category": "خدمات و کسب و کار",
+      "type": "sub",
+      "parent_slug": "services",
+      "depth": 1,
+      "platform": "sheypoor"
+    },
+    {
+      "id": "44812",
+      "slug": "event-services",
+      "name": "هنری",
+      "category": "خدمات و کسب و کار",
+      "type": "sub",
+      "parent_slug": "services",
+      "depth": 1,
+      "platform": "sheypoor"
+    },
+    {
+      "id": "44253",
+      "slug": "graphics-logo-print",
+      "name": "گرافیک، تبلیغات و چاپ",
+      "category": "خدمات و کسب و کار",
+      "type": "sub",
+      "parent_slug": "services",
+      "depth": 1,
+      "platform": "sheypoor"
+    },
+    {
+      "id": "44800",
+      "slug": "tools-supplies",
+      "name": "ابزارآلات و یراق",
+      "category": "صنعتی، اداری و تجاری",
+      "type": "sub",
+      "parent_slug": "industrial-commercial",
+      "depth": 1,
+      "platform": "sheypoor"
+    },
+    {
+      "id": "44806",
+      "slug": "industrial-equipment-for-rent",
+      "name": "اجاره دستگاه‌ها و تجهیزات صنعتی",
+      "category": "صنعتی، اداری و تجاری",
+      "type": "sub",
+      "parent_slug": "industrial-commercial",
+      "depth": 1,
+      "platform": "sheypoor"
+    },
+    {
+      "id": "44804",
+      "slug": "construction-equipment-supplies",
+      "name": "تجهیزات ساختمانی و عمرانی",
+      "category": "صنعتی، اداری و تجاری",
+      "type": "sub",
+      "parent_slug": "industrial-commercial",
+      "depth": 1,
+      "platform": "sheypoor"
+    },
+    {
+      "id": "44803",
+      "slug": "retail-commercial-equipment",
+      "name": "تجهیزات فروشگاهی و تجاری",
+      "category": "صنعتی، اداری و تجاری",
+      "type": "sub",
+      "parent_slug": "industrial-commercial",
+      "depth": 1,
+      "platform": "sheypoor"
+    },
+    {
+      "id": "43635",
+      "slug": "office-equipment-supplies",
+      "name": "تجهیزات و لوازم اداری",
+      "category": "صنعتی، اداری و تجاری",
+      "type": "sub",
+      "parent_slug": "industrial-commercial",
+      "depth": 1,
+      "platform": "sheypoor"
+    },
+    {
+      "id": "44801",
+      "slug": "medical-equipment-supplies",
+      "name": "تجهیزات پزشکی و آزمایشگاهی",
+      "category": "صنعتی، اداری و تجاری",
+      "type": "sub",
+      "parent_slug": "industrial-commercial",
+      "depth": 1,
+      "platform": "sheypoor"
+    },
+    {
+      "id": "44802",
+      "slug": "cafe-restaurant-equipment",
+      "name": "تجهیزات کافی‌شاپ و رستوران",
+      "category": "صنعتی، اداری و تجاری",
+      "type": "sub",
+      "parent_slug": "industrial-commercial",
+      "depth": 1,
+      "platform": "sheypoor"
+    },
+    {
+      "id": "43634",
+      "slug": "industrial-machinery-quipment",
+      "name": "دستگاه‌ها و ماشین‌آلات صنعتی",
+      "category": "صنعتی، اداری و تجاری",
+      "type": "sub",
+      "parent_slug": "industrial-commercial",
+      "depth": 1,
+      "platform": "sheypoor"
+    },
+    {
+      "id": "44807",
+      "slug": "other-industrials",
+      "name": "سایر تجهیزات صنعتی و تجاری",
+      "category": "صنعتی، اداری و تجاری",
+      "type": "sub",
+      "parent_slug": "industrial-commercial",
+      "depth": 1,
+      "platform": "sheypoor"
+    },
+    {
+      "id": "44805",
+      "slug": "agricultural-equipment",
+      "name": "ماشین‌آلات و ابزار کشاورزی و دامداری",
+      "category": "صنعتی، اداری و تجاری",
+      "type": "sub",
+      "parent_slug": "industrial-commercial",
+      "depth": 1,
+      "platform": "sheypoor"
+    },
+    {
+      "id": "44109",
+      "slug": "online-games",
+      "name": "بازی‌های آنلاین",
+      "category": "لوازم الکترونیکی",
+      "type": "sub",
+      "parent_slug": "electronics",
+      "depth": 1,
+      "platform": "sheypoor"
+    },
+    {
+      "id": "43599",
+      "slug": "photography",
+      "name": "دوربین و تجهیزات عکاسی‌فیلم‌برداری",
+      "category": "لوازم الکترونیکی",
+      "type": "sub",
+      "parent_slug": "electronics",
+      "depth": 1,
+      "platform": "sheypoor"
+    },
+    {
+      "id": "43638",
+      "slug": "other-electronics",
+      "name": "سایر لوازم الکترونیکی",
+      "category": "لوازم الکترونیکی",
+      "type": "sub",
+      "parent_slug": "electronics",
+      "depth": 1,
+      "platform": "sheypoor"
+    },
+    {
+      "id": "43601",
+      "slug": "audio-video",
+      "name": "صوتی و تصویری",
+      "category": "لوازم الکترونیکی",
+      "type": "sub",
+      "parent_slug": "electronics",
+      "depth": 1,
+      "platform": "sheypoor"
+    },
+    {
+      "id": "44200",
+      "slug": "computer-parts-accessories",
+      "name": "لوازم جانبی کامپیوتر و پرینتر",
+      "category": "لوازم الکترونیکی",
+      "type": "sub",
+      "parent_slug": "electronics",
+      "depth": 1,
+      "platform": "sheypoor"
+    },
+    {
+      "id": "44097",
+      "slug": "laptop-computer",
+      "name": "لپ تاپ، کامپیوتر و کیس",
+      "category": "لوازم الکترونیکی",
+      "type": "sub",
+      "parent_slug": "electronics",
+      "depth": 1,
+      "platform": "sheypoor"
+    },
+    {
+      "id": "43600",
+      "slug": "video-games-consoles",
+      "name": "کنسول بازی و لوازم",
+      "category": "لوازم الکترونیکی",
+      "type": "sub",
+      "parent_slug": "electronics",
+      "depth": 1,
+      "platform": "sheypoor"
+    },
+    {
+      "id": "43611",
+      "slug": "antiques",
+      "name": "آنتیک",
+      "category": "لوازم خانگی",
+      "type": "sub",
+      "parent_slug": "home",
+      "depth": 1,
+      "platform": "sheypoor"
+    },
+    {
+      "id": "44240",
+      "slug": "home-decor-lighting",
+      "name": "دکوراسیون داخلی و روشنایی",
+      "category": "لوازم خانگی",
+      "type": "sub",
+      "parent_slug": "home",
+      "depth": 1,
+      "platform": "sheypoor"
+    },
+    {
+      "id": "44111",
+      "slug": "other-home-garden",
+      "name": "سایر لوازم خانه و حیاط",
+      "category": "لوازم خانگی",
+      "type": "sub",
+      "parent_slug": "home",
+      "depth": 1,
+      "platform": "sheypoor"
+    },
+    {
+      "id": "43610",
+      "slug": "kitchen-dining",
+      "name": "ظروف و لوازم آشپزخانه",
+      "category": "لوازم خانگی",
+      "type": "sub",
+      "parent_slug": "home",
+      "depth": 1,
+      "platform": "sheypoor"
+    },
+    {
+      "id": "44242",
+      "slug": "carpet-rugs",
+      "name": "فرش، گلیم و قالیچه",
+      "category": "لوازم خانگی",
+      "type": "sub",
+      "parent_slug": "home",
+      "depth": 1,
+      "platform": "sheypoor"
+    },
+    {
+      "id": "44220",
+      "slug": "cooling-heating-ventilation",
+      "name": "لوازم سرمایش و گرمایش",
+      "category": "لوازم خانگی",
+      "type": "sub",
+      "parent_slug": "home",
+      "depth": 1,
+      "platform": "sheypoor"
+    },
+    {
+      "id": "43609",
+      "slug": "furniture",
+      "name": "مبلمان و لوازم چوبی",
+      "category": "لوازم خانگی",
+      "type": "sub",
+      "parent_slug": "home",
+      "depth": 1,
+      "platform": "sheypoor"
+    },
+    {
+      "id": "44222",
+      "slug": "home-kitchen-applicances",
+      "name": "وسایل برقی خانه و آشپزخانه",
+      "category": "لوازم خانگی",
+      "type": "sub",
+      "parent_slug": "home",
+      "depth": 1,
+      "platform": "sheypoor"
+    },
+    {
+      "id": "43615",
+      "slug": "health-beauty",
+      "name": "آرایشی، بهداشتی و درمانی",
+      "category": "لوازم شخصی",
+      "type": "sub",
+      "parent_slug": "personal-stuff",
+      "depth": 1,
+      "platform": "sheypoor"
+    },
+    {
+      "id": "43614",
+      "slug": "Jewelry-watch",
+      "name": "زیورآلات و ساعت",
+      "category": "لوازم شخصی",
+      "type": "sub",
+      "parent_slug": "personal-stuff",
+      "depth": 1,
+      "platform": "sheypoor"
+    },
+    {
+      "id": "44112",
+      "slug": "other-personal-goods",
+      "name": "سایر لوازم شخصی",
+      "category": "لوازم شخصی",
+      "type": "sub",
+      "parent_slug": "personal-stuff",
+      "depth": 1,
+      "platform": "sheypoor"
+    },
+    {
+      "id": "43616",
+      "slug": "babies-kids",
+      "name": "لباس، لوازم کودک و نوزاد",
+      "category": "لوازم شخصی",
+      "type": "sub",
+      "parent_slug": "personal-stuff",
+      "depth": 1,
+      "platform": "sheypoor"
+    },
+    {
+      "id": "43613",
+      "slug": "fashion",
+      "name": "لباس، کیف، کفش و کمربند",
+      "category": "لوازم شخصی",
+      "type": "sub",
+      "parent_slug": "personal-stuff",
+      "depth": 1,
+      "platform": "sheypoor"
+    },
+    {
+      "id": "44117",
+      "slug": "sim-card",
+      "name": "سیمکارت و خط تلفن ثابت",
+      "category": "موبایل، تبلت و لوازم",
+      "type": "sub",
+      "parent_slug": "mobile-tablet-accessories",
+      "depth": 1,
+      "platform": "sheypoor"
+    },
+    {
+      "id": "43602",
+      "slug": "mobile-accessories",
+      "name": "لوازم جانبی موبایل و تبلت",
+      "category": "موبایل، تبلت و لوازم",
+      "type": "sub",
+      "parent_slug": "mobile-tablet-accessories",
+      "depth": 1,
+      "platform": "sheypoor"
+    },
+    {
+      "id": "43597",
+      "slug": "mobile-tablet",
+      "name": "موبایل و تبلت",
+      "category": "موبایل، تبلت و لوازم",
+      "type": "sub",
+      "parent_slug": "mobile-tablet-accessories",
+      "depth": 1,
+      "platform": "sheypoor"
+    },
+    {
+      "id": "44113",
+      "slug": "collectibles",
+      "name": "اشیای کلکسیونی و قدیمی",
+      "category": "ورزش فرهنگ فراغت",
+      "type": "sub",
+      "parent_slug": "sports-games-hobbies",
+      "depth": 1,
+      "platform": "sheypoor"
+    },
+    {
+      "id": "43625",
+      "slug": "musical-instruments",
+      "name": "انواع ساز و آلات موسیقی",
+      "category": "ورزش فرهنگ فراغت",
+      "type": "sub",
+      "parent_slug": "sports-games-hobbies",
+      "depth": 1,
+      "platform": "sheypoor"
+    },
+    {
+      "id": "43620",
+      "slug": "tours",
+      "name": "تور مسافرتی",
+      "category": "ورزش فرهنگ فراغت",
+      "type": "sub",
+      "parent_slug": "sports-games-hobbies",
+      "depth": 1,
+      "platform": "sheypoor"
+    },
+    {
+      "id": "43624",
+      "slug": "animals-pet",
+      "name": "حیوانات و لوازم",
+      "category": "ورزش فرهنگ فراغت",
+      "type": "sub",
+      "parent_slug": "sports-games-hobbies",
+      "depth": 1,
+      "platform": "sheypoor"
+    },
+    {
+      "id": "44110",
+      "slug": "bicycles",
+      "name": "دوچرخه، اسکیت و اسکوتر",
+      "category": "ورزش فرهنگ فراغت",
+      "type": "sub",
+      "parent_slug": "sports-games-hobbies",
+      "depth": 1,
+      "platform": "sheypoor"
+    },
+    {
+      "id": "44114",
+      "slug": "other-games-hobbies",
+      "name": "سایر سرگرمی ها",
+      "category": "ورزش فرهنگ فراغت",
+      "type": "sub",
+      "parent_slug": "sports-games-hobbies",
+      "depth": 1,
+      "platform": "sheypoor"
+    },
+    {
+      "id": "43623",
+      "slug": "games-hobbies",
+      "name": "سرگرمی و اسباب بازی",
+      "category": "ورزش فرهنگ فراغت",
+      "type": "sub",
+      "parent_slug": "sports-games-hobbies",
+      "depth": 1,
+      "platform": "sheypoor"
+    },
+    {
+      "id": "44230",
+      "slug": "art-handicraf",
+      "name": "هنر و صنایع دستی",
+      "category": "ورزش فرهنگ فراغت",
+      "type": "sub",
+      "parent_slug": "sports-games-hobbies",
+      "depth": 1,
+      "platform": "sheypoor"
+    },
+    {
+      "id": "43621",
+      "slug": "sporting-goods",
+      "name": "ورزشی",
+      "category": "ورزش فرهنگ فراغت",
+      "type": "sub",
+      "parent_slug": "sports-games-hobbies",
+      "depth": 1,
+      "platform": "sheypoor"
+    },
+    {
+      "id": "43622",
+      "slug": "book-stationery",
+      "name": "کتاب و لوازم تحریر",
+      "category": "ورزش فرهنگ فراغت",
+      "type": "sub",
+      "parent_slug": "sports-games-hobbies",
+      "depth": 1,
+      "platform": "sheypoor"
+    },
+    {
+      "id": "44820",
+      "slug": "car-rental",
+      "name": "اجاره خودرو",
+      "category": "وسایل نقلیه",
+      "type": "sub",
+      "parent_slug": "vehicles",
+      "depth": 1,
+      "platform": "sheypoor"
+    },
+    {
+      "id": "50400",
+      "slug": "agriculture-construction-equipment-for-rent",
+      "name": "اجاره کشاورزی و عمرانی",
+      "category": "وسایل نقلیه",
+      "type": "sub",
+      "parent_slug": "vehicles",
+      "depth": 1,
+      "platform": "sheypoor"
+    },
+    {
+      "id": "43627",
+      "slug": "car",
+      "name": "خودرو",
+      "category": "وسایل نقلیه",
+      "type": "sub",
+      "parent_slug": "vehicles",
+      "depth": 1,
+      "platform": "sheypoor"
+    },
+    {
+      "id": "43636",
+      "slug": "classic-cars",
+      "name": "خودرو کلاسیک",
+      "category": "وسایل نقلیه",
+      "type": "sub",
+      "parent_slug": "vehicles",
+      "depth": 1,
+      "platform": "sheypoor"
+    },
+    {
+      "id": "43630",
+      "slug": "other-vehicles",
+      "name": "سایر وسایل نقلیه",
+      "category": "وسایل نقلیه",
+      "type": "sub",
+      "parent_slug": "vehicles",
+      "depth": 1,
+      "platform": "sheypoor"
+    },
+    {
+      "id": "44098",
+      "slug": "commercial-cars",
+      "name": "سنگین و نیمه سنگین",
+      "category": "وسایل نقلیه",
+      "type": "sub",
+      "parent_slug": "vehicles",
+      "depth": 1,
+      "platform": "sheypoor"
+    },
+    {
+      "id": "50410",
+      "slug": "boats-water-sports",
+      "name": "قایق و تفریحات آبی",
+      "category": "وسایل نقلیه",
+      "type": "sub",
+      "parent_slug": "vehicles",
+      "depth": 1,
+      "platform": "sheypoor"
+    },
+    {
+      "id": "43629",
+      "slug": "auto-parts-accessories",
+      "name": "لوازم و قطعات وسایل نقلیه",
+      "category": "وسایل نقلیه",
+      "type": "sub",
+      "parent_slug": "vehicles",
+      "depth": 1,
+      "platform": "sheypoor"
+    },
+    {
+      "id": "52471",
+      "slug": "car-auction",
+      "name": "مزایده خودرو",
+      "category": "وسایل نقلیه",
+      "type": "sub",
+      "parent_slug": "vehicles",
+      "depth": 1,
+      "platform": "sheypoor"
+    },
+    {
+      "id": "43628",
+      "slug": "motorcycles",
+      "name": "موتور سیکلت",
+      "category": "وسایل نقلیه",
+      "type": "sub",
+      "parent_slug": "vehicles",
+      "depth": 1,
+      "platform": "sheypoor"
+    },
+    {
+      "id": "44210",
+      "slug": "agriculture-construction",
+      "name": "کشاورزی و عمرانی",
+      "category": "وسایل نقلیه",
+      "type": "sub",
+      "parent_slug": "vehicles",
+      "depth": 1,
+      "platform": "sheypoor"
     }
   ]
 }

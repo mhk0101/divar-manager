@@ -84,7 +84,12 @@ def format_status_persian(status_str: str) -> str:
 
 
 def build_sheypoor_url(cities_data: List[dict], category_slug: Optional[str]) -> str:
-    """ساخت URL دقیق شیپور طبق الگوی رسمی سایت."""
+    """ساخت URL شیپور.
+
+    برای یک شهر، slug شهر استفاده می‌شود که پایدارترین حالت است.
+    برای چند شهر، اگر cityID رسمی شیپور موجود باشد از پارامتر cities[n] استفاده می‌شود.
+    اگر IDها fallback/نامعتبر باشند، به جای ساخت URL خراب، لینک iran با دسته‌بندی ساخته می‌شود.
+    """
     cat_part = f"/{category_slug}" if category_slug else ""
 
     if not cities_data:
@@ -94,11 +99,19 @@ def build_sheypoor_url(cities_data: List[dict], category_slug: Optional[str]) ->
         city_slug = cities_data[0].get("slug") or "iran"
         return f"https://www.sheypoor.com/s/{city_slug}{cat_part}"
 
-    query_params = "&".join(
-        f"cities[{i}]={c.get('id')}"
-        for i, c in enumerate(cities_data)
-        if c.get("id") is not None
-    )
+    valid_ids = []
+    for c in cities_data:
+        cid = c.get("id")
+        # اگر فایل از fallback ساخته شده باشد، ID رسمی شیپور نیست؛ برای جلوگیری از فیلتر اشتباه، نادیده بگیر.
+        if c.get("id_source"):
+            continue
+        if cid is not None:
+            valid_ids.append(cid)
+
+    if not valid_ids:
+        return f"https://www.sheypoor.com/s/iran{cat_part}"
+
+    query_params = "&".join(f"cities[{i}]={cid}" for i, cid in enumerate(valid_ids))
     return f"https://www.sheypoor.com/s/iran{cat_part}?{query_params}"
 
 
@@ -542,61 +555,27 @@ class AutomationBrowserWorker(QRunnable):
                         f"🟢 (راهکار ۱ فعال) کوکی‌ها به صورت زنده از همین مرورگر بروزرسانی خواهند شد."
                     )
 
-                    # ✨ راهکار ۱: بروزرسانی زنده کوکی‌ها از داخل پنجره فعال
-                    live_saver_task = None
-                    if self.interval_minutes > 0:
-                        async def _live_cookie_saver_loop():
-                            while True:
-                                try:
-                                    await asyncio.sleep(self.interval_minutes * 60)
-                                    if bm.page.is_closed():
-                                        break
-
-                                    live_state = await sm.capture_storage_state(bm.context)
-                                    existing = sm.load(self.phone)
-                                    has_changes = existing is None or existing.storage_state.has_changes(live_state)
-
-                                    if has_changes:
-                                        await sm.save_from_context(
-                                            context=bm.context,
-                                            phone=self.phone,
-                                            metadata={"live_in_browser_capture": True, "url": bm.page.url},
-                                            storage_state=live_state,
-                                        )
-                                        self.signals.status_changed.emit(
-                                            f"🔄 (راهکار ۱) کوکی‌ها و توکن‌های نشست زنده [{plat_name}] شماره {self.phone} مستقیماً از مرورگر فعال استخراج و جایگزین شدند."
-                                        )
-                                except asyncio.CancelledError:
-                                    break
-                                except Exception as err:
-                                    logger.debug("Live in-browser capture error: %s", err)
-                                    break
-
-                        live_saver_task = asyncio.create_task(_live_cookie_saver_loop())
-
-                    # ✨ صبر هوشمند: منتظر بسته شدن دستی مرورگر توسط کاربر یا پایان خودکار
-                    while True:
-                        try:
-                            await bm.page.wait_for_event("close", timeout=2000)
-                            self.signals.status_changed.emit(
-                                "⚠️ کاربر مرورگر را به‌صورت دستی بست. در حال پایان عملیات..."
+                    # ✅ پایان عملیات: دیگر منتظر بستن دستی مرورگر نمی‌مانیم.
+                    # قبل از خروج، یک‌بار storage state فعلی را ذخیره می‌کنیم تا کوکی‌ها/توکن‌های تازه از بین نروند.
+                    try:
+                        if not bm.page.is_closed():
+                            final_state = await sm.capture_storage_state(bm.context)
+                            await sm.save_from_context(
+                                context=bm.context,
+                                phone=self.phone,
+                                metadata={"auto_close_after_automation": True, "url": bm.page.url},
+                                storage_state=final_state,
                             )
-                            self._is_active = False
-                            break
-                        except Exception:
-                            pass
-                        # بررسی وضعیت صفحه در هر ثانیه
-                        try:
-                            if bm.page.is_closed():
-                                self.signals.status_changed.emit(
-                                    "⚠️ مرورگر بسته شد. در حال پایان عملیات..."
-                                )
-                                self._is_active = False
-                                break
-                        except Exception:
-                            break
-                    if live_saver_task and not live_saver_task.done():
-                        live_saver_task.cancel()
+                            self.signals.status_changed.emit(
+                                f"💾 نشست [{plat_name}] شماره {self.phone} قبل از بستن خودکار مرورگر ذخیره شد."
+                            )
+                    except Exception as err:
+                        logger.debug("Final storage capture before auto-close failed: %s", err)
+
+                    self.signals.status_changed.emit(
+                        f"🔒 عملیات {plat_name} تمام شد؛ مرورگر به‌صورت خودکار بسته می‌شود."
+                    )
+                    self._is_active = False
 
                 progress_task.cancel()
                 self.signals.finished.emit(self.url)
@@ -1200,6 +1179,7 @@ class AutomationTab(QWidget):
 
     def _reload_phone_numbers(self):
         blocked = self.phone_combo.signalsBlocked()
+        should_auto_load_settings = False
         if not blocked:
             self.phone_combo.blockSignals(True)
         try:
@@ -1222,6 +1202,7 @@ class AutomationTab(QWidget):
                 label = f"{rec.phone}  |  {status_p}  ({cookies} کوکی)"
                 self.phone_combo.addItem(label, rec.phone)
 
+            should_auto_load_settings = self.phone_combo.currentData() is not None
             self._update_selection_info()
             self._log("INFO", f"[اتوماسیون] بارگذاری {len(sessions)} شماره حساب {plat_name}")
         except Exception as e:
@@ -1229,6 +1210,12 @@ class AutomationTab(QWidget):
         finally:
             if not blocked:
                 self.phone_combo.blockSignals(False)
+
+            # نکته مهم: هنگام پر کردن phone_combo سیگنال‌ها block هستند، بنابراین
+            # _on_phone_changed اجرا نمی‌شود. بعد از باز شدن برنامه یا تغییر پلتفرم،
+            # باید تنظیمات شماره انتخاب‌شده را خودمان از فایل بخوانیم.
+            if should_auto_load_settings and not getattr(self, '_loading_settings', False):
+                QTimer.singleShot(0, self._load_settings_for_phone)
 
     def get_selected_phone(self) -> Optional[str]:
         return self.phone_combo.currentData()
@@ -1308,25 +1295,46 @@ class AutomationTab(QWidget):
             item.setData(Qt.UserRole, city)
             self.city_list.addItem(item)
 
+    def _is_displayable_category(self, cat: dict) -> bool:
+        """فقط دسته‌بندی واقعی و قابل استفاده در URL را نشان بده.
+
+        مخصوصاً در خروجی API شیپور، Attributeهایی مثل قیمت، رنگ، گیربکس و...
+        ممکن است وارد فایل شوند. این موارد slug ندارند و نباید در UI دیده شوند.
+        """
+        if not isinstance(cat, dict):
+            return False
+        name = str(cat.get("name", "")).strip()
+        slug = str(cat.get("slug", "")).strip()
+        if not name or not slug:
+            return False
+        return True
+
+    def _add_category_item_to_list(self, cat: dict):
+        name = cat.get("name", "")
+        category = cat.get("category", "")
+        slug = cat.get("slug", "")
+        cat_type = cat.get("type", "main")
+        depth = int(cat.get("depth", 1) or 1)
+
+        if cat_type == "sub" and category:
+            indent = "  " * max(1, min(depth, 4))
+            display_text = f"{indent}└── {name}  [{category}]"
+        else:
+            display_text = f"📁 {name}"
+
+        item = QListWidgetItem(display_text)
+        item.setData(Qt.UserRole, slug)
+        self.category_list.addItem(item)
+
     def _populate_category_list(self, categories: List[dict]):
         self.category_list.clear()
         all_item = QListWidgetItem("📋 همه دسته‌ها (بدون فیلتر)")
         all_item.setData(Qt.UserRole, None)
         self.category_list.addItem(all_item)
         for cat in categories:
-            name = cat.get("name", "")
-            category = cat.get("category", "")
-            slug = cat.get("slug", "")
-            cat_type = cat.get("type", "main")
-
-            if cat_type == "sub" and category:
-                display_text = f"  └── {name}  [{category}]"
-            else:
-                display_text = f"📁 {name}"
-
-            item = QListWidgetItem(display_text)
-            item.setData(Qt.UserRole, slug)
-            self.category_list.addItem(item)
+            if not self._is_displayable_category(cat):
+                continue
+            self._add_category_item_to_list(cat)
         self.category_list.setCurrentRow(0)
 
     def _filter_cities(self, text: str):
@@ -1349,30 +1357,21 @@ class AutomationTab(QWidget):
         self.category_list.addItem(all_item)
         if not text.strip():
             for cat in self._categories:
-                name = cat.get("name", "")
-                category = cat.get("category", "")
-                slug = cat.get("slug", "")
-                cat_type = cat.get("type", "main")
-                display_text = f"  └── {name}  [{category}]" if cat_type == "sub" and category else f"📁 {name}"
-                item = QListWidgetItem(display_text)
-                item.setData(Qt.UserRole, slug)
-                self.category_list.addItem(item)
+                if not self._is_displayable_category(cat):
+                    continue
+                self._add_category_item_to_list(cat)
             return
         filtered = [
             cat for cat in self._categories
-            if text.lower() in cat.get("name", "").lower()
-            or text.lower() in cat.get("slug", "").lower()
-            or text.lower() in cat.get("category", "").lower()
+            if self._is_displayable_category(cat)
+            and (
+                text.lower() in cat.get("name", "").lower()
+                or text.lower() in cat.get("slug", "").lower()
+                or text.lower() in cat.get("category", "").lower()
+            )
         ]
         for cat in filtered:
-            name = cat.get("name", "")
-            category = cat.get("category", "")
-            slug = cat.get("slug", "")
-            cat_type = cat.get("type", "main")
-            display_text = f"  └── {name}  [{category}]" if cat_type == "sub" and category else f"📁 {name}"
-            item = QListWidgetItem(display_text)
-            item.setData(Qt.UserRole, slug)
-            self.category_list.addItem(item)
+            self._add_category_item_to_list(cat)
 
     def _clear_category(self):
         self.category_list.setCurrentRow(0)
