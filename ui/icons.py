@@ -95,6 +95,12 @@ _SVG = {
     "clock": '''<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none"
         stroke="__COLOR__" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
         <circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 3"/></svg>''',
+
+    # راهنما
+    "help": '''<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none"
+        stroke="__COLOR__" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <circle cx="12" cy="12" r="9"/><path d="M9.4 9a3 3 0 1 1 5.2 2c-.9.8-1.6 1.3-1.9 2.4"/>
+        <path d="M12 17h.01"/></svg>''',
 }
 
 # ایموجی fallback برای وقتی QtSvg موجود نیست
@@ -102,6 +108,7 @@ _EMOJI_FALLBACK = {
     "home": "🏠", "megaphone": "📢", "robot": "🤖", "logs": "📋",
     "sun": "☀️", "moon": "🌙", "close": "🔴", "menu": "☰",
     "collapse": "⇔", "login": "🔐", "search": "🔍", "clock": "⏰",
+    "help": "📘",
 }
 
 

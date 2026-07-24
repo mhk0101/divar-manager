@@ -16,7 +16,7 @@ from __future__ import annotations
 import sys
 from pathlib import Path
 
-from PySide6.QtCore import Qt, Slot, Signal, QObject, QSettings, QSize
+from PySide6.QtCore import Qt, Slot, Signal, QObject, QSettings, QSize, QTimer
 from PySide6.QtGui import QFont, QIcon
 from PySide6.QtWidgets import (
     QApplication,
@@ -43,6 +43,7 @@ from ui.platform_tab import PlatformTab
 from ui.logs_tab import LogsTab
 from ui.automation_tab import AutomationTab
 from ui.schedule_tab import ScheduleTab
+from ui.help_tab import HelpTab
 from ui import icons
 from ui.theme import (
     apply_theme,
@@ -64,6 +65,7 @@ NAV_ITEMS = [
     ("automation", "robot",     "اتوماسیون",  "اتوماسیون",   "انتخاب شهر و دسته‌بندی و باز کردن دیوار"),
     ("logs",       "logs",      "لاگ‌ها",      "لاگ‌های سیستم", "تمام رویدادها و خطاهای برنامه"),
     ("schedules",  "clock",     "زمانبندی‌ها", "زمانبندی‌های فعال", "نمایش و پایش تمام زمانبندی‌های خودکار"),
+    ("help",       "help",      "راهنما",      "راهنمای برنامه", "آموزش صفر تا صد و خروج کامل از برنامه"),
 ]
 
 
@@ -151,6 +153,14 @@ class MainWindow(QMainWindow):
             self._nav_buttons.append(btn)
             layout.addWidget(btn)
 
+        # --- دکمه خروج دقیقاً زیر گزینه راهنما ---
+        self.btn_exit_app = QPushButton("خروج از برنامه")
+        self.btn_exit_app.setObjectName("dangerBtn")
+        self.btn_exit_app.setCursor(Qt.PointingHandCursor)
+        self.btn_exit_app.setIconSize(QSize(20, 20))
+        self.btn_exit_app.clicked.connect(self._request_exit_application)
+        layout.addWidget(self.btn_exit_app)
+
         layout.addStretch()
 
         # --- کنترل‌های پایین سایدبار ---
@@ -234,7 +244,11 @@ class MainWindow(QMainWindow):
         self.schedule_tab = ScheduleTab()
         self.stack.addWidget(self.schedule_tab)
 
+        self.help_tab = HelpTab()
+        self.stack.addWidget(self.help_tab)
+
         self.automation_tab.schedules_changed.connect(self.schedule_tab.update_schedules)
+        self.schedule_tab.schedule_action.connect(self.automation_tab.handle_schedule_action)
 
         layout.addWidget(self.stack, stretch=1)
 
@@ -270,6 +284,7 @@ class MainWindow(QMainWindow):
         theme_icon_name = "sun" if is_dark() else "moon"
         self._set_button_icon(self.btn_theme, theme_icon_name, muted, 20, "تم")
 
+        self._set_button_icon(self.btn_exit_app, "close", "#ffffff", 20, "خروج از برنامه")
         self._set_button_icon(self.btn_close_browser, "close", "#ffffff", 20, "بستن مرورگر")
 
     # ------------------------------------------------------------------
@@ -325,6 +340,8 @@ class MainWindow(QMainWindow):
             for i, btn in enumerate(self._nav_buttons):
                 btn.setText("")
                 btn.setToolTip(NAV_ITEMS[i][2])
+            self.btn_exit_app.setText("")
+            self.btn_exit_app.setToolTip("خروج از برنامه")
             self.btn_theme.setText("")
             self.btn_theme.setToolTip("تغییر تم")
             self.btn_close_browser.setText("")
@@ -339,8 +356,9 @@ class MainWindow(QMainWindow):
             for i, btn in enumerate(self._nav_buttons):
                 btn.setText(NAV_ITEMS[i][2])
                 btn.setToolTip(NAV_ITEMS[i][2])
-            self.btn_theme.setText("تغییر تم")
+            self.btn_exit_app.setText("خروج از برنامه")
             self.btn_close_browser.setText("بستن مرورگر")
+            self.btn_theme.setText("تغییر تم")
 
         self._refresh_icons()
 
@@ -377,6 +395,7 @@ class MainWindow(QMainWindow):
             self.automation_tab.restyle()
             self.logs_tab.restyle()
             self.schedule_tab.restyle()
+            self.help_tab.restyle()
         except Exception:
             pass
         try:
@@ -403,6 +422,65 @@ class MainWindow(QMainWindow):
             session_manager=session_manager,
             code_provider=code_provider,
         )
+
+    # ------------------------------------------------------------------
+    # درخواست خروج با تأیید کاربر
+    # ------------------------------------------------------------------
+    def _request_exit_application(self):
+        reply = QMessageBox.question(
+            self,
+            "تأیید خروج از برنامه",
+            "آیا مطمئن هستید می‌خواهید به‌طور کامل از برنامه خارج شوید؟\n\n"
+            "مرورگرهای باز و عملیات‌های در حال اجرا بسته/متوقف می‌شوند.",
+            QMessageBox.Yes | QMessageBox.No,
+            QMessageBox.No,
+        )
+        if reply == QMessageBox.Yes:
+            self._exit_application()
+
+    # ------------------------------------------------------------------
+    # خروج کامل از برنامه
+    # ------------------------------------------------------------------
+    def _exit_application(self):
+        """خروج کامل از برنامه با تلاش برای بستن مرورگرهای باز."""
+        try:
+            self.logs_tab.append_log("INFO", "🚪 درخواست خروج کامل از برنامه ثبت شد؛ در حال بستن مرورگرها...")
+        except Exception:
+            pass
+
+        # بستن مرورگرهای اختصاصی تب‌ها بدون نمایش پیام اضافی برای حالت بدون مرورگر
+        try:
+            if hasattr(self.divar_tab, "is_browser_open") and self.divar_tab.is_browser_open():
+                self.divar_tab._on_close_browser_clicked()
+        except Exception:
+            pass
+
+        try:
+            if hasattr(self.sheypoor_tab, "is_browser_open") and self.sheypoor_tab.is_browser_open():
+                self.sheypoor_tab._on_close_browser_clicked()
+        except Exception:
+            pass
+
+        try:
+            if hasattr(self.automation_tab, "is_browser_open") and self.automation_tab.is_browser_open():
+                self.automation_tab._close_browser()
+        except Exception:
+            pass
+
+        # fallback سراسری برای سرویس مرورگر، اگر جایی مرورگر باز مانده باشد
+        try:
+            from core.browser_service import BrowserService
+            svc = BrowserService.instance()
+            if hasattr(svc, "request_close_all"):
+                svc.request_close_all(timeout=3.0)
+        except Exception:
+            pass
+
+        app = QApplication.instance()
+        # کمی تأخیر برای اینکه request_close به workerها برسد، سپس خروج کامل Qt
+        if app is not None:
+            QTimer.singleShot(600, app.quit)
+        self.close()
 
     # ------------------------------------------------------------------
     # بستن مرورگرها

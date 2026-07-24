@@ -25,6 +25,7 @@ from typing import Callable, Dict, List, Optional, Set
 from playwright.async_api import Page
 
 from modules.captcha_solver import solve_sheypoor_captcha
+from core.network_utils import safe_page_goto, wait_for_internet
 
 logger = logging.getLogger("divar.ad_extractor")
 
@@ -111,6 +112,159 @@ async def _wait_for_page_ready(
 
     if progress_callback:
         progress_callback(f"⚠️ {label}: هیچ‌یک از المان‌های کلیدی ظاهر نشدند. ادامه با وضعیت فعلی...")
+    return False
+
+
+async def _wait_for_divar_contact_section_ready(
+    page: Page,
+    progress_callback: Optional[Callable[[str], None]] = None,
+    timeout_ms: int = 12_000,
+) -> bool:
+    """برای دیوار فقط منتظر کامل لود شدن بخش دکمه‌های عملیات آگهی بمان.
+
+    بخش موردنیاز دقیقاً همین است و نه کل صفحه:
+      .kt-col-5 section .post-actions
+        button.post-actions__get-contact  => اطلاعات تماس / تماس امن / تماس ناشناس
+        button.start-chat-button...       => چت، اگر برای آگهی وجود داشته باشد
+
+    دکمه چت اجباری نیست، چون بعضی آگهی‌ها چت ندارند. اما اگر وجود داشته باشد،
+    بعد از پایدار شدن همین بخش تشخیص داده می‌شود.
+    """
+    action_container_selectors = [
+        ".kt-col-5 section .post-actions",
+        ".kt-col-5 .post-actions",
+        "section .post-actions",
+        ".post-actions",
+    ]
+    contact_button_selectors = [
+        ".kt-col-5 section .post-actions button.post-actions__get-contact",
+        ".kt-col-5 .post-actions button.post-actions__get-contact",
+        "section .post-actions button.post-actions__get-contact",
+        ".post-actions button.post-actions__get-contact",
+        ".post-actions button:has-text('اطلاعات تماس')",
+        ".post-actions button:has-text('تماس ناشناس')",
+        ".post-actions button:has-text('تماس امن')",
+    ]
+
+    if progress_callback:
+        progress_callback("🔍 انتظار فقط برای کامل لود شدن بخش دکمه‌های آگهی دیوار (.post-actions)...")
+
+    deadline = asyncio.get_event_loop().time() + (timeout_ms / 1000)
+    last_signature = None
+    stable_hits = 0
+
+    while asyncio.get_event_loop().time() < deadline:
+        container = None
+        for selector in action_container_selectors:
+            try:
+                loc = page.locator(selector).first
+                if await loc.count() > 0 and await loc.is_visible():
+                    container = loc
+                    break
+            except Exception:
+                continue
+
+        if container is None:
+            await page.wait_for_timeout(150)
+            continue
+
+        contact_btn = None
+        contact_text = ""
+        for selector in contact_button_selectors:
+            try:
+                loc = page.locator(selector).first
+                if await loc.count() > 0 and await loc.is_visible():
+                    contact_btn = loc
+                    try:
+                        contact_text = (await loc.inner_text()).strip()
+                    except Exception:
+                        contact_text = ""
+                    break
+            except Exception:
+                continue
+
+        if contact_btn is None:
+            await page.wait_for_timeout(150)
+            continue
+
+        try:
+            # امضای بخش دکمه‌ها: تعداد دکمه‌ها + متن دکمه‌ها. دو بار پشت سر هم ثابت بماند یعنی بخش آماده است.
+            signature = await container.evaluate("""
+                el => Array.from(el.querySelectorAll('button'))
+                    .map(btn => (btn.innerText || btn.getAttribute('aria-label') || '').trim())
+                    .filter(Boolean)
+                    .join('|')
+            """)
+        except Exception:
+            signature = contact_text or "contact-ready"
+
+        if signature == last_signature and signature:
+            stable_hits += 1
+        else:
+            stable_hits = 0
+            last_signature = signature
+
+        if stable_hits >= 2:
+            if progress_callback:
+                progress_callback(f"✅ بخش دکمه‌های دیوار آماده شد: {signature}")
+            return True
+
+        await page.wait_for_timeout(150)
+
+    if progress_callback:
+        progress_callback("⚠️ بخش دکمه‌های دیوار در زمان تعیین‌شده کامل پایدار نشد؛ ادامه با وضعیت فعلی...")
+    return False
+
+
+async def _wait_for_divar_contact_result(
+    page: Page,
+    progress_callback: Optional[Callable[[str], None]] = None,
+    timeout_ms: int = 10_000,
+) -> bool:
+    """بعد از کلیک روی اطلاعات تماس، فقط منتظر نتیجه همان expandable-box/tel بمان.
+
+    از selectorهای عمومی مثل .kt-unexpandable-row__value-box استفاده نمی‌کنیم چون قبل از کلیک هم
+    در بخش مشخصات آگهی وجود دارند و باعث ادامه زودهنگام می‌شوند.
+    """
+    if progress_callback:
+        progress_callback("🔍 انتظار برای ظاهر شدن نتیجه اطلاعات تماس دیوار...")
+
+    deadline = asyncio.get_event_loop().time() + (timeout_ms / 1000)
+    while asyncio.get_event_loop().time() < deadline:
+        try:
+            tel_count = await page.locator("a[href^='tel:']").count()
+            if tel_count > 0:
+                if progress_callback:
+                    progress_callback("✅ لینک تماس tel در اطلاعات تماس دیوار ظاهر شد.")
+                return True
+        except Exception:
+            pass
+
+        try:
+            # expandable-box قبل از کلیک collapsed است؛ بعد از کلیک معمولاً کلاس collapsed حذف می‌شود.
+            expanded = page.locator(".expandable-box:not(.expandable-box--collapsed)").first
+            if await expanded.count() > 0 and await expanded.is_visible():
+                txt = await expanded.inner_text()
+                if normalize_phone_number(txt) or "شماره" in txt or "تماس" in txt:
+                    if progress_callback:
+                        progress_callback("✅ باکس اطلاعات تماس دیوار باز شد.")
+                    return True
+        except Exception:
+            pass
+
+        try:
+            copy_rows = page.locator(".copyRow-l4byg9, [class*='copyRow'], .expandable-box a")
+            if await copy_rows.count() > 0:
+                if progress_callback:
+                    progress_callback("✅ ردیف اطلاعات تماس دیوار ظاهر شد.")
+                return True
+        except Exception:
+            pass
+
+        await page.wait_for_timeout(250)
+
+    if progress_callback:
+        progress_callback("⚠️ نتیجه اطلاعات تماس دیوار دیر لود شد/پیدا نشد؛ تلاش برای خواندن وضعیت فعلی...")
     return False
 
 
@@ -395,6 +549,7 @@ class AdExtractor:
 
     async def extract_page_ads(self) -> List[Dict[str, str]]:
         """استخراج تمام آگهی‌های یکتای موجود در صفحه فعلی."""
+        await wait_for_internet()
         extracted = []
         now_str = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
@@ -504,6 +659,11 @@ class AdExtractor:
             if progress_callback:
                 progress_callback(f"📥 در حال استخراج آگهی‌های جدید صفحه {page_num} از {max_pages}...")
 
+            await wait_for_internet(
+                progress_callback=progress_callback,
+                first_message=f"🌐 بررسی اینترنت قبل از استخراج آگهی‌های صفحه {page_num}...",
+                restored_message=f"✅ اینترنت وصل است؛ استخراج صفحه {page_num} ادامه دارد...",
+            )
             page_ads = await self.extract_page_ads()
             all_new_ads.extend(page_ads)
 
@@ -514,6 +674,7 @@ class AdExtractor:
 
             if page_num < max_pages:
                 try:
+                    await wait_for_internet(progress_callback=progress_callback)
                     await self.page.evaluate("window.scrollTo(0, document.body.scrollHeight)")
 
                     if progress_callback:
@@ -532,17 +693,33 @@ class AdExtractor:
     async def extract_divar_phone_number(
         self,
         token: str,
+        ad_url: Optional[str] = None,
         progress_callback: Optional[Callable[[str], None]] = None,
     ) -> tuple[Optional[str], bool]:
         """
-        ورود به صفحه آگهی دیوار، وقفه لود کامل، کلیک چندروشه روی «اطلاعات تماس» و استخراج و صحت‌سنجی شماره تلفن با Regex.
-        عدم کلیک در صورت وجود متن «تماس ناشناس» یا «تماس امن».
+        ورود به صفحه خود آگهی دیوار، وقفه لود کامل، کلیک چندروشه روی «اطلاعات تماس»
+        و استخراج و صحت‌سنجی شماره تلفن با Regex.
+
+        نکته مهم: در حالت همگام استخراج شماره + ارسال چت، شماره تماس باید از لینک
+        خود آگهی خوانده شود، نه از لینک چت. به همین دلیل اگر ad_url پاس داده شود،
+        دقیقاً همان URL استخراج‌شده از کارت آگهی باز می‌شود.
+
         Returns: (phone_number_str, has_chat_enabled)
         """
-        if not token:
+        if not token and not ad_url:
             return None, False
 
-        ad_url = f"https://divar.ir/v/-/{token}"
+        if ad_url:
+            clean_ad_url = str(ad_url).split("?")[0].strip()
+            if clean_ad_url.startswith("/"):
+                clean_ad_url = f"https://divar.ir{clean_ad_url}"
+            # محافظت: اگر اشتباهاً لینک چت پاس داده شد، آن را به لینک آگهی تبدیل کن.
+            if "/chat/" in clean_ad_url and token:
+                clean_ad_url = f"https://divar.ir/v/-/{token}"
+            ad_url = clean_ad_url
+        else:
+            ad_url = f"https://divar.ir/v/-/{token}"
+
         phone_number = None
         has_chat = False
 
@@ -550,16 +727,27 @@ class AdExtractor:
             if progress_callback:
                 progress_callback(f"📞 در حال باز کردن آگهی جهت بررسی تماس ({ad_url})...")
 
-            await self.page.goto(ad_url, wait_until="domcontentloaded", timeout=25_000)
+            await safe_page_goto(
+                self.page,
+                ad_url,
+                wait_until="domcontentloaded",
+                timeout=25_000,
+                progress_callback=progress_callback,
+                label="صفحه آگهی دیوار",
+            )
 
-            try:
-                await self.page.wait_for_load_state("domcontentloaded", timeout=10_000)
-            except Exception:
-                pass
+            # برای استخراج شماره دیوار لازم نیست کل صفحه networkidle شود؛
+            # فقط خود بخش دکمه‌های .post-actions باید کامل/پایدار شود.
+            await _wait_for_divar_contact_section_ready(
+                self.page,
+                progress_callback=progress_callback,
+                timeout_ms=12_000,
+            )
 
-            await self.page.wait_for_timeout(2500)
+            # وقفه خیلی کوتاه برای تثبیت React بعد از آماده شدن دکمه‌ها
+            await self.page.wait_for_timeout(200)
 
-            chat_btn = self.page.locator("button:has-text('چت'), .start-chat-button-e813e, [data-testimonial-id='chat-button']").first
+            chat_btn = self.page.locator("button:has-text('چت'), a:has-text('چت'), .start-chat-button-e813e, [data-testimonial-id='chat-button']").first
             if await chat_btn.count() > 0 and await chat_btn.is_visible():
                 has_chat = True
 
@@ -586,6 +774,12 @@ class AdExtractor:
                         await self.page.wait_for_timeout(800)
 
                         clicked = False
+
+                        await wait_for_internet(
+                            progress_callback=progress_callback,
+                            first_message="🌐 بررسی اینترنت قبل از کلیک روی اطلاعات تماس دیوار...",
+                            restored_message="✅ اینترنت وصل است؛ ادامه استخراج شماره دیوار...",
+                        )
 
                         try:
                             await contact_btn.click(force=True, timeout=3000)
@@ -624,7 +818,13 @@ class AdExtractor:
                         except Exception:
                             pass
 
-                        await self.page.wait_for_timeout(2000)
+                        # بعد از کلیک، فقط منتظر نتیجه همان اطلاعات تماس بمان؛
+                        # نه ردیف‌های عمومی مشخصات آگهی که از قبل وجود دارند.
+                        await _wait_for_divar_contact_result(
+                            self.page,
+                            progress_callback=progress_callback,
+                            timeout_ms=10_000,
+                        )
 
                         tel_links = await self.page.locator("a[href^='tel:']").all()
                         for link in tel_links:
@@ -635,13 +835,23 @@ class AdExtractor:
                                 break
 
                         if not phone_number:
-                            value_elements = await self.page.locator(".kt-unexpandable-row__value-box a, .copyRow-l4byg9 a, .expandable-box a").all()
+                            value_elements = await self.page.locator(".copyRow-l4byg9 a, [class*='copyRow'] a, .expandable-box a").all()
                             for vel in value_elements:
                                 txt = await vel.inner_text()
                                 parsed_p = normalize_phone_number(txt)
                                 if parsed_p:
                                     phone_number = parsed_p
                                     break
+
+                        # بعضی نسخه‌های UI دیوار شماره را به صورت متن داخل expandable-box می‌گذارند نه لینک.
+                        if not phone_number:
+                            try:
+                                contact_text = await self.page.locator(".expandable-box:not(.expandable-box--collapsed), .expandable-box").first.inner_text()
+                                parsed_p = normalize_phone_number(contact_text)
+                                if parsed_p:
+                                    phone_number = parsed_p
+                            except Exception:
+                                pass
             else:
                 phone_number = "اطلاعات تماس ثبت‌نشده"
 
@@ -676,7 +886,14 @@ class AdExtractor:
             if progress_callback:
                 progress_callback(f"📞 در حال باز کردن آگهی شیپور جهت استخراج شماره ({url})...")
 
-            await self.page.goto(url, wait_until="domcontentloaded", timeout=30_000)
+            await safe_page_goto(
+                self.page,
+                url,
+                wait_until="domcontentloaded",
+                timeout=30_000,
+                progress_callback=progress_callback,
+                label="صفحه آگهی شیپور",
+            )
 
             # ── صبر هوشمند تا لود کامل صفحه و ظاهر شدن دکمه‌های کلیدی شیپور ──
             key_selectors = [
@@ -717,6 +934,11 @@ class AdExtractor:
                 await self.page.wait_for_timeout(1000)
 
                 # کلیک روی دکمه تماس
+                await wait_for_internet(
+                    progress_callback=progress_callback,
+                    first_message="🌐 بررسی اینترنت قبل از کلیک روی تماس شیپور...",
+                    restored_message="✅ اینترنت وصل است؛ ادامه استخراج شماره شیپور...",
+                )
                 try:
                     await contact_btn.click(force=True, timeout=3000)
                 except Exception:
@@ -776,10 +998,10 @@ class AdExtractor:
             if progress_callback and phone_number and phone_number.startswith("09"):
                 progress_callback(f"📱 شماره تماس شیپور استخراج شد: {phone_number}")
 
-            # ✨ وقفه تصادفی بین ۵ تا ۱۵ ثانیه برای شیپور جهت شبیه‌سازی رفتار انسانی و عدم بروز کد امنیتی
-            delay_sec = round(random.uniform(5.0, 15.0), 1)
+            # ✨ وقفه تصادفی بین ۱ تا ۶ ثانیه برای شیپور جهت شبیه‌سازی رفتار انسانی
+            delay_sec = round(random.uniform(1.0, 6.0), 1)
             if progress_callback:
-                progress_callback(f"⏳ وقفه تصادفی {delay_sec} ثانیه‌ای (بین ۵ تا ۱۵ ثانیه) برای شیپور...")
+                progress_callback(f"⏳ وقفه تصادفی {delay_sec} ثانیه‌ای (بین ۱ تا ۶ ثانیه) برای شیپور...")
             await self.page.wait_for_timeout(int(delay_sec * 1000))
 
         except Exception as e:
@@ -808,8 +1030,14 @@ class AdExtractor:
             if progress_callback:
                 progress_callback(f"💬 در حال ورود به چت اختصاصی دیوار ({chat_url})...")
 
-            await self.page.goto(chat_url, wait_until="domcontentloaded", timeout=25_000)
-            await self.page.wait_for_timeout(2500)
+            await safe_page_goto(
+                self.page,
+                chat_url,
+                wait_until="domcontentloaded",
+                timeout=25_000,
+                progress_callback=progress_callback,
+                label="صفحه چت دیوار",
+            )
 
             textarea_selectors = [
                 "#chat-input",
@@ -821,6 +1049,21 @@ class AdExtractor:
                 "textarea",
             ]
 
+            # صبر هوشمند تا صفحه چت دیوار کامل آماده شود و ورودی پیام ظاهر شود.
+            await _wait_for_page_ready(
+                self.page,
+                selectors=textarea_selectors + [
+                    "button:has-text('ارسال')",
+                    ".kt-chat-input",
+                    ".chat-input",
+                ],
+                progress_callback=progress_callback,
+                timeout_ms=25_000,
+                label="صفحه چت دیوار",
+            )
+
+            await self.page.wait_for_timeout(700)
+
             chat_input = None
             for sel in textarea_selectors:
                 loc = self.page.locator(sel).first
@@ -830,13 +1073,42 @@ class AdExtractor:
 
             if not chat_input:
                 ad_url = f"https://divar.ir/v/-/{token}"
-                await self.page.goto(ad_url, wait_until="domcontentloaded", timeout=25_000)
-                await self.page.wait_for_timeout(2000)
+                await safe_page_goto(
+                self.page,
+                ad_url,
+                wait_until="domcontentloaded",
+                timeout=25_000,
+                progress_callback=progress_callback,
+                label="صفحه آگهی دیوار",
+            )
+                await _wait_for_page_ready(
+                    self.page,
+                    selectors=[
+                        "button:has-text('چت')",
+                        "a:has-text('چت')",
+                        "[data-testimonial-id='chat-button']",
+                        "button.post-actions__get-contact",
+                        ".post-actions__get-contact",
+                        "h1",
+                        "article",
+                    ],
+                    progress_callback=progress_callback,
+                    timeout_ms=25_000,
+                    label="صفحه آگهی دیوار برای ورود به چت",
+                )
+                await self.page.wait_for_timeout(700)
 
                 chat_btn = self.page.locator("button:has-text('چت'), a:has-text('چت'), [data-testimonial-id='chat-button']").first
                 if await chat_btn.count() > 0 and await chat_btn.is_visible():
                     await chat_btn.click()
-                    await self.page.wait_for_timeout(3000)
+                    await _wait_for_page_ready(
+                        self.page,
+                        selectors=textarea_selectors + ["button:has-text('ارسال')"],
+                        progress_callback=progress_callback,
+                        timeout_ms=25_000,
+                        label="صفحه چت دیوار بعد از کلیک روی دکمه چت",
+                    )
+                    await self.page.wait_for_timeout(700)
 
                 for sel in textarea_selectors:
                     loc = self.page.locator(sel).first
@@ -848,6 +1120,12 @@ class AdExtractor:
                 if progress_callback:
                     progress_callback(f"⚠️ امکان ارسال چت برای آگهی (توکن: {token}) فعال نیست.")
                 return False
+
+            await wait_for_internet(
+                progress_callback=progress_callback,
+                first_message="🌐 بررسی اینترنت قبل از ارسال پیام چت دیوار...",
+                restored_message="✅ اینترنت وصل است؛ ارسال پیام چت دیوار ادامه دارد...",
+            )
 
             await chat_input.fill(message_text)
             await self.page.wait_for_timeout(1000)
@@ -906,7 +1184,14 @@ class AdExtractor:
             if progress_callback:
                 progress_callback(f"💬 در حال ورود به چت شیپور ({chat_url})...")
 
-            await self.page.goto(chat_url, wait_until="domcontentloaded", timeout=30_000)
+            await safe_page_goto(
+                self.page,
+                chat_url,
+                wait_until="domcontentloaded",
+                timeout=30_000,
+                progress_callback=progress_callback,
+                label="صفحه چت شیپور",
+            )
 
             # ── صبر هوشمند تا لود کامل صفحه چت شیپور و ظاهر شدن فیلد ورودی ──
             await _wait_for_page_ready(
@@ -932,6 +1217,12 @@ class AdExtractor:
                     progress_callback("⌨️ (۱/۲) فشردن Escape قبل از ارسال پیام در چت شیپور...")
                 await press_physical_escape_key(self.page)
                 await self.page.wait_for_timeout(500)
+
+                await wait_for_internet(
+                    progress_callback=progress_callback,
+                    first_message="🌐 بررسی اینترنت قبل از ارسال پیام چت شیپور...",
+                    restored_message="✅ اینترنت وصل است؛ ارسال پیام چت شیپور ادامه دارد...",
+                )
 
                 await chat_input.fill(message_text)
                 await self.page.wait_for_timeout(1000)

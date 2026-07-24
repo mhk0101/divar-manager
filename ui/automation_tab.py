@@ -16,9 +16,10 @@ from __future__ import annotations
 import json
 import logging
 import sys
+import uuid
 from datetime import datetime, timedelta
 from pathlib import Path
-from typing import List, Optional
+from typing import Any, Dict, List, Optional
 
 from PySide6.QtCore import Qt, Signal, Slot, QRunnable, QThreadPool, QObject, QTimer
 from PySide6.QtGui import QFont, QGuiApplication
@@ -57,6 +58,7 @@ from core.session_models import SessionRecord, SessionStatus
 from modules.ad_extractor import AdExtractor, organize_and_save_phone_excel, save_extracted_ads
 from core.fingerprint_manager import FingerprintManager
 from core.settings_manager import save as save_settings, load as load_settings
+from core.network_utils import safe_page_goto, wait_for_internet
 
 logger = logging.getLogger("divar.automation")
 
@@ -141,6 +143,11 @@ class BackgroundPeriodicRefresherWorker(QRunnable):
         asyncio.set_event_loop(loop)
         try:
             async def _run():
+                await wait_for_internet(
+                    progress_callback=lambda msg: self.signals.status_changed.emit(msg),
+                    first_message="🌐 بررسی اینترنت قبل از بروزرسانی پس‌زمینه کوکی‌ها...",
+                    restored_message="✅ اینترنت وصل است؛ بروزرسانی پس‌زمینه ادامه دارد...",
+                )
                 platforms = ["divar", "sheypoor"] if self.platform == "all" else [self.platform]
 
                 for plat in platforms:
@@ -269,6 +276,11 @@ class AutomationBrowserWorker(QRunnable):
             self.signals.status_changed.emit(f"🌐 لینک هدف ({plat_name}): {self.url}")
 
             async def _run():
+                await wait_for_internet(
+                    progress_callback=lambda msg: self.signals.status_changed.emit(msg),
+                    first_message="🌐 بررسی اینترنت قبل از شروع عملیات اتوماسیون...",
+                    restored_message="✅ اینترنت وصل است؛ شروع عملیات اتوماسیون...",
+                )
                 sm = SessionManager(platform=self.platform)
                 record = sm.load(phone=self.phone)
                 if not record:
@@ -298,7 +310,14 @@ class AutomationBrowserWorker(QRunnable):
                         await sm.save_from_context(bm.context, record.phone, metadata=record.metadata)
 
                     self.signals.status_changed.emit(f"🔄 در حال انتقال به لینک فیلترشده {plat_name}...")
-                    await bm.page.goto(self.url, wait_until="domcontentloaded", timeout=30_000)
+                    await safe_page_goto(
+                        bm.page,
+                        self.url,
+                        wait_until="domcontentloaded",
+                        timeout=30_000,
+                        progress_callback=lambda msg: self.signals.status_changed.emit(msg),
+                        label=f"لینک فیلترشده {plat_name}",
+                    )
                     try:
                         await bm.page.wait_for_load_state("networkidle", timeout=10_000)
                     except Exception:
@@ -345,6 +364,7 @@ class AutomationBrowserWorker(QRunnable):
                                 if self.platform == "divar":
                                     p_num, has_chat = await extractor.extract_divar_phone_number(
                                         token=token,
+                                        ad_url=ad_url,
                                         progress_callback=lambda msg: self.signals.status_changed.emit(f"[همگام {idx}/{len(target_ads)}] {msg}"),
                                     )
                                 else:
@@ -354,8 +374,13 @@ class AutomationBrowserWorker(QRunnable):
                                     )
 
                                 ad["phone_number"] = p_num if p_num else "ناموجود/مخفی"
+                                ad["has_chat"] = bool(has_chat)
 
+                                # نتیجه استخراج شماره را برای همه حالت‌ها لاگ کن تا کاربر فکر نکند مرحله رد شده است.
                                 if p_num and p_num.startswith("09") and len(p_num) == 11:
+                                    self.signals.status_changed.emit(
+                                        f"📱 [{idx}/{len(target_ads)}] شماره تماس استخراج شد: {p_num}"
+                                    )
                                     excel_saved = organize_and_save_phone_excel(
                                         phone_number=p_num,
                                         title=ad.get("title", ""),
@@ -367,27 +392,42 @@ class AutomationBrowserWorker(QRunnable):
                                     self.signals.status_changed.emit(
                                         f"💾 شماره {p_num} در اکسل {excel_saved.name} ذخیره گردید."
                                     )
+                                else:
+                                    self.signals.status_changed.emit(
+                                        f"ℹ️ [{idx}/{len(target_ads)}] نتیجه استخراج شماره: {ad['phone_number']}"
+                                    )
+
+                                # بروزرسانی فوری جدول/فایل بعد از استخراج شماره، حتی اگر چت ارسال نشود.
+                                self.signals.ads_extracted.emit(list(extracted_ads))
+                                save_extracted_ads(extracted_ads, self.platform, self.phone)
 
                                 # ب) ارسال پیام در چت همان آگهی
-                                self.signals.status_changed.emit(
-                                    f"💬 [{idx}/{len(target_ads)}] در حال ارسال پیام به چت فروشنده {plat_name}: «{ad.get('title')}»..."
-                                )
-                                if self.platform == "divar":
-                                    sent_ok = await extractor.send_divar_chat_message(
-                                        token=token,
-                                        message_text=self.chat_message,
-                                        progress_callback=lambda msg: self.signals.status_changed.emit(f"[چت دیوار] {msg}"),
+                                # اگر از داخل صفحه خود آگهی تشخیص دادیم چت فعال نیست، دیگر بی‌دلیل وارد /chat نشو.
+                                if self.platform == "divar" and has_chat is False:
+                                    sent_ok = False
+                                    ad["chat_sent"] = False
+                                    self.signals.status_changed.emit(
+                                        f"ℹ️ [{idx}/{len(target_ads)}] چت برای این آگهی فعال نیست؛ ارسال پیام رد شد."
                                     )
                                 else:
-                                    sent_ok = await extractor.send_sheypoor_chat_message(
-                                        listing_id=token,
-                                        message_text=self.chat_message,
-                                        progress_callback=lambda msg: self.signals.status_changed.emit(f"[چت شیپور] {msg}"),
+                                    self.signals.status_changed.emit(
+                                        f"💬 [{idx}/{len(target_ads)}] در حال ارسال پیام به چت فروشنده {plat_name}: «{ad.get('title')}»..."
                                     )
+                                    if self.platform == "divar":
+                                        sent_ok = await extractor.send_divar_chat_message(
+                                            token=token,
+                                            message_text=self.chat_message,
+                                            progress_callback=lambda msg: self.signals.status_changed.emit(f"[چت دیوار] {msg}"),
+                                        )
+                                    else:
+                                        sent_ok = await extractor.send_sheypoor_chat_message(
+                                            listing_id=token,
+                                            message_text=self.chat_message,
+                                            progress_callback=lambda msg: self.signals.status_changed.emit(f"[چت شیپور] {msg}"),
+                                        )
+                                    ad["chat_sent"] = sent_ok
 
-                                ad["chat_sent"] = sent_ok
-
-                                # بروزرسانی آنی جدول UI
+                                # بروزرسانی آنی جدول UI بعد از وضعیت چت
                                 self.signals.ads_extracted.emit(list(extracted_ads))
                                 save_extracted_ads(extracted_ads, self.platform, self.phone)
 
@@ -406,6 +446,7 @@ class AutomationBrowserWorker(QRunnable):
                                 if self.platform == "divar":
                                     p_num, has_chat = await extractor.extract_divar_phone_number(
                                         token=token,
+                                        ad_url=ad_url,
                                         progress_callback=lambda msg: self.signals.status_changed.emit(f"[شماره تماس {idx}/{len(target_phone_ads)}] {msg}"),
                                     )
                                 else:
@@ -563,22 +604,28 @@ class AutomationTab(QWidget):
         self._auto_timer = QTimer(self)
         self._auto_timer.timeout.connect(self._run_periodic_check)
 
+        # زمانبندی چندتایی: به‌جای یک QTimer تک‌زمانه، هر ثانیه همه زمانبندی‌ها بررسی می‌شوند.
         self._schedule_timer = QTimer(self)
-        self._schedule_timer.setSingleShot(True)
+        self._schedule_timer.setInterval(1000)
         self._schedule_timer.timeout.connect(self._on_schedule_tick)
 
         self._countdown_timer = QTimer(self)
         self._countdown_timer.setInterval(1000)
         self._countdown_timer.timeout.connect(self._update_countdown_display)
 
+        self._schedules: Dict[str, Dict[str, Any]] = {}
+        self._active_schedule_id: Optional[str] = None
+        self._schedule_cycle = 1
+
+        # فیلدهای قدیمی برای سازگاری داخلی/لاگ‌ها؛ وضعیت واقعی از self._schedules می‌آید.
         self._schedule_remaining_seconds = 0
         self._schedule_running = False
-        self._schedule_first_run_pending = False  # هنوز اجرای اول انجام نشده
-        self._operation_in_progress = False       # عملیات در حال اجراست
+        self._schedule_first_run_pending = False
+        self._operation_in_progress = False
         self._operation_elapsed = 0
         self._operation_total_ads = 0
         self._schedule_interval_minutes = 0
-        self._schedule_phone = ""                 # شماره‌ای که زمانبندی براش فعاله
+        self._schedule_phone = ""
 
         self._setup_ui()
         self._on_platform_changed()
@@ -904,7 +951,7 @@ class AutomationTab(QWidget):
         schedule_row = QHBoxLayout()
         schedule_row.setSpacing(8)
 
-        schedule_label = QLabel("🔄 تکرار خودکار هر:")
+        schedule_label = QLabel("⏰ اجرای زمانبندی بعد از:")
         schedule_label.setObjectName("subtitleLabel")
         schedule_row.addWidget(schedule_label)
 
@@ -913,8 +960,8 @@ class AutomationTab(QWidget):
         self.schedule_spinbox.setRange(0, 10080)
         self.schedule_spinbox.setValue(0)
         self.schedule_spinbox.setSuffix(" دقیقه")
-        self.schedule_spinbox.setToolTip("۰ = فقط یکبار اجرا | عدد دلخواه برای تکرار خودکار")
-        self.schedule_spinbox.setSpecialValueText("فقط یکبار")
+        self.schedule_spinbox.setToolTip("۰ = اجرای فوری فقط یکبار | عدد دلخواه = افزودن زمانبندی مستقل. هر زمانبندی فقط یکبار در هر چرخه اجرا می‌شود؛ بعد از اتمام همه، چرخه از ابتدا شروع می‌شود.")
+        self.schedule_spinbox.setSpecialValueText("اجرای فوری")
         self.schedule_spinbox.valueChanged.connect(self._on_schedule_changed)
         schedule_row.addWidget(self.schedule_spinbox, stretch=1)
 
@@ -942,20 +989,20 @@ class AutomationTab(QWidget):
         sched_ctrl_row = QHBoxLayout()
         sched_ctrl_row.setSpacing(8)
 
-        self.stop_schedule_btn = QPushButton("⏹️ توقف زمانبندی")
+        self.stop_schedule_btn = QPushButton("⏸️ توقف همه زمانبندی‌ها")
         self.stop_schedule_btn.setObjectName("dangerBtn")
         self.stop_schedule_btn.setMinimumHeight(40)
         self.stop_schedule_btn.setCursor(Qt.PointingHandCursor)
-        self.stop_schedule_btn.setToolTip("توقف زمانبندی و فعال شدن مجدد دکمه شروع")
+        self.stop_schedule_btn.setToolTip("توقف/مکث همه زمانبندی‌های فعال؛ برای ادامه از تب زمانبندی‌ها دکمه ادامه را بزنید")
         self.stop_schedule_btn.clicked.connect(self._stop_schedule)
         self.stop_schedule_btn.setEnabled(False)
         sched_ctrl_row.addWidget(self.stop_schedule_btn)
 
-        self.disable_schedule_btn = QPushButton("⏸️ غیرفعال کردن زمانبندی")
+        self.disable_schedule_btn = QPushButton("🗑️ حذف همه زمانبندی‌ها")
         self.disable_schedule_btn.setObjectName("ghostBtn")
         self.disable_schedule_btn.setMinimumHeight(40)
         self.disable_schedule_btn.setCursor(Qt.PointingHandCursor)
-        self.disable_schedule_btn.setToolTip("غیرفعال کردن کامل زمانبندی و ریست تنظیمات")
+        self.disable_schedule_btn.setToolTip("حذف کامل همه زمانبندی‌های ثبت‌شده")
         self.disable_schedule_btn.clicked.connect(self._disable_schedule)
         self.disable_schedule_btn.setEnabled(False)
         sched_ctrl_row.addWidget(self.disable_schedule_btn)
@@ -1449,48 +1496,27 @@ class AutomationTab(QWidget):
             QMessageBox.information(self, "انتخاب حساب", f"لطفاً ابتدا یک حساب کاربری {plat_name} انتخاب کنید.")
             return
 
-        # ✅ چک کردن متن پیام قبل از هر چیز
-        if self.chat_enable_checkbox.isChecked():
-            chat_msg = self.chat_message_input.toPlainText().strip()
-            if not chat_msg:
-                QMessageBox.warning(
-                    self, "متن چت خالی است",
-                    "⚠️ گزینه ارسال پیام چت فعال است ولی متن پیام خالی است.\n\n"
-                    "لطفاً متن پیام را وارد کنید یا گزینه ارسال پیام را غیرفعال کنید."
-                )
-                return
+        config = self._collect_automation_config(show_errors=True)
+        if not config:
+            return
 
         schedule_mins = self.schedule_spinbox.value()
-
-        # ⛔ اگر زمانبندی با همین شماره فعاله → هشدار
-        if self._schedule_running:
-            QMessageBox.warning(
-                self, "زمانبندی فعال است",
-                f"⏰ یک زمانبندی برای شماره {self._schedule_phone} فعال است.\n"
-                f"اجرای بعدی: {self._schedule_remaining_seconds // 60} دقیقه دیگر\n\n"
-                f"برای تنظیم جدید، ابتدا زمانبندی را متوقف کنید."
+        if schedule_mins > 0:
+            schedule_id = self._add_schedule(config, schedule_mins)
+            next_run = self._schedules[schedule_id]["next_run"]
+            self._log(
+                "INFO",
+                f"[زمانبندی] ⏰ زمانبندی جدید اضافه شد: {plat_name} | شماره {selected_phone} | "
+                f"اجرا بعد از {schedule_mins} دقیقه (ساعت {next_run.strftime('%H:%M:%S')}) | چرخه {self._schedule_cycle}"
             )
             return
 
-        if schedule_mins > 0:
-            # ⏰ زمانبندی: اول صبر کن، بعد اجرا کن
-            now = datetime.now()
-            next_run = now + timedelta(minutes=schedule_mins)
-            next_str = next_run.strftime("%H:%M:%S")
-
-            self._log(
-                "INFO",
-                f"[زمانبندی] ⏰ زمانبندی فعال: اولین اجرا ساعت {next_str} "
-                f"(هر {schedule_mins} دقیقه) | شماره: {selected_phone}"
-            )
-            self._start_schedule(schedule_mins, first_run=True, phone=selected_phone)
-        else:
-            # فقط یکبار، همون الان اجرا کن
-            self._log(
-                "INFO",
-                f"[اتوماسیون] شروع اجرای مرورگر {plat_name} برای شماره {selected_phone} (فقط یکبار)"
-            )
-            self._execute_automation()
+        # فقط یکبار، همون الان اجرا کن
+        self._log(
+            "INFO",
+            f"[اتوماسیون] شروع اجرای مرورگر {plat_name} برای شماره {selected_phone} (فقط یکبار)"
+        )
+        self._execute_automation(config=config)
 
     @Slot(str)
     def _on_status_changed(self, status: str):
@@ -1498,11 +1524,27 @@ class AutomationTab(QWidget):
 
     @Slot(str)
     def _on_error(self, error: str):
+        schedule_id = self._active_schedule_id
         self._operation_in_progress = False
         self._log("ERROR", f"[اتوماسیون] {error}")
         self._current_worker = None
-        self._stop_schedule()
-        QMessageBox.critical(self, "خطا", f"خطا:\n{error}")
+
+        if schedule_id and schedule_id in self._schedules:
+            s = self._schedules[schedule_id]
+            s["in_progress"] = False
+            s["status"] = "error"
+            s["status_text"] = f"🔴 خطا: {error}"
+            s["last_error"] = error
+            s["completed_at"] = datetime.now()
+            self._active_schedule_id = None
+            self._maybe_reset_schedule_cycle()
+            self._emit_schedules()
+        else:
+            QMessageBox.critical(self, "خطا", f"خطا:\n{error}")
+
+        self.start_btn.setEnabled(self.get_selected_phone() is not None)
+        self.start_btn.setText("🚀 شروع - باز کردن مرورگر")
+        self._sync_schedule_buttons()
 
     @Slot(str)
     def _on_finished(self, url: str):
@@ -1514,58 +1556,119 @@ class AutomationTab(QWidget):
         self._current_worker = None
         self._reload_phone_numbers()
 
-        if self._schedule_running and self._schedule_interval_minutes > 0:
-            self._schedule_first_run_pending = False
-            self._schedule_remaining_seconds = self._schedule_interval_minutes * 60
-            self._countdown_timer.stop()
-            self._schedule_timer.start(self._schedule_interval_minutes * 60 * 1000)
-            self._countdown_timer.start()
-            self.start_btn.setEnabled(False)
-            self.start_btn.setText("⏰ زمانبندی فعال - در انتظار...")
+        schedule_id = self._active_schedule_id
+        if schedule_id and schedule_id in self._schedules:
+            s = self._schedules[schedule_id]
+            requested = s.pop("requested_action", None)
+            s["in_progress"] = False
+            s["last_elapsed"] = elapsed
+            s["last_ads"] = self._operation_total_ads
 
-            next_time = datetime.now() + timedelta(minutes=self._schedule_interval_minutes)
-            self._log(
-                "INFO",
-                f"[زمانبندی] ⏳ اجرای بعدی ساعت {next_time.strftime('%H:%M:%S')} "
-                f"(تا {self._schedule_interval_minutes} دقیقه دیگر)"
-            )
+            if requested == "pause":
+                s["status"] = "paused"
+                s["status_text"] = "⏸️ متوقف‌شده"
+                s["paused"] = True
+                s["remaining_seconds"] = max(60, int(s.get("interval_minutes", 1)) * 60)
+            elif requested == "cancel":
+                s["status"] = "cancelled"
+                s["status_text"] = "🚫 لغوشده"
+                s["running"] = False
+            elif requested == "delete":
+                self._schedules.pop(schedule_id, None)
+            else:
+                # زمانبندی دیگر بلافاصله تکرار نمی‌شود؛ فقط علامت پایان می‌گیرد.
+                # وقتی همه زمانبندی‌های فعال همین چرخه تمام شدند، کل چرخه از ابتدا ساخته می‌شود.
+                s["status"] = "completed"
+                s["status_text"] = "✅ انجام‌شده در این چرخه"
+                s["completed_at"] = datetime.now()
+                s["remaining_seconds"] = 0
+
+            self._active_schedule_id = None
+            self._maybe_reset_schedule_cycle()
         else:
-            self._operation_in_progress = False
             self.start_btn.setEnabled(True)
             self.start_btn.setText("🚀 شروع - باز کردن مرورگر")
-            self._emit_schedules()
+
+        self._operation_elapsed = 0
+        self._operation_total_ads = 0
+        self.start_btn.setEnabled(self.get_selected_phone() is not None)
+        self.start_btn.setText("🚀 شروع - باز کردن مرورگر")
+        self._sync_schedule_buttons()
+        self._update_countdown_display()
+        self._emit_schedules()
 
     def is_browser_open(self) -> bool:
         return self._current_worker is not None and self._current_worker.is_browser_running()
 
     # ────────────────────────────────────
-    # زمانبندی خودکار
+    # زمانبندی خودکار چندتایی
     # ────────────────────────────────────
     def _on_schedule_changed(self, value: int):
         self._schedule_interval_minutes = value
-        if not self._schedule_running:
-            if value > 0:
-                next_time = datetime.now() + timedelta(minutes=value)
-                self.schedule_status_lbl.setText(
-                    f"⏸️ آماده: اولین اجرا ساعت {next_time.strftime('%H:%M:%S')} | هر {value} دقیقه"
-                )
-            else:
-                self.schedule_status_lbl.setText("⏸️ فقط یکبار (اجرای فوری با دکمه شروع)")
+        if value > 0:
+            next_time = datetime.now() + timedelta(minutes=value)
+            self.schedule_status_lbl.setText(
+                f"⏸️ آماده افزودن زمانبندی: اجرا ساعت {next_time.strftime('%H:%M:%S')} | بعد از {value} دقیقه"
+            )
+        else:
+            self.schedule_status_lbl.setText("⏸️ اجرای فوری فقط یکبار با دکمه شروع")
+
+    def _start_schedule_timer_if_needed(self):
+        if self._schedules and not self._schedule_timer.isActive():
+            self._schedule_timer.start()
+        if self._schedules and not self._countdown_timer.isActive():
+            self._countdown_timer.start()
+
+    def _stop_schedule_timer_if_idle(self):
+        if not self._schedules:
+            self._schedule_timer.stop()
+            self._countdown_timer.stop()
 
     def _on_schedule_tick(self):
-        """تایمر زمانبندی به پایان رسید → اجرا"""
+        """هر ثانیه زمانبندی‌ها را بررسی می‌کند و زمانبندی‌های رسیده را اجرا می‌کند."""
+        now = datetime.now()
+
+        for s in self._schedules.values():
+            if not s.get("running", True):
+                continue
+            if s.get("status") == "waiting":
+                s["remaining_seconds"] = max(0, int((s["next_run"] - now).total_seconds()))
+
+        self._sync_legacy_schedule_state()
+        self._update_countdown_display()
+        self._emit_schedules()
+
         if self._operation_in_progress:
-            self._log("WARNING", "[زمانبندی] ⚠️ عملیات قبلی هنوز تمام نشده. ۳۰ ثانیه دیگر بررسی مجدد...")
-            self._schedule_timer.start(30000)
             return
 
-        self._schedule_first_run_pending = False
-        self._log("INFO", "[زمانبندی] ⏰ زمان اجرا فرا رسید. شروع عملیات خودکار...")
-        self._execute_automation()
+        due = [
+            s for s in self._schedules.values()
+            if s.get("running", True)
+            and s.get("status") == "waiting"
+            and not s.get("paused", False)
+            and s.get("next_run") <= now
+        ]
+        if due:
+            due.sort(key=lambda x: x.get("next_run"))
+            s = due[0]
+            s["status"] = "running"
+            s["status_text"] = "🟢 در حال اجرا"
+            s["in_progress"] = True
+            s["remaining_seconds"] = 0
+            self._active_schedule_id = s["id"]
+            self._schedule_phone = s.get("phone", "")
+            self._log(
+                "INFO",
+                f"[زمانبندی] ⏰ اجرای زمانبندی {s['id'][:8]} شروع شد | "
+                f"{s.get('platform_name')} | شماره {s.get('phone')} | چرخه {s.get('cycle', self._schedule_cycle)}"
+            )
+            self._execute_automation(config=s["config"], schedule_id=s["id"])
+            return
+
+        self._maybe_reset_schedule_cycle()
 
     def _update_countdown_display(self):
-        if self._schedule_running and self._operation_in_progress:
-            # در حال اجرا
+        if self._operation_in_progress:
             mins = self._operation_elapsed // 60
             secs = self._operation_elapsed % 60
             ads = self._operation_total_ads
@@ -1573,79 +1676,222 @@ class AutomationTab(QWidget):
             self.schedule_status_lbl.setText(
                 f"🟢 در حال اجرا: {mins}دقیقه {secs}ثانیه | آگهی: {ads} | {phone}"
             )
-        elif self._schedule_running:
-            rm = self._schedule_remaining_seconds
-            if rm > 0:
-                mins = rm // 60
-                secs = rm % 60
-                next_time = datetime.now() + timedelta(seconds=rm)
-                next_str = next_time.strftime("%H:%M:%S")
-                prefix = "اولین اجرا" if self._schedule_first_run_pending else "اجرای بعدی"
-                phone = self._schedule_phone or ""
-                self.schedule_status_lbl.setText(
-                    f"⏳ {prefix}: {mins}دقیقه {secs}ثانیه دیگر (ساعت {next_str}) | هر {self._schedule_interval_minutes}دقیقه | {phone}"
-                )
-                self._schedule_remaining_seconds -= 1
+            return
 
-    def _start_schedule(self, interval_minutes: int, first_run: bool = False, phone: str = ""):
-        self._schedule_interval_minutes = interval_minutes
-        self._schedule_running = True
-        self._schedule_first_run_pending = first_run
-        self._schedule_remaining_seconds = interval_minutes * 60
-        self._schedule_phone = phone
-        self._countdown_timer.start()
-        self._schedule_timer.start(interval_minutes * 60 * 1000)
-        self.schedule_spinbox.setEnabled(False)
-        self.stop_schedule_btn.setEnabled(True)
-        self.disable_schedule_btn.setEnabled(True)
-        self.start_btn.setEnabled(False)
-        self._emit_schedules()
-        self.start_btn.setText("⏰ زمانبندی فعال - در انتظار...")
+        active = [s for s in self._schedules.values() if s.get("running", True)]
+        waiting = [s for s in active if s.get("status") == "waiting"]
+        paused = [s for s in active if s.get("status") == "paused"]
+        completed = [s for s in active if s.get("status") in ("completed", "error")]
 
+        if waiting:
+            waiting.sort(key=lambda x: x.get("remaining_seconds", 0))
+            s = waiting[0]
+            rm = max(0, int(s.get("remaining_seconds", 0)))
+            mins = rm // 60
+            secs = rm % 60
+            next_run = s.get("next_run", datetime.now())
+            self.schedule_status_lbl.setText(
+                f"⏳ نزدیک‌ترین اجرا: {mins}دقیقه {secs}ثانیه دیگر (ساعت {next_run.strftime('%H:%M:%S')}) | "
+                f"{s.get('platform_name')} | {s.get('phone')} | چرخه {self._schedule_cycle}"
+            )
+        elif active and completed and len(completed) == len(active):
+            self.schedule_status_lbl.setText("✅ همه زمانبندی‌های این چرخه انجام شدند؛ چرخه بعدی در حال آماده‌سازی است...")
+        elif paused:
+            self.schedule_status_lbl.setText(f"⏸️ {len(paused)} زمانبندی متوقف شده است. برای ادامه از تب زمانبندی‌ها دکمه ادامه را بزنید.")
+        else:
+            self.schedule_status_lbl.setText("⏸️ زمانبندی فعالی وجود ندارد")
+
+    def _sync_legacy_schedule_state(self):
+        active = [s for s in self._schedules.values() if s.get("running", True) and s.get("status") not in ("cancelled",)]
+        self._schedule_running = bool(active)
+        waiting = [s for s in active if s.get("status") == "waiting"]
+        if waiting:
+            waiting.sort(key=lambda x: x.get("remaining_seconds", 0))
+            first = waiting[0]
+            self._schedule_remaining_seconds = int(first.get("remaining_seconds", 0))
+            self._schedule_interval_minutes = int(first.get("interval_minutes", 0))
+            self._schedule_phone = first.get("phone", "")
+        elif self._active_schedule_id and self._active_schedule_id in self._schedules:
+            s = self._schedules[self._active_schedule_id]
+            self._schedule_remaining_seconds = 0
+            self._schedule_interval_minutes = int(s.get("interval_minutes", 0))
+            self._schedule_phone = s.get("phone", "")
+        else:
+            self._schedule_remaining_seconds = 0
+            self._schedule_phone = ""
+
+    def _sync_schedule_buttons(self):
+        has_schedules = bool(self._schedules)
+        self.stop_schedule_btn.setEnabled(has_schedules)
+        self.disable_schedule_btn.setEnabled(has_schedules)
+        self._sync_legacy_schedule_state()
+        self._stop_schedule_timer_if_idle()
+
+    def _add_schedule(self, config: Dict[str, Any], delay_minutes: int) -> str:
+        sid = uuid.uuid4().hex
         now = datetime.now()
-        next_run = now + timedelta(minutes=interval_minutes)
-        self._log(
-            "INFO",
-            f"[زمانبندی] 🔄 زمانبندی فعال شد. اولین اجرا ساعت {next_run.strftime('%H:%M:%S')} "
-            f"(هر {interval_minutes} دقیقه) | شماره: {phone}"
-        )
+        next_run = now + timedelta(minutes=delay_minutes)
+        platform_name = "دیوار" if config["platform"] == "divar" else "شیپور"
+        schedule = {
+            "id": sid,
+            "platform": config["platform"],
+            "platform_name": platform_name,
+            "phone": config["phone"],
+            "cities": config.get("cities_label", "همه شهرها"),
+            "category": config.get("category_name", "همه دسته‌ها"),
+            "interval_minutes": delay_minutes,
+            "remaining_seconds": delay_minutes * 60,
+            "next_run": next_run,
+            "created_at": now,
+            "cycle": self._schedule_cycle,
+            "running": True,
+            "paused": False,
+            "in_progress": False,
+            "status": "waiting",
+            "status_text": "⏳ در انتظار",
+            "config": config,
+        }
+        self._schedules[sid] = schedule
+        self._start_schedule_timer_if_needed()
+        self._sync_schedule_buttons()
+        self._emit_schedules()
+        self._update_countdown_display()
+        return sid
+
+    def _maybe_reset_schedule_cycle(self):
+        active = [
+            s for s in self._schedules.values()
+            if s.get("running", True) and s.get("status") not in ("cancelled", "paused")
+        ]
+        if not active:
+            self._sync_schedule_buttons()
+            return
+        if not all(s.get("status") in ("completed", "error") for s in active):
+            return
+
+        self._schedule_cycle += 1
+        now = datetime.now()
+        for s in active:
+            delay = max(1, int(s.get("interval_minutes", 1)))
+            s["cycle"] = self._schedule_cycle
+            s["status"] = "waiting"
+            s["status_text"] = "⏳ در انتظار چرخه جدید"
+            s["paused"] = False
+            s["in_progress"] = False
+            s["next_run"] = now + timedelta(minutes=delay)
+            s["remaining_seconds"] = delay * 60
+        self._log("INFO", f"[زمانبندی] 🔁 همه زمانبندی‌ها تمام شدند؛ چرخه {self._schedule_cycle} از ابتدا شروع شد.")
+        self._start_schedule_timer_if_needed()
+        self._emit_schedules()
 
     def _stop_schedule(self):
-        self._schedule_running = False
-        self._schedule_first_run_pending = False
-        self._schedule_timer.stop()
-        self._countdown_timer.stop()
-        self._operation_elapsed = 0
-        self._operation_total_ads = 0
-        self._schedule_remaining_seconds = 0
-        self._operation_in_progress = False
-        self._schedule_phone = ""
-        self.schedule_spinbox.setEnabled(True)
-        self.stop_schedule_btn.setEnabled(False)
-        self.disable_schedule_btn.setEnabled(False)
-        self.start_btn.setEnabled(True)
-        self.start_btn.setText("🚀 شروع - باز کردن مرورگر")
-        self.schedule_status_lbl.setText("⏸️ زمانبندی متوقف شد")
-        self._log("INFO", "[زمانبندی] ⏸️ زمانبندی متوقف شد.")
+        """توقف/مکث همه زمانبندی‌ها از دکمه داخل تب اتوماسیون."""
+        if not self._schedules:
+            return
+        for sid, s in list(self._schedules.items()):
+            if sid == self._active_schedule_id and self._current_worker:
+                s["requested_action"] = "pause"
+                try:
+                    self._current_worker.request_close()
+                except Exception:
+                    pass
+            elif s.get("status") == "waiting":
+                s["paused"] = True
+                s["status"] = "paused"
+                s["status_text"] = "⏸️ متوقف‌شده"
+        self._log("INFO", "[زمانبندی] ⏸️ همه زمانبندی‌های قابل توقف، متوقف شدند.")
+        self._sync_schedule_buttons()
+        self._update_countdown_display()
+        self._emit_schedules()
+
+    @Slot(str, str)
+    def handle_schedule_action(self, schedule_id: str, action: str):
+        """اکشن‌های تب زمانبندی‌ها: stop/resume/cancel/delete"""
+        if schedule_id not in self._schedules:
+            return
+        s = self._schedules[schedule_id]
+        action = (action or "").lower()
+
+        if action in ("stop", "pause"):
+            if schedule_id == self._active_schedule_id and self._current_worker:
+                s["requested_action"] = "pause"
+                s["status_text"] = "⏸️ درخواست توقف ارسال شد"
+                try:
+                    self._current_worker.request_close()
+                except Exception:
+                    pass
+            elif s.get("status") == "waiting":
+                s["paused"] = True
+                s["status"] = "paused"
+                s["status_text"] = "⏸️ متوقف‌شده"
+            self._log("INFO", f"[زمانبندی] ⏸️ زمانبندی {schedule_id[:8]} متوقف شد.")
+
+        elif action == "resume":
+            if s.get("status") == "paused":
+                rm = int(s.get("remaining_seconds", 0))
+                if rm <= 0:
+                    rm = max(1, int(s.get("interval_minutes", 1))) * 60
+                s["paused"] = False
+                s["status"] = "waiting"
+                s["status_text"] = "⏳ در انتظار"
+                s["next_run"] = datetime.now() + timedelta(seconds=rm)
+                s["remaining_seconds"] = rm
+                self._start_schedule_timer_if_needed()
+                self._log("INFO", f"[زمانبندی] ▶️ زمانبندی {schedule_id[:8]} ادامه داده شد.")
+
+        elif action == "cancel":
+            if schedule_id == self._active_schedule_id and self._current_worker:
+                s["requested_action"] = "cancel"
+                s["status_text"] = "🚫 درخواست لغو ارسال شد"
+                try:
+                    self._current_worker.request_close()
+                except Exception:
+                    pass
+            else:
+                s["running"] = False
+                s["status"] = "cancelled"
+                s["status_text"] = "🚫 لغوشده"
+            self._log("INFO", f"[زمانبندی] 🚫 زمانبندی {schedule_id[:8]} لغو شد.")
+
+        elif action == "delete":
+            if schedule_id == self._active_schedule_id and self._current_worker:
+                s["requested_action"] = "delete"
+                s["status_text"] = "🗑️ درخواست حذف بعد از توقف ارسال شد"
+                try:
+                    self._current_worker.request_close()
+                except Exception:
+                    pass
+            else:
+                self._schedules.pop(schedule_id, None)
+            self._log("INFO", f"[زمانبندی] 🗑️ زمانبندی {schedule_id[:8]} حذف شد.")
+
+        self._maybe_reset_schedule_cycle()
+        self._sync_schedule_buttons()
+        self._update_countdown_display()
         self._emit_schedules()
 
     @Slot(int, int)
     def _on_progress_tick(self, elapsed: int, total_ads: int):
         self._operation_elapsed = elapsed
         self._operation_total_ads = total_ads
+        if self._active_schedule_id and self._active_schedule_id in self._schedules:
+            self._schedules[self._active_schedule_id]["elapsed_seconds"] = elapsed
+            self._schedules[self._active_schedule_id]["ads_count"] = total_ads
 
-    def _execute_automation(self):
+    def _collect_automation_config(self, show_errors: bool = False) -> Optional[Dict[str, Any]]:
         plat = self.get_selected_platform()
         selected_phone = self.get_selected_phone()
         plat_name = "دیوار" if plat == "divar" else "شیپور"
 
         if not selected_phone:
-            self._stop_schedule()
-            return
+            if show_errors:
+                QMessageBox.information(self, "انتخاب حساب", f"لطفاً ابتدا یک حساب کاربری {plat_name} انتخاب کنید.")
+            return None
 
         selected_cities = self.city_list.selectedItems()
-        cities_data = [item.data(Qt.UserRole) for item in selected_cities if item.data(Qt.UserRole)]
-        cities_names = [c.get("name", "") for c in cities_data if isinstance(c, dict)]
+        cities_data = [dict(item.data(Qt.UserRole)) for item in selected_cities if isinstance(item.data(Qt.UserRole), dict)]
+        cities_names = [(c.get("display_name") or c.get("name", "")) for c in cities_data if isinstance(c, dict)]
+        cities_label = ", ".join(cities_names) if cities_names else "همه شهرها"
 
         selected_cats = self.category_list.selectedItems()
         category_slug = None
@@ -1660,41 +1906,74 @@ class AutomationTab(QWidget):
         else:
             url = build_divar_url(cities_data, category_slug)
 
-        interval_mins = self.interval_spinbox.value()
-        max_p = self.pages_spinbox.value()
-        max_c = self.max_chats_spinbox.value()
         max_ph = self.max_phones_spinbox.value() if self.extract_phone_checkbox.isChecked() else 0
         sync_phone_chat = self.sync_phone_chat_checkbox.isChecked()
-
         chat_msg = None
         if self.chat_enable_checkbox.isChecked():
             chat_msg = self.chat_message_input.toPlainText().strip()
             if not chat_msg:
-                QMessageBox.warning(self, "متن چت خالی است", "لطفاً متن پیام چت را وارد کنید یا گزینه‌ی ارسال پیام را غیرفعال کنید.")
-                self.start_btn.setEnabled(True)
-                self.start_btn.setText("🚀 شروع - باز کردن مرورگر")
-                return
+                if show_errors:
+                    QMessageBox.warning(
+                        self, "متن چت خالی است",
+                        "⚠️ گزینه ارسال پیام چت فعال است ولی متن پیام خالی است.\n\n"
+                        "لطفاً متن پیام را وارد کنید یا گزینه ارسال پیام را غیرفعال کنید."
+                    )
+                return None
+
+        return {
+            "platform": plat,
+            "platform_name": plat_name,
+            "phone": selected_phone,
+            "cities_data": cities_data,
+            "cities_names": cities_names,
+            "cities_label": cities_label,
+            "category_slug": category_slug,
+            "category_name": category_name,
+            "url": url,
+            "interval_mins": self.interval_spinbox.value(),
+            "max_pages": self.pages_spinbox.value(),
+            "max_chats": self.max_chats_spinbox.value(),
+            "max_phones": max_ph,
+            "extract_phone": (max_ph > 0 or sync_phone_chat),
+            "sync_phone_chat": sync_phone_chat,
+            "chat_msg": chat_msg,
+        }
+
+    def _execute_automation(self, config: Optional[Dict[str, Any]] = None, schedule_id: Optional[str] = None):
+        config = config or self._collect_automation_config(show_errors=True)
+        if not config:
+            if schedule_id and schedule_id in self._schedules:
+                self._schedules[schedule_id]["status"] = "error"
+                self._schedules[schedule_id]["status_text"] = "🔴 خطا در تنظیمات"
+                self._emit_schedules()
+            return
+
+        plat = config["platform"]
+        plat_name = config.get("platform_name") or ("دیوار" if plat == "divar" else "شیپور")
+        selected_phone = config["phone"]
 
         self._operation_in_progress = True
         self._operation_elapsed = 0
         self._operation_total_ads = 0
+        self._active_schedule_id = schedule_id
+        self._schedule_phone = selected_phone
         self._emit_schedules()
         self.start_btn.setEnabled(False)
         self.start_btn.setText(f"⏳ در حال استخراج و اجرای {plat_name}...")
 
         worker = AutomationBrowserWorker(
             platform=plat,
-            url=url,
-            cities_names=cities_names,
-            category_name=category_name,
+            url=config["url"],
+            cities_names=config.get("cities_names", []),
+            category_name=config.get("category_name", "همه دسته‌ها"),
             phone=selected_phone,
-            interval_minutes=interval_mins,
-            max_pages=max_p,
-            chat_message=chat_msg,
-            max_chats=max_c,
-            extract_phone=(max_ph > 0 or sync_phone_chat),
-            max_phones=max_ph,
-            sync_phone_chat=sync_phone_chat,
+            interval_minutes=config.get("interval_mins", 60),
+            max_pages=config.get("max_pages", 3),
+            chat_message=config.get("chat_msg"),
+            max_chats=config.get("max_chats", 10),
+            extract_phone=config.get("extract_phone", True),
+            max_phones=config.get("max_phones", 10),
+            sync_phone_chat=config.get("sync_phone_chat", True),
         )
         worker.signals.status_changed.connect(self._on_status_changed)
         worker.signals.error_occurred.connect(self._on_error)
@@ -1716,7 +1995,13 @@ class AutomationTab(QWidget):
         for item in selected_cities:
             d = item.data(Qt.UserRole)
             if isinstance(d, dict):
-                cities.append({"name": d.get("name", ""), "slug": d.get("slug", ""), "id": d.get("id", 0)})
+                cities.append({
+                    "id": d.get("id"),
+                    "name": d.get("name", ""),
+                    "display_name": d.get("display_name", ""),
+                    "slug": d.get("slug", ""),
+                    "province_name": d.get("province_name", ""),
+                })
 
         selected_cats = self.category_list.selectedItems()
         cat_slug = None
@@ -1748,113 +2033,156 @@ class AutomationTab(QWidget):
                 "⚠️ گزینه ارسال چت فعال است اما متن پیام خالی است.\nلطفاً متن پیام را وارد کنید سپس ذخیره کنید."
             )
             return
-        save_settings(phone, settings)
+        save_settings(phone, settings, platform=plat)
         self._log("INFO", f"[تنظیمات] 💾 تنظیمات برای شماره {phone} ({'دیوار' if plat == 'divar' else 'شیپور'}) ذخیره شد.")
         self.schedule_status_lbl.setText("💾 تنظیمات ذخیره شد ✓")
 
     def _load_settings_for_phone(self):
-        """بارگذاری تمام تنظیمات ذخیره‌شده برای شماره انتخاب‌شده."""
+        """بارگذاری تنظیمات ذخیره‌شده برای شماره انتخاب‌شده در همان پلتفرم فعلی."""
         phone = self.get_selected_phone()
         if not phone:
             return
         if getattr(self, '_loading_settings', False):
             return
+
         self._loading_settings = True
+        plat = self.get_selected_platform()
+        plat_name = "دیوار" if plat == "divar" else "شیپور"
 
         try:
-            s = load_settings(phone)
-        except Exception:
-            self._loading_settings = False
-            return
+            # تنظیمات دیوار و شیپور جداگانه خوانده می‌شود؛ دیگر هنگام انتخاب شیپور
+            # تنظیمات دیوار همان شماره، پلتفرم را عوض نمی‌کند و UI را درگیر نمی‌کند.
+            s = load_settings(phone, platform=plat)
 
-        saved_plat = s.get("platform", "divar")
-        saved_cities = s.get("cities", [])
-        saved_slugs = {c.get("slug", "") for c in saved_cities} if saved_cities else set()
+            saved_cities = s.get("cities", []) or []
+            saved_ids = {
+                str(c.get("id")) for c in saved_cities
+                if c.get("id") not in (None, "", 0, "0")
+            }
+            saved_slugs = {
+                str(c.get("slug", "")).strip() for c in saved_cities
+                if str(c.get("slug", "")).strip()
+            }
+            saved_names = {
+                str(c.get("display_name") or c.get("name") or "").strip()
+                for c in saved_cities
+                if str(c.get("display_name") or c.get("name") or "").strip()
+            }
 
-        # ⛔ بلاک platform_combo تا _on_platform_changed فایر نشه
-        self.platform_combo.blockSignals(True)
-        try:
-            need_rebuild = (saved_plat != self.get_selected_platform())
-            if need_rebuild:
-                # خودمون دستی city_list رو بازسازی می‌کنیم
-                self._load_data_for_platform(saved_plat)
-                idx = self.platform_combo.findData(saved_plat)
-                if idx >= 0:
-                    self.platform_combo.setCurrentIndex(idx)
+            # اگر کاربر قبلاً جستجو کرده باشد، لیست شهرها فیلتر است؛ برای انتخاب صحیح،
+            # فیلتر را پاک می‌کنیم تا همه شهرها در لیست باشند.
+            try:
+                self.city_search.blockSignals(True)
+                self.city_search.clear()
+            finally:
+                self.city_search.blockSignals(False)
+            self._populate_city_list(self._cities)
+
+            # بلاک سیگنال‌ها هنگام اعمال تنظیمات برای جلوگیری از اجرای زنجیره‌ای و کندی UI.
+            widgets_to_block = [
+                self.city_list, self.category_list, self.interval_spinbox, self.pages_spinbox,
+                self.chat_enable_checkbox, self.chat_message_input, self.extract_phone_checkbox,
+                self.max_phones_spinbox, self.max_chats_spinbox, self.sync_phone_chat_checkbox,
+                self.schedule_spinbox,
+            ]
+            previous_blocks = {w: w.signalsBlocked() for w in widgets_to_block}
+            for w in widgets_to_block:
+                w.blockSignals(True)
+            try:
+                # شهرها: فقط موارد ذخیره‌شده انتخاب شوند. از کلید غیرخالی استفاده می‌کنیم
+                # تا اگر slug در دیتای دیوار خالی بود، همه شهرها اشتباهاً انتخاب نشوند.
+                self.city_list.clearSelection()
+                if saved_ids or saved_slugs or saved_names:
+                    for i in range(self.city_list.count()):
+                        item = self.city_list.item(i)
+                        d = item.data(Qt.UserRole)
+                        if not isinstance(d, dict):
+                            continue
+                        item_id = str(d.get("id")) if d.get("id") not in (None, "", 0, "0") else ""
+                        item_slug = str(d.get("slug", "")).strip()
+                        item_name = str(d.get("display_name") or d.get("name") or "").strip()
+                        if (
+                            (item_id and item_id in saved_ids)
+                            or (item_slug and item_slug in saved_slugs)
+                            or (item_name and item_name in saved_names)
+                        ):
+                            item.setSelected(True)
+
+                # دسته‌بندی
+                cat_slug = s.get("category_slug")
+                if cat_slug:
+                    found = False
+                    for i in range(self.category_list.count()):
+                        if self.category_list.item(i).data(Qt.UserRole) == cat_slug:
+                            self.category_list.setCurrentRow(i)
+                            found = True
+                            break
+                    if not found:
+                        self.category_list.setCurrentRow(0)
+                else:
+                    self.category_list.setCurrentRow(0)
+
+                # بقیه تنظیمات
+                self.interval_spinbox.setValue(s.get("cookie_interval", 60))
+                self.pages_spinbox.setValue(s.get("pages", 3))
+                self.chat_enable_checkbox.setChecked(s.get("chat_enabled", True))
+                self.chat_message_input.setPlainText(s.get("chat_message", ""))
+                self.extract_phone_checkbox.setChecked(s.get("extract_phone", True))
+                self.max_phones_spinbox.setValue(s.get("max_phones", 10))
+                self.max_chats_spinbox.setValue(s.get("max_chats", 10))
+                self.sync_phone_chat_checkbox.setChecked(s.get("sync_phone_chat", True))
+                self.schedule_spinbox.setValue(s.get("schedule_interval", 0))
+            finally:
+                for w, was_blocked in previous_blocks.items():
+                    w.blockSignals(was_blocked)
+
+            self._log("INFO", f"[تنظیمات] 📂 تنظیمات شماره {phone} ({plat_name}) بارگذاری شد.")
+
+        except Exception as e:
+            self._log("ERROR", f"[تنظیمات] خطا در بارگذاری تنظیمات شماره {phone} ({plat_name}): {e}")
         finally:
-            self.platform_combo.blockSignals(False)
-
-        # حالا city_list با داده‌های پلتفرم درست پر شده
-        # شماره تلفن رو انتخاب کن (phone_combo)
-        for i in range(self.phone_combo.count()):
-            if self.phone_combo.itemData(i) == phone:
-                self.phone_combo.setCurrentIndex(i)
-                break
-
-        # شهرها: فقط شهرهای ذخیره‌شده رو انتخاب کن
-        self.city_list.clearSelection()
-        if saved_slugs:
-            for i in range(self.city_list.count()):
-                item = self.city_list.item(i)
-                d = item.data(Qt.UserRole)
-                if isinstance(d, dict) and d.get("slug", "") in saved_slugs:
-                    item.setSelected(True)
-
-        # دسته‌بندی
-        cat_slug = s.get("category_slug")
-        if cat_slug:
-            found = False
-            for i in range(self.category_list.count()):
-                if self.category_list.item(i).data(Qt.UserRole) == cat_slug:
-                    self.category_list.setCurrentRow(i)
-                    found = True
-                    break
-            if not found:
-                self.category_list.setCurrentRow(0)
-        else:
-            self.category_list.setCurrentRow(0)
-
-        # بقیه تنظیمات
-        self.interval_spinbox.setValue(s.get("cookie_interval", 60))
-        self.pages_spinbox.setValue(s.get("pages", 3))
-        self.chat_enable_checkbox.setChecked(s.get("chat_enabled", True))
-        self.chat_message_input.setPlainText(s.get("chat_message", ""))
-        self.extract_phone_checkbox.setChecked(s.get("extract_phone", True))
-        self.max_phones_spinbox.setValue(s.get("max_phones", 10))
-        self.max_chats_spinbox.setValue(s.get("max_chats", 10))
-        self.sync_phone_chat_checkbox.setChecked(s.get("sync_phone_chat", True))
-        self.schedule_spinbox.setValue(s.get("schedule_interval", 0))
-
-        plat_name = "دیوار" if saved_plat == "divar" else "شیپور"
-        self._log("INFO", f"[تنظیمات] 📂 تنظیمات شماره {phone} ({plat_name}) بارگذاری شد.")
-        self._loading_settings = False
-        self._update_selection_info()
+            self._loading_settings = False
+            self._update_selection_info()
+            self._on_schedule_changed(self.schedule_spinbox.value())
 
     def _emit_schedules(self):
-        """اطلاع‌رسانی وضعیت زمانبندی‌ها به تب زمانبندی."""
-        info = {
-            "platform": self.get_selected_platform(),
-            "phone": self.get_selected_phone() or "",
-            "cities": self.selected_cities_count.text() if hasattr(self, 'selected_cities_count') else "",
-            "category": self.selected_category_label.text() if hasattr(self, 'selected_category_label') else "",
-            "interval_minutes": self._schedule_interval_minutes,
-            "remaining_seconds": self._schedule_remaining_seconds,
-            "running": self._schedule_running,
-            "in_progress": self._operation_in_progress,
-            "status": "🟢 در حال اجرا" if self._operation_in_progress else ("⏳ در انتظار" if self._schedule_running else "⏸️ متوقف"),
-        }
-        self.schedules_changed.emit([info])
+        """اطلاع‌رسانی وضعیت همه زمانبندی‌ها به تب زمانبندی."""
+        self._sync_legacy_schedule_state()
+        payload = []
+        for s in self._schedules.values():
+            item = dict(s)
+            # config ممکن است بزرگ باشد؛ برای جدول نیاز نیست.
+            item.pop("config", None)
+            payload.append(item)
+        payload.sort(key=lambda x: (x.get("status") != "running", x.get("next_run", datetime.now())))
+        self.schedules_changed.emit(payload)
 
     def _disable_schedule(self):
-        """⏸️ غیرفعال کردن کامل زمانبندی و ریست به حالت اولیه"""
-        self._log("INFO", "[زمانبندی] ⏸️ غیرفعال کردن زمانبندی...")
+        """حذف کامل همه زمانبندی‌ها از دکمه داخل تب اتوماسیون."""
+        if not self._schedules:
+            self.schedule_status_lbl.setText("⏸️ زمانبندی فعالی وجود ندارد")
+            return
 
-        if self._schedule_running:
-            self._stop_schedule()
+        if self._active_schedule_id and self._current_worker:
+            try:
+                if self._active_schedule_id in self._schedules:
+                    self._schedules[self._active_schedule_id]["requested_action"] = "delete"
+                self._current_worker.request_close()
+            except Exception:
+                pass
 
-        self.schedule_spinbox.setValue(0)
-        self.schedule_status_lbl.setText("⏸️ زمانبندی غیرفعال شد")
-        self._log("INFO", "[زمانبندی] ✅ زمانبندی به طور کامل غیرفعال شد.")
+        self._schedules.clear()
+        self._active_schedule_id = None
+        self._schedule_running = False
+        self._schedule_remaining_seconds = 0
+        self._schedule_phone = ""
+        self._schedule_timer.stop()
+        self._countdown_timer.stop()
+        self.stop_schedule_btn.setEnabled(False)
+        self.disable_schedule_btn.setEnabled(False)
+        self.schedule_status_lbl.setText("🗑️ همه زمانبندی‌ها حذف شدند")
+        self._log("INFO", "[زمانبندی] 🗑️ همه زمانبندی‌ها حذف شدند.")
+        self._emit_schedules()
 
     def _close_browser(self):
         if not self.is_browser_open():
